@@ -40,4 +40,37 @@ print "Reminder: Reminder of $x divided by $y = $rem\n\n";
 
 # Increment and Decrement Operators
 
+# Post increment the value of x
+my $total_value = $x++;
+
+print "\nTotal Value: $total_value\n";
+print "\nIncremented Value of x: $x\n";
+
+# Post decrement the value of x
+
+my $post_decremented_value = $x--;
+
+print "Post Decremented Value: $post_decremented_value\n";
+print "\nx: $x\n";
+
+# Pre Increment and Pre Decrement
+
+my $pre_increment_value = ++$x;
+print "Pre Increment Value: $pre_increment_value\n";
+print "x: $x\n\n";
+
+my $pre_decrement_value = --$x;
+print "Pre Decrement value = $pre_decrement_value\n";
+print "x: $x\n\n";
+
+# Concatenation
+
+print "$string_1\n";
+print "$string_2\n";
+
+my $concatenated_string = "$string_1 . $string_2";
+print "\nConcatenated String is: $concatenated_string\n";
+
+
+
 
