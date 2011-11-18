@@ -36,7 +36,8 @@ print "\nSum: $x + $y = $add\n";
 print "Substraction: $x - $y = $substract\n";
 print "Multiplication: $x x $y = $multiply\n";
 print "Division: $x / $y = $divide\n";
-print "Reminder: Reminder of $x divided by $y = $rem\n\n";
+print "Reminder: Reminder of $x divided by $y = $rem\n";
+print "Exp: $x to the power of $y = $exp\n\n";
 
 # Increment and Decrement Operators
 
@@ -64,11 +65,10 @@ print "Pre Decrement value = $pre_decrement_value\n";
 print "x: $x\n\n";
 
 # Concatenation
-
 print "$string_1\n";
 print "$string_2\n";
 
-my $concatenated_string = "$string_1 . $string_2";
+my $concatenated_string = $string_1 . ' ' . $string_2;
 print "\nConcatenated String is: $concatenated_string\n";
 
 
