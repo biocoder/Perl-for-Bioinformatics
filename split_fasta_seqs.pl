@@ -99,7 +99,7 @@ my ($help, $fasta_dir_or_fasta_file, $destination_dir, $seqlen, $no_of_seqs,
 my $is_valid_option = GetOptions('help|?' => \$help,
                                  'fasta_dir_or_fasta_file|fasta_file=s' => \$fasta_dir_or_fasta_file,
                                  'destination_dir=s' => \$destination_dir,
-                                 'seqlen:i' => \$seqlen,
+                                 'seqlen=i' => \$seqlen,
                                  'no-of-seqs=i' => \$no_of_seqs,
                                  'remove-dir' => \$remove_dir);
 
