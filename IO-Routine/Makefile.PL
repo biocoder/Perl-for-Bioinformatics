@@ -18,6 +18,9 @@ WriteMakefile(
 				 'Test::More' => 0,
 				},
 	      PREREQ_PM => {
+		            'strict'         => 0,
+		            'warnings'       => 0,
+		            'Carp'           => 0,
 			    'Module::Load'   => 0,
 			    'Pod::Usage'     => 0,
 			    'Exporter'       => 0

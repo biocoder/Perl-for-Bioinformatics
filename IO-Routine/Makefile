@@ -19,7 +19,7 @@
 #     MIN_PERL_VERSION => q[]
 #     NAME => q[IO::Routine]
 #     PL_FILES => {  }
-#     PREREQ_PM => { Pod::Usage=>q[0], Exporter=>q[0], Test::More=>q[0], Module::Load=>q[0] }
+#     PREREQ_PM => { Pod::Usage=>q[0], Test::More=>q[0], Module::Load=>q[0], warnings=>q[0], Exporter=>q[0], Carp=>q[0], strict=>q[0] }
 #     TEST_REQUIRES => {  }
 #     VERSION_FROM => q[lib/IO/Routine.pm]
 #     clean => { FILES=>q[IO-Routine-*] }
@@ -188,13 +188,10 @@ PERL_ARCHIVE       =
 PERL_ARCHIVE_AFTER = 
 
 
-TO_INST_PM = lib/.DS_Store \
-	lib/IO/Routine.pm
+TO_INST_PM = lib/IO/Routine.pm
 
 PM_TO_BLIB = lib/IO/Routine.pm \
-	blib/lib/IO/Routine.pm \
-	lib/.DS_Store \
-	blib/lib/.DS_Store
+	blib/lib/IO/Routine.pm
 
 
 # --- MakeMaker platform_constants section:
@@ -446,24 +443,24 @@ clean_subdirs :
 
 clean :: clean_subdirs
 	- $(RM_F) \
-	  so_locations perlmain.c \
-	  MYMETA.json *perl.core \
-	  blibdirs.ts perl$(EXE_EXT) \
-	  perl pm_to_blib \
-	  $(INST_ARCHAUTODIR)/extralibs.all core.*perl.*.? \
-	  $(BASEEXT).def core.[0-9][0-9][0-9] \
-	  core mon.out \
-	  $(BASEEXT).x core.[0-9][0-9][0-9][0-9] \
-	  $(BASEEXT).bso MYMETA.yml \
-	  core.[0-9] pm_to_blib.ts \
-	  *$(LIB_EXT) $(MAKE_APERL_FILE) \
-	  core.[0-9][0-9][0-9][0-9][0-9] $(BOOTSTRAP) \
-	  perl.exe *$(OBJ_EXT) \
-	  $(BASEEXT).exp core.[0-9][0-9] \
-	  lib$(BASEEXT).def $(INST_ARCHAUTODIR)/extralibs.ld \
-	  tmon.out 
+	  core.[0-9][0-9][0-9][0-9] MYMETA.json \
+	  *perl.core core.[0-9][0-9][0-9][0-9][0-9] \
+	  pm_to_blib.ts perlmain.c \
+	  mon.out tmon.out \
+	  perl.exe $(INST_ARCHAUTODIR)/extralibs.all \
+	  $(BOOTSTRAP) core.[0-9][0-9][0-9] \
+	  core.[0-9][0-9] $(BASEEXT).x \
+	  $(BASEEXT).bso *$(LIB_EXT) \
+	  core.*perl.*.? $(MAKE_APERL_FILE) \
+	  so_locations $(BASEEXT).exp \
+	  core *$(OBJ_EXT) \
+	  $(BASEEXT).def $(INST_ARCHAUTODIR)/extralibs.ld \
+	  MYMETA.yml pm_to_blib \
+	  perl$(EXE_EXT) lib$(BASEEXT).def \
+	  blibdirs.ts perl \
+	  core.[0-9] 
 	- $(RM_RF) \
-	  IO-Routine-* blib 
+	  blib IO-Routine-* 
 	- $(MV) $(FIRST_MAKEFILE) $(MAKEFILE_OLD) $(DEV_NULL)
 
 
@@ -504,10 +501,13 @@ metafile : create_distdir
 	$(NOECHO) $(ECHO) '    - t' >> META_new.yml
 	$(NOECHO) $(ECHO) '    - inc' >> META_new.yml
 	$(NOECHO) $(ECHO) 'requires:' >> META_new.yml
+	$(NOECHO) $(ECHO) '  Carp: 0' >> META_new.yml
 	$(NOECHO) $(ECHO) '  Exporter: 0' >> META_new.yml
 	$(NOECHO) $(ECHO) '  Module::Load: 0' >> META_new.yml
 	$(NOECHO) $(ECHO) '  Pod::Usage: 0' >> META_new.yml
 	$(NOECHO) $(ECHO) '  perl: 0' >> META_new.yml
+	$(NOECHO) $(ECHO) '  strict: 0' >> META_new.yml
+	$(NOECHO) $(ECHO) '  warnings: 0' >> META_new.yml
 	$(NOECHO) $(ECHO) 'version: 0.06' >> META_new.yml
 	-$(NOECHO) $(MV) META_new.yml $(DISTVNAME)/META.yml
 	$(NOECHO) $(ECHO) Generating META.json
@@ -545,10 +545,13 @@ metafile : create_distdir
 	$(NOECHO) $(ECHO) '      },' >> META_new.json
 	$(NOECHO) $(ECHO) '      "runtime" : {' >> META_new.json
 	$(NOECHO) $(ECHO) '         "requires" : {' >> META_new.json
+	$(NOECHO) $(ECHO) '            "Carp" : "0",' >> META_new.json
 	$(NOECHO) $(ECHO) '            "Exporter" : "0",' >> META_new.json
 	$(NOECHO) $(ECHO) '            "Module::Load" : "0",' >> META_new.json
 	$(NOECHO) $(ECHO) '            "Pod::Usage" : "0",' >> META_new.json
-	$(NOECHO) $(ECHO) '            "perl" : "0"' >> META_new.json
+	$(NOECHO) $(ECHO) '            "perl" : "0",' >> META_new.json
+	$(NOECHO) $(ECHO) '            "strict" : "0",' >> META_new.json
+	$(NOECHO) $(ECHO) '            "warnings" : "0"' >> META_new.json
 	$(NOECHO) $(ECHO) '         }' >> META_new.json
 	$(NOECHO) $(ECHO) '      }' >> META_new.json
 	$(NOECHO) $(ECHO) '   },' >> META_new.json
@@ -856,9 +859,12 @@ ppd :
 	$(NOECHO) $(ECHO) '    <AUTHOR>Kranti Konganti &lt;konganti@tamu.edu&gt;</AUTHOR>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <IMPLEMENTATION>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <PERLCORE VERSION=",0,0,0" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <REQUIRE NAME="Carp::" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <REQUIRE NAME="Exporter::" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <REQUIRE NAME="Module::Load" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <REQUIRE NAME="Pod::Usage" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <REQUIRE NAME="strict::" />' >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '        <REQUIRE NAME="warnings::" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <ARCHITECTURE NAME="darwin-2level-5.18" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '        <CODEBASE HREF="" />' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    </IMPLEMENTATION>' >> $(DISTNAME).ppd
@@ -869,8 +875,7 @@ ppd :
 
 pm_to_blib : $(FIRST_MAKEFILE) $(TO_INST_PM)
 	$(NOECHO) $(ABSPERLRUN) -MExtUtils::Install -e 'pm_to_blib({@ARGV}, '\''$(INST_LIB)/auto'\'', q[$(PM_FILTER)], '\''$(PERM_DIR)'\'')' -- \
-	  lib/IO/Routine.pm blib/lib/IO/Routine.pm \
-	  lib/.DS_Store blib/lib/.DS_Store 
+	  lib/IO/Routine.pm blib/lib/IO/Routine.pm 
 	$(NOECHO) $(TOUCH) pm_to_blib
 
 

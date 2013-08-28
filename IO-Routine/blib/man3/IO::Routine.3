@@ -161,25 +161,23 @@ Executes system level commands, while printing message to \s-1STDOUT.\s0
 .IP "\(bu" 4
 Checks for minimum version requirement for \s-1GNU\s0 Core Utils.
 .IP "\(bu" 4
-Prints \s-1TL\s0;DR version of required modules list.
-.IP "\(bu" 4
 Prints \s-1SVN\s0 version control information (If requested).
 .IP "\(bu" 4
 Gets current memory usage of the program ( in \s-1GB\s0(s) for Linux ).
 .SH "USAGE"
 .IX Header "USAGE"
-.Vb 1
-\&    use IO::Routine qw[check_and_load_modules];
+.Vb 2
+\&    use IO::Routine;
+\&    use Getopt::Long;
 \&
 \&    my $io = IO::Routine\->new();
-\&    $io\->check_and_load_modules([\*(AqGetopt::Long\*(Aq]);
 \&
-\&    my $is_valid_option = GetOptions(\*(Aqhelp|?\*(Aq => \e$help,
-\&                                     \*(Aqquiet\*(Aq => \e$quiet,
-\&                                     \*(Aqoutput=s\*(Aq => \e$output,
-\&                                     \*(Aqfile1=s\*(Aq => \e$file1,
-\&                                     \*(Aqfile2=s\*(Aq => \e$file2
-\&                                     );
+\&    my $is_valid_option = $io\->GetOptions(\*(Aqhelp|?\*(Aq => \e$help,
+\&                                          \*(Aqquiet\*(Aq => \e$quiet,
+\&                                          \*(Aqoutput=s\*(Aq => \e$output,
+\&                                          \*(Aqfile1=s\*(Aq => \e$file1,
+\&                                          \*(Aqfile2=s\*(Aq => \e$file2
+\&                                         );
 \&
 \&    $io\->verify_options($is_valid_option);
 \&    $io\->verify_files([$file2, $file2], [\*(Aqfile1 msg\*(Aq, \*(Aqfile2 msg\*(Aq])
@@ -200,17 +198,11 @@ Gets current memory usage of the program ( in \s-1GB\s0(s) for Linux ).
 .Ve
 .SH "SUBROUTINES/METHODS"
 .IX Header "SUBROUTINES/METHODS"
-.IP "\fIcheck_and_load_modules()\fR" 4
-.IX Item "check_and_load_modules()"
-.Sp
-.RS 5
-Checks and loads modules.
-.RE
 .IP "\fIverify_options()\fR" 4
 .IX Item "verify_options()"
 .Sp
 .RS 5
-Verifies options declared with Getopt.
+Verifies options declared with Getopt::Long.
 .RE
 .IP "\fIverify_files()\fR" 4
 .IX Item "verify_files()"

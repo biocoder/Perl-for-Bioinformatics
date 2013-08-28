@@ -18,8 +18,11 @@ no_index:
     - t
     - inc
 requires:
+  Carp: 0
   Exporter: 0
   Module::Load: 0
   Pod::Usage: 0
   perl: 0
+  strict: 0
+  warnings: 0
 version: 0.05

@@ -47,8 +47,6 @@ To avoid some of the repetetive stuff, this module:
 
 =item * Checks for minimum version requirement for GNU Core Utils.
 
-=item * Prints TL;DR version of required modules list.
-
 =item * Prints SVN version control information (If requested).
 
 =item * Gets current memory usage of the program ( in GB(s) for Linux ).
@@ -59,17 +57,17 @@ To avoid some of the repetetive stuff, this module:
 
 =over 4
 
-    use IO::Routine qw[check_and_load_modules];
+    use IO::Routine;
+    use Getopt::Long;
 
     my $io = IO::Routine->new();
-    $io->check_and_load_modules(['Getopt::Long']);
 
-    my $is_valid_option = GetOptions('help|?' => \$help,
-                                     'quiet' => \$quiet,
-                                     'output=s' => \$output,
-                                     'file1=s' => \$file1,
-                                     'file2=s' => \$file2
-                                     );
+    my $is_valid_option = $io->GetOptions('help|?' => \$help,
+                                          'quiet' => \$quiet,
+                                          'output=s' => \$output,
+                                          'file1=s' => \$file1,
+                                          'file2=s' => \$file2
+                                         );
 
     $io->verify_options($is_valid_option);
     $io->verify_files([$file2, $file2], ['file1 msg', 'file2 msg'])
@@ -94,25 +92,13 @@ To avoid some of the repetetive stuff, this module:
 
 =over 4
 
-=item check_and_load_modules()
-
-=back
-
-=over 5
-
-Checks and loads modules.
-
-=back
-
-=over 4
-
 =item verify_options()
 
 =back
 
 =over 5
 
-Verifies options declared with Getopt.
+Verifies options declared with Getopt::Long.
 
 =back
 
@@ -345,11 +331,15 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =cut
 
-BEGIN {
-  use vars qw[@ISA @EXPORT_OK];
-  @ISA = qw[Exporter];
-  @EXPORT_OK = qw[check_and_load_modules];
-}
+
+# Will deal when I have figured out to avoid code redundancy regarding
+# check_and_load_modules
+
+#BEGIN {
+#  use vars qw[@ISA @EXPORT_OK];
+#  @ISA = qw[Exporter];
+#  @EXPORT_OK = qw[check_and_load_modules];
+#}
 
 # IO::Routine Constructor
 
@@ -361,28 +351,31 @@ sub new {
 }
 
 
+############## Will deal with this block of code later ########################
+#
 # Check and load modules.
-
-sub check_and_load_modules {
-    my $self = shift;
-    my $module_list = shift;
-    my $is_module_loadable = 1;
-    my $req_modules = '';
-
-    foreach my $module (@$module_list) {
-      eval { load $module };
-      $is_module_loadable = 0,
-        $req_modules .= "$module, "
-	  if ( $@ );
-    }
-    $req_modules =~ s/\,\s+$//;
-
-    confess error($self,
-		  "Cannot load requested module(s):\n$req_modules\n\nMake sure that the Perl modules are in your path.\n\nHint: Use PERL5LIB environment variable.\n")
-        if (!$is_module_loadable);
-
-    return 1;
-}
+#
+#sub check_and_load_modules {
+#    my $self = shift;
+#    my $module_list = shift;
+#    my $is_module_loadable = 1;
+#    my $req_modules = '';
+#
+#    foreach my $module (@$module_list) {
+#      #eval { load $module };
+#      eval "use $module; 1";
+#      $is_module_loadable = 0,
+#        $req_modules .= "$module, "
+#	  if ( $@ );
+#    }
+#    $req_modules =~ s/\,\s+$//;
+#
+#    confess error($self,
+#		  "Cannot load requested module(s):\n$req_modules\n\nMake sure that the Perl modules are in your path.\n\nHint: Use PERL5LIB environment #variable.\n")
+#        if (!$is_module_loadable);
+#
+#    return $self;
+#}
 
 
 # Check if all options entered by user are valid with Getopt.
