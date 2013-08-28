@@ -332,7 +332,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 =cut
 
 
-# Will deal when I have figured out to avoid code redundancy regarding
+# Will deal when I have figured out how to avoid code redundancy regarding
 # check_and_load_modules
 
 #BEGIN {
