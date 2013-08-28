@@ -460,10 +460,10 @@ sub is_dir_empty {
     close $dh;
 
     if ($there_are_files) {
-        return 0;
+        return 1;
     }
     else {
-        return 1;
+        return 0;
     }
 }
 
