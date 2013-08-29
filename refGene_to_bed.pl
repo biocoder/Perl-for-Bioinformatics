@@ -15,18 +15,23 @@ my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-08-29 12:25:31 -0600 (Thu, 29 Au
 my ($VERSION) = q$LastChangedRevision: 19 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
-my ($quiet, $refGeneTxt, $bedOut, $help);
+my ($quiet, $refGeneTxt, $bedOut, $bed_fh, $help);
 my $is_valid_option = GetOptions ('help|?'     => \$help,
                                   'quiet'      => \$quiet,
                                   'bed=s'      => \$bedOut,
 				  'refGene=s'  => \$refGeneTxt
 				 );
 
-$io->verify_options([$is_valid_option, $bedOut],
+$io->verify_options([$is_valid_option],
 		   $help);
 $io->verify_files([$refGeneTxt], ['refGene.txt']);
 my $refGeneTxt_fh = $io->open_file('<', $refGeneTxt);
-my $bed_fh = $io->open_file('>', $bedOut);
+if ( !$bedOut || !defined($bedOut) ) {
+  $bed_fh = *STDOUT;
+}
+else {
+  $bed_fh = $io->open_file('>', $bedOut);
+}
 
 $io->this_script_info($0, $VERSION, $AUTHORFULLNAME, $LASTCHANGEDBY, $LASTCHANGEDDATE, $quiet);
 
@@ -69,6 +74,7 @@ Examples:
 =head1 DESCRIPTION
 
 This script will use the following columns of the refGene table from UCSC to generate BED format.
+If output file is not specified with -b or --bed, the lines are printed to STDOUT.
 
   chrom
   strand
