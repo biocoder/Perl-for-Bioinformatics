@@ -19,7 +19,7 @@
 #     MIN_PERL_VERSION => q[]
 #     NAME => q[IO::Routine]
 #     PL_FILES => {  }
-#     PREREQ_PM => { Pod::Usage=>q[0], Test::More=>q[0], Carp=>q[0], Module::Load=>q[0], warnings=>q[0], Exporter=>q[0], strict=>q[0] }
+#     PREREQ_PM => { Test::More=>q[0], warnings=>q[0], Module::Load=>q[0], Carp=>q[0], Pod::Usage=>q[0], strict=>q[0], Exporter=>q[0] }
 #     TEST_REQUIRES => {  }
 #     VERSION_FROM => q[lib/IO/Routine.pm]
 #     clean => { FILES=>q[IO-Routine-*] }
@@ -446,22 +446,22 @@ clean_subdirs :
 
 clean :: clean_subdirs
 	- $(RM_F) \
-	  lib$(BASEEXT).def core \
-	  *$(OBJ_EXT) *perl.core \
-	  perl pm_to_blib \
-	  $(BASEEXT).x core.[0-9][0-9] \
-	  $(BASEEXT).bso core.[0-9][0-9][0-9][0-9][0-9] \
-	  $(BASEEXT).def core.[0-9] \
-	  $(INST_ARCHAUTODIR)/extralibs.all $(INST_ARCHAUTODIR)/extralibs.ld \
-	  $(BOOTSTRAP) $(MAKE_APERL_FILE) \
-	  pm_to_blib.ts MYMETA.yml \
+	  core.*perl.*.? *$(LIB_EXT) \
+	  mon.out core.[0-9][0-9][0-9][0-9] \
+	  tmon.out $(BASEEXT).x \
+	  $(BOOTSTRAP) perl.exe \
+	  pm_to_blib perlmain.c \
+	  $(INST_ARCHAUTODIR)/extralibs.all so_locations \
+	  *$(OBJ_EXT) core.[0-9][0-9][0-9] \
+	  core $(BASEEXT).def \
+	  lib$(BASEEXT).def pm_to_blib.ts \
+	  $(INST_ARCHAUTODIR)/extralibs.ld core.[0-9][0-9] \
 	  $(BASEEXT).exp perl$(EXE_EXT) \
-	  core.[0-9][0-9][0-9] perl.exe \
-	  MYMETA.json core.[0-9][0-9][0-9][0-9] \
-	  so_locations perlmain.c \
-	  blibdirs.ts tmon.out \
-	  mon.out *$(LIB_EXT) \
-	  core.*perl.*.? 
+	  *perl.core MYMETA.json \
+	  $(MAKE_APERL_FILE) blibdirs.ts \
+	  core.[0-9][0-9][0-9][0-9][0-9] perl \
+	  $(BASEEXT).bso core.[0-9] \
+	  MYMETA.yml 
 	- $(RM_RF) \
 	  blib IO-Routine-* 
 	- $(MV) $(FIRST_MAKEFILE) $(MAKEFILE_OLD) $(DEV_NULL)
@@ -476,7 +476,7 @@ realclean_subdirs :
 # Delete temporary files (via clean) and also delete dist files
 realclean purge ::  clean realclean_subdirs
 	- $(RM_F) \
-	  $(FIRST_MAKEFILE) $(MAKEFILE_OLD) 
+	  $(MAKEFILE_OLD) $(FIRST_MAKEFILE) 
 	- $(RM_RF) \
 	  $(DISTVNAME) 
 

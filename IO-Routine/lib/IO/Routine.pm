@@ -385,16 +385,18 @@ sub verify_options {
     my $valid_options = shift;
     my $help = shift;
 
-    if (!$valid_options) {
-        pod2usage(-exitval => 2,
-		  -verbose => 2,
-                  -msg => "\nSee $0 -h for options.\n");
-    }
-
     if ($help) {
         pod2usage(-exitval => 1,
                   -sections => "OPTIONS",
                   -msg => "\n");
+    }
+
+    foreach my $valid_option (@$valid_options) {
+        if (!$valid_options || !defined($valid_option)) {
+            pod2usage(-exitval => 2,
+                      -verbose => 2,
+                      -msg => "\nSee $0 -h for options.\n");
+        }
     }
     return;
 }
@@ -571,7 +573,8 @@ sub open_file {
 # Subroutine to print SCRIPT Version. Print this script's info
 
 sub this_script_info {
-    my ($self, $PRGNAME, $VERSION, $AUTHORFULLNAME, $CHANGEDBY, $LASTCHANGEDDATE) = @_;
+    my ($self, $PRGNAME, $VERSION, $AUTHORFULLNAME, $CHANGEDBY, $LASTCHANGEDDATE, $quiet) = @_;
+    return if $quiet;
     print "\n", '@ ', '*' x 78, ' @', "\n";
     print "    Program Name       :  " , $PRGNAME, "\n";
     print "    Version            :  $VERSION\n" if ($VERSION);
@@ -579,7 +582,6 @@ sub this_script_info {
     print "    Last Changed By    : $CHANGEDBY\n" if ($CHANGEDBY);
     print "    Last Changed Date  : $LASTCHANGEDDATE\n";
     print '@ ', '*' x 78, ' @', "\n\n";
-    return;
 }
 
 # Subroutine to check the least required version of system command.
