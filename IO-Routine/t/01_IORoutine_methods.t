@@ -3,7 +3,7 @@
 use 5.14.2;
 use strict;
 use warnings FATAL => 'all';
-use Test::More tests => 16;
+use Test::More tests => 21;
 
 my ($pathTest, $errorTest, $openFileTest, $tmpLoc) = 0;
 $|=0;
@@ -28,7 +28,7 @@ SKIP: {
 }
 
 diag( "Testing method verify_options()" );
-ok( defined( $io->verify_options( "1", "0" ) ), 'verify_options() - Requires Pod::Usage when using IO::Routine.');
+ok( defined( $io ) && can_ok($io, 'verify_options'), 'verify_options() - Requires Pod::Usage when using IO::Routine.');
 
 SKIP: {
   skip(' ... Skipping methods: verify_input_files() ... Unable to test without providing UNIX paths.', 1)
@@ -63,10 +63,10 @@ SKIP: {
 $ENV{'PATH'} = '/bin/';
 
 diag( "Testing method execute_system_command()" );
-ok( $io->execute_system_command( "date", "Testing verbosity ... ", '1' ) , 'execute_system_command() - Is loadable and prints debug messages to STDOUT');
+ok( defined( $io ) && can_ok($io, 'execute_system_command'), 'execute_system_command() - Is loadable and prints debug messages to STDOUT');
 
 diag( "Testing method execute_get_sys_cmd_output()" );
-ok( defined ($io->execute_get_sys_cmd_output( "date", "Testing execution of system level command: date ... ", '1' ) ) , 'execute_get_sys_cmd_output() - Is loadable and prints debug messages to STDOUT');
+ok( defined( $io ) && can_ok($io, 'execute_get_sys_cmd_output'), 'execute_get_sys_cmd_output() - Is loadable and prints debug messages to STDOUT');
 
 diag( "Testing method open_file()" );
 if ( $ENV{'TMP'} ) {
@@ -94,10 +94,9 @@ diag( "Testing method is_dir_empty()" );
 ok( defined( $io->is_dir_empty("$tmpLoc") ), 'is_dir_empty() checks for empty directory as intended.');
 
 diag( "Testing method warning()" );
-ok( $io->warning( "Testing warnings ... " ) , 'warning() - Is loadable and prints warning messages to STDOUT');
+ok( defined( $io ) && can_ok($io, 'warning'), 'warning() - Is loadable and prints warning messages to STDOUT');
 
 diag( "Testing method this_script_info()" );
-ok( $io->this_script_info('IO::Routine', "$IO::Routine::VERSION", 'Kranti Konganti', ' konganti', ' 2012-21-2012' ),
-    'this_script_info() - Prints the script banner to STDOUT');
+ok( defined( $io ) && can_ok($io, 'this_script_info'), 'this_script_info() - Prints the script banner to STDOUT');
 
 diag("\n\nTesting Complete!\n\n");

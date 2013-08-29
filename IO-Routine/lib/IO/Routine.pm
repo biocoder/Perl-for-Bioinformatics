@@ -396,7 +396,7 @@ sub verify_options {
                   -sections => "OPTIONS",
                   -msg => "\n");
     }
-    return $self;
+    return;
 }
 
 
@@ -421,7 +421,7 @@ sub verify_files {
 
         $file_no++;
     }
-    return $self;
+    return;
 }
 
 # Check if the directory is empty
@@ -502,13 +502,13 @@ sub execute_system_command {
     my $quiet = shift;
 
     if (!$quiet) {
-       print $print_msg if ($print_msg);
+       print "\n$print_msg\n\n" if ($print_msg);
        system ("$command") if ($command);
     }
     elsif ($quiet) {
         system ("$command 1>/dev/null 2>/dev/null") if ($command);
     }
-    return $self;
+    return;
 }
 
 # Subroutine to execute and return system command's output
@@ -520,7 +520,7 @@ sub execute_get_sys_cmd_output {
     my $quiet = shift;
 
     if (!$quiet) {
-       print $print_msg if ($print_msg);
+       print "\n$print_msg\n\n" if ($print_msg);
      }
 
     my $cmd_out = qx($command 2>&1);
@@ -537,7 +537,7 @@ sub error {
     print STDERR "\nERROR!\n------\n$msg\n\n";
     pod2usage(-exitval => 2,
 	      -verbose => 2);
-    return $self;
+    return;
 }
 
 
@@ -547,7 +547,7 @@ sub warning {
     my $self = shift;
     my $msg = shift;
     print STDOUT "\nWARNING!\n--------\n$msg\n\n";
-    return $self;
+    return;
 }
 
 # Subroutine to open files and return file handle
@@ -579,7 +579,7 @@ sub this_script_info {
     print "    Last Changed By    : $CHANGEDBY\n" if ($CHANGEDBY);
     print "    Last Changed Date  : $LASTCHANGEDDATE\n";
     print '@ ', '*' x 78, ' @', "\n\n";
-    return $self;
+    return;
 }
 
 # Subroutine to check the least required version of system command.
@@ -605,7 +605,7 @@ sub check_sys_level_cmds {
             }
         }
     }
-    return $self;
+    return;
 }
 
 # Subroutine to strip leading and trailing white spaces from a line
@@ -642,6 +642,7 @@ sub get_mem_usage {
         return ('Unable to get vmem', 'Unable to get rmem') if (!$curr_v_mem_usage || !$curr_r_mem_usage);
         return ($curr_v_mem_usage, $curr_r_mem_usage);
     }
+    return;
 }
 
 

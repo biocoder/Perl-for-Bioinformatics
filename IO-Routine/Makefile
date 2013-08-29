@@ -19,11 +19,11 @@
 #     MIN_PERL_VERSION => q[]
 #     NAME => q[IO::Routine]
 #     PL_FILES => {  }
-#     PREREQ_PM => { Pod::Usage=>q[0], Test::More=>q[0], Module::Load=>q[0], warnings=>q[0], Exporter=>q[0], Carp=>q[0], strict=>q[0] }
+#     PREREQ_PM => { Pod::Usage=>q[0], Test::More=>q[0], Carp=>q[0], Module::Load=>q[0], warnings=>q[0], Exporter=>q[0], strict=>q[0] }
 #     TEST_REQUIRES => {  }
 #     VERSION_FROM => q[lib/IO/Routine.pm]
 #     clean => { FILES=>q[IO-Routine-*] }
-#     dist => { COMPRESS=>q[gzip -9f], SUFFIX=>q[gz] }
+#     dist => { SUFFIX=>q[gz], COMPRESS=>q[gzip -9f] }
 
 # --- MakeMaker post_initialize section:
 
@@ -188,9 +188,12 @@ PERL_ARCHIVE       =
 PERL_ARCHIVE_AFTER = 
 
 
-TO_INST_PM = lib/IO/Routine.pm
+TO_INST_PM = lib/.DS_Store \
+	lib/IO/Routine.pm
 
-PM_TO_BLIB = lib/IO/Routine.pm \
+PM_TO_BLIB = lib/.DS_Store \
+	blib/lib/.DS_Store \
+	lib/IO/Routine.pm \
 	blib/lib/IO/Routine.pm
 
 
@@ -443,22 +446,22 @@ clean_subdirs :
 
 clean :: clean_subdirs
 	- $(RM_F) \
-	  core.[0-9][0-9][0-9][0-9] MYMETA.json \
-	  *perl.core core.[0-9][0-9][0-9][0-9][0-9] \
-	  pm_to_blib.ts perlmain.c \
-	  mon.out tmon.out \
-	  perl.exe $(INST_ARCHAUTODIR)/extralibs.all \
-	  $(BOOTSTRAP) core.[0-9][0-9][0-9] \
-	  core.[0-9][0-9] $(BASEEXT).x \
-	  $(BASEEXT).bso *$(LIB_EXT) \
-	  core.*perl.*.? $(MAKE_APERL_FILE) \
-	  so_locations $(BASEEXT).exp \
-	  core *$(OBJ_EXT) \
-	  $(BASEEXT).def $(INST_ARCHAUTODIR)/extralibs.ld \
-	  MYMETA.yml pm_to_blib \
-	  perl$(EXE_EXT) lib$(BASEEXT).def \
-	  blibdirs.ts perl \
-	  core.[0-9] 
+	  lib$(BASEEXT).def core \
+	  *$(OBJ_EXT) *perl.core \
+	  perl pm_to_blib \
+	  $(BASEEXT).x core.[0-9][0-9] \
+	  $(BASEEXT).bso core.[0-9][0-9][0-9][0-9][0-9] \
+	  $(BASEEXT).def core.[0-9] \
+	  $(INST_ARCHAUTODIR)/extralibs.all $(INST_ARCHAUTODIR)/extralibs.ld \
+	  $(BOOTSTRAP) $(MAKE_APERL_FILE) \
+	  pm_to_blib.ts MYMETA.yml \
+	  $(BASEEXT).exp perl$(EXE_EXT) \
+	  core.[0-9][0-9][0-9] perl.exe \
+	  MYMETA.json core.[0-9][0-9][0-9][0-9] \
+	  so_locations perlmain.c \
+	  blibdirs.ts tmon.out \
+	  mon.out *$(LIB_EXT) \
+	  core.*perl.*.? 
 	- $(RM_RF) \
 	  blib IO-Routine-* 
 	- $(MV) $(FIRST_MAKEFILE) $(MAKEFILE_OLD) $(DEV_NULL)
@@ -875,6 +878,7 @@ ppd :
 
 pm_to_blib : $(FIRST_MAKEFILE) $(TO_INST_PM)
 	$(NOECHO) $(ABSPERLRUN) -MExtUtils::Install -e 'pm_to_blib({@ARGV}, '\''$(INST_LIB)/auto'\'', q[$(PM_FILTER)], '\''$(PERM_DIR)'\'')' -- \
+	  lib/.DS_Store blib/lib/.DS_Store \
 	  lib/IO/Routine.pm blib/lib/IO/Routine.pm 
 	$(NOECHO) $(TOUCH) pm_to_blib
 
