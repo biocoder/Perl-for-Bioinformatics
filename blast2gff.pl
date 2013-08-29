@@ -1,12 +1,12 @@
-#!/usr/bin/env perl
+#!/opt/perl/bin/perl
 
 use strict;
 use warnings;
 use Carp;
 
 my ($CHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2012-12-01 11:12:22 -0600 (Sat, 01 Dec 2012) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 44 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-07-29 11:08:34 -0500 (Mon, 29 Jul 2013) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 49 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 
@@ -20,14 +20,15 @@ this_script_info();
 # Declare initial global variables
 
 my ($quiet, $blast_res_file, $output, $help, $num_hits, $identity_cutoff,
-    $coverage_cutoff, $gff_feature_name);
+    $coverage_cutoff, $gff_feature_name, $min_hsp_length);
 my $is_valid_option = GetOptions ('help|?' => \$help,
                                   'quiet' => \$quiet,
                                   'output=s' => \$output,
                                   'blast-res-file=s' => \$blast_res_file,
                                   'num-hits=i' => \$num_hits,
                                   'identity-cutoff=i' => \$identity_cutoff,
-                                  'coverage-cutoff=i' => \$coverage_cutoff
+                                  'coverage-cutoff=i' => \$coverage_cutoff,
+				  'min-hsp-length=i' => \$min_hsp_length
                                   );
 
 # Check for the validity of options
@@ -37,6 +38,7 @@ verify_input_files([$blast_res_file], ['BLAST Result']);
 # Set default values
 $identity_cutoff = 0 if (!$identity_cutoff);
 $coverage_cutoff = 0 if (!$coverage_cutoff);
+$min_hsp_length = 0 if (!$min_hsp_length);
 $num_hits = 1 if (!$num_hits);
 $output = $ENV{'PWD'} if (!$output);
 $output = validate_create_path($output, 'create', 'Output');
@@ -71,7 +73,7 @@ while (my $blast_res = $blast_res_file_obj->next_result) {
         next if ($hit->num_hsps == 0);
 
         my $query_coverage = $hit->frac_aligned_query;
-        my $percent_identity = $hit->frac_identical;
+        my $percent_identity = $hit->frac_identical('hit');
         my $evalue = $hit->significance;
 
         #print "$query_name\t$hit_name\tQL:$query_length\tHitCov:$hit_coverage\nQCOV:$query_coverage\tHI:$percent_identity\n\n";
@@ -83,20 +85,27 @@ while (my $blast_res = $blast_res_file_obj->next_result) {
 
         if ($query_coverage >= $coverage_cutoff && $percent_identity >= $identity_cutoff) {
             while (my $hsp = $hit->next_hsp) {
-                my $corresponding_chr_start = $chr_start + $hsp->start - 1;
-                my $corresponding_chr_end = $chr_end + $hsp->end - 1;
-                my $gff_feature = new Bio::SeqFeature::Generic(-seq_id => $chr,
+		next if ($hsp->length('hit') <= $min_hsp_length);
+		
+                
+		my $corresponding_chr_start = ( $chr_start + $hsp->start ) - 1;
+                my $corresponding_chr_end = ( $chr_start + $hsp->end ) - 1;
+                
+		my $gff_feature = new Bio::SeqFeature::Generic(-seq_id => $chr,
                                                                -source_tag => 'BLAST',
-                                                               -strand => $hsp->strand('query'),
+                                                               -strand => $hsp->strand('hit'),
                                                                -primary => $gff_feature_name,
                                                                -display_name => $hit->name,
                                                                -display_id => $hit->name,
                                                                -seq_name => $hit->name,
-                                                               -tag => {desc => $hit->name . $hit->description},
+                                                               -tag => {query_id => $query_name,
+									hit_id => $hit->name . $hit->description,
+							                hit_ident => $percent_identity,
+							                hsp_match_len => $hsp->length('total')},
                                                                -score => $hsp->score,
                                                                -start => $corresponding_chr_start,
                                                                -end => $corresponding_chr_end,
-                                                               -frame => '.'
+                                                               -frame => "."
                                                                );
                 $gff_out->write_feature($gff_feature);
 
@@ -324,6 +333,11 @@ blast2gff.pl takes the following arguments:
   Integer value to filter hits based on the query coverage value. (i.e percent
   bases of the query sequence that matched in the database).
   Default: Disabled
+
+=item -m or --min-hsp-length (Optional)
+
+  Minimum length of HSP hit participating in the alignment to filter the results.
+  Default: 0
 
 =item -n or --num-hits (Optional)
 
