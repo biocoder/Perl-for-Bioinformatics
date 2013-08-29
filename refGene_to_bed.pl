@@ -22,7 +22,8 @@ my $is_valid_option = GetOptions ('help|?'     => \$help,
 				  'refGene=s'  => \$refGeneTxt
 				 );
 
-$io->verify_options($is_valid_option);
+$io->verify_options([$is_valid_option, $bedOut],
+		   $help);
 $io->verify_files([$refGeneTxt], ['refGene.txt']);
 my $refGeneTxt_fh = $io->open_file('<', $refGeneTxt);
 my $bed_fh = $io->open_file('>', $bedOut);
