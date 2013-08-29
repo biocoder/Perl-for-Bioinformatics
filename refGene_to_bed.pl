@@ -11,7 +11,7 @@ use IO::Routine;
 my $io = IO::Routine->new();
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: biocoder $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-29-08 12:25:31 -0600 (Thu, 29 Aug 2013) $ =~ m/.+?\:(.+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-08-29 12:25:31 -0600 (Thu, 29 Aug 2013) $ =~ m/.+?\:(.+)/;
 my ($VERSION) = q$LastChangedRevision: 19 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
