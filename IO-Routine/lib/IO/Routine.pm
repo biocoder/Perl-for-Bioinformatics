@@ -69,7 +69,8 @@ To avoid some of the repetetive stuff, this module:
                                           'file2=s' => \$file2
                                          );
 
-    $io->verify_options($is_valid_option);
+    $io->verify_options([$is_valid_option, $file1],
+                        $help);
     $io->verify_files([$file2, $file2], ['file1 msg', 'file2 msg'])
 
     my $output = $io->validate_create_path($output, 'create');
