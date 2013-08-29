@@ -64,6 +64,8 @@ Examples:
 
     perl refGene_to_bed.pl -r refGene.txt -b bedOutput.txt
 
+    perl refGene_to_bed.pl -r refGene.txt -b bedOutput.txt -q
+
 =head1 DESCRIPTION
 
 This script will use the following columns of the refGene table from UCSC to generate BED format.
