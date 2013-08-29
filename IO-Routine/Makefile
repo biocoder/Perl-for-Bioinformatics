@@ -19,7 +19,7 @@
 #     MIN_PERL_VERSION => q[]
 #     NAME => q[IO::Routine]
 #     PL_FILES => {  }
-#     PREREQ_PM => { Pod::Usage=>q[0], Test::More=>q[0], Module::Load=>q[0], warnings=>q[0], Exporter=>q[0], Carp=>q[0], strict=>q[0] }
+#     PREREQ_PM => { Exporter=>q[0], Test::More=>q[0], strict=>q[0], Carp=>q[0], warnings=>q[0], Module::Load=>q[0], Pod::Usage=>q[0] }
 #     TEST_REQUIRES => {  }
 #     VERSION_FROM => q[lib/IO/Routine.pm]
 #     clean => { FILES=>q[IO-Routine-*] }
@@ -443,24 +443,24 @@ clean_subdirs :
 
 clean :: clean_subdirs
 	- $(RM_F) \
-	  core.[0-9][0-9][0-9][0-9] MYMETA.json \
-	  *perl.core core.[0-9][0-9][0-9][0-9][0-9] \
-	  pm_to_blib.ts perlmain.c \
-	  mon.out tmon.out \
-	  perl.exe $(INST_ARCHAUTODIR)/extralibs.all \
-	  $(BOOTSTRAP) core.[0-9][0-9][0-9] \
-	  core.[0-9][0-9] $(BASEEXT).x \
-	  $(BASEEXT).bso *$(LIB_EXT) \
-	  core.*perl.*.? $(MAKE_APERL_FILE) \
-	  so_locations $(BASEEXT).exp \
-	  core *$(OBJ_EXT) \
-	  $(BASEEXT).def $(INST_ARCHAUTODIR)/extralibs.ld \
-	  MYMETA.yml pm_to_blib \
-	  perl$(EXE_EXT) lib$(BASEEXT).def \
-	  blibdirs.ts perl \
-	  core.[0-9] 
+	  tmon.out MYMETA.json \
+	  core.[0-9] perlmain.c \
+	  $(BOOTSTRAP) pm_to_blib.ts \
+	  core.*perl.*.? core \
+	  *$(LIB_EXT) pm_to_blib \
+	  so_locations core.[0-9][0-9][0-9] \
+	  *perl.core mon.out \
+	  $(INST_ARCHAUTODIR)/extralibs.ld perl \
+	  perl$(EXE_EXT) blibdirs.ts \
+	  core.[0-9][0-9][0-9][0-9] $(BASEEXT).exp \
+	  $(BASEEXT).bso MYMETA.yml \
+	  core.[0-9][0-9] $(BASEEXT).def \
+	  *$(OBJ_EXT) perl.exe \
+	  $(INST_ARCHAUTODIR)/extralibs.all $(BASEEXT).x \
+	  core.[0-9][0-9][0-9][0-9][0-9] lib$(BASEEXT).def \
+	  $(MAKE_APERL_FILE) 
 	- $(RM_RF) \
-	  blib IO-Routine-* 
+	  IO-Routine-* blib 
 	- $(MV) $(FIRST_MAKEFILE) $(MAKEFILE_OLD) $(DEV_NULL)
 
 
@@ -473,7 +473,7 @@ realclean_subdirs :
 # Delete temporary files (via clean) and also delete dist files
 realclean purge ::  clean realclean_subdirs
 	- $(RM_F) \
-	  $(FIRST_MAKEFILE) $(MAKEFILE_OLD) 
+	  $(MAKEFILE_OLD) $(FIRST_MAKEFILE) 
 	- $(RM_RF) \
 	  $(DISTVNAME) 
 

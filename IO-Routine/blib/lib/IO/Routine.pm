@@ -332,7 +332,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 =cut
 
 
-# Will deal when I have figured out to avoid code redundancy regarding
+# Will deal when I have figured out how to avoid code redundancy regarding
 # check_and_load_modules
 
 #BEGIN {
@@ -502,7 +502,7 @@ sub execute_system_command {
     my $quiet = shift;
 
     if (!$quiet) {
-       print $print_msg if ($print_msg);
+       print "\n\n$print_msg" if ($print_msg);
        system ("$command") if ($command);
     }
     elsif ($quiet) {
@@ -520,7 +520,7 @@ sub execute_get_sys_cmd_output {
     my $quiet = shift;
 
     if (!$quiet) {
-       print $print_msg if ($print_msg);
+       print "\n\n$print_msg" if ($print_msg);
      }
 
     my $cmd_out = qx($command 2>&1);
