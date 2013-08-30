@@ -6,8 +6,8 @@
 # PM Distro #
 ##############################
 *.gz
-/IO-Routine/blib
+/IO-Routine/blib/*
 /IO-Routine/Makefile
-/IO-Routine/pm_to_blib
+/IO-Routine/pm_to_blib/*
 /IO-Routine/MYMETA.json
 /IO-Routine/MYMETA.yml
