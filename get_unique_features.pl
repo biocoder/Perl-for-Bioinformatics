@@ -75,8 +75,8 @@ while (my $line = <$s_fh>) {
   $io->error('Cannot find chromosome column') if ($cols[$chr_s] !~ m/^chr/i);
   $cols[$chr_s] = lc ($cols[$chr_s]);
 
-  if (!exists $seen_s{$cols[$chr_s]} . $cols[$sc1] . $cols[$sc2]}) {
-      $seen_s{$cols[$chr_s]} . $cols[$sc1] . $cols[$sc2]} = 1;
+  if (!exists $seen_s{$cols[$chr_s] . $cols[$sc1] . $cols[$sc2]}) {
+      $seen_s{$cols[$chr_s] . $cols[$sc1] . $cols[$sc2]} = 1;
       push @{$store_s_coords{$cols[$chr_s]}{$cols[$sc1]}}, $cols[$sc2];
   }
 }
