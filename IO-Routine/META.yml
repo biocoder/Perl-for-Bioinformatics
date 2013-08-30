@@ -22,4 +22,4 @@ requires:
   Module::Load: 0
   Pod::Usage: 0
   perl: 0
-version: 0.05
+version: 0.06
