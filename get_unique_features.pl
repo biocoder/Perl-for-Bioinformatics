@@ -10,7 +10,7 @@ my $io = IO::Routine->new();
 
 my ($help, $quiet, $sc1, $sc2, $cc1, $cc2,
     $sf, $cf, $chr_s, $chr_c,
-    %seen_coord, %store_s_coords,
+    %seen_coord, %store_s_coords, %seen_s,
     $unique);
 
 my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
@@ -74,47 +74,44 @@ while (my $line = <$s_fh>) {
   my @cols = split/\t/, $line;
   $io->error('Cannot find chromosome column') if ($cols[$chr_s] !~ m/^chr/i);
   $cols[$chr_s] = lc ($cols[$chr_s]);
-  #print "$cols[$chr_s]\t$cols[$sc1]\t$cols[$sc2]\n";
-  $store_s_coords{$cols[$chr_s]}{$cols[$sc1]} = $cols[$sc2]
-    if(!exists $store_s_coords{$cols[$chr_s]}{$cols[$sc1]});
+
+  if (!exists $seen_s{$cols[$chr_s]} . $cols[$sc1] . $cols[$sc2]}) {
+      $seen_s{$cols[$chr_s]} . $cols[$sc1] . $cols[$sc2]} = 1;
+      push @{$store_s_coords{$cols[$chr_s]}{$cols[$sc1]}}, $cols[$sc2];
+  }
 }
 
 # Now, extract either common or unique features.
 
 while (my $line = <$c_fh>) {
-  chomp $line;
-  my @cols = split/\t/, $line;
-  $io->error('Cannot find chromosome column') if ($cols[$chr_c] !~ m/^chr/i);
-  $cols[$chr_c] = lc($cols[$chr_c]);
-  #print "$cols[$chr_c]\t$cols[$cc1]\t$cols[$cc2]\n";
+    chomp $line;
+    my @cols = split/\t/, $line;
+    $io->error('Cannot find chromosome column') if ($cols[$chr_c] !~ m/^chr/i);
+    $cols[$chr_c] = lc($cols[$chr_c]);
+    #print "$cols[$chr_c]\t$cols[$cc1]\t$cols[$cc2]\n";
 
-  if (exists $store_s_coords{$cols[$chr_c]}) {
-    foreach my $left_coord (sort {$a <=> $b} keys %{$store_s_coords{$cols[$chr_c]}}) {
-      if ($cols[$cc1] <= $left_coord &&
-	  $cols[$cc1] <= $store_s_coords{$cols[$chr_c]}{$left_coord} &&
-	  $cols[$cc2] >= $left_coord &&
-	  $cols[$cc2] <= $store_s_coords{$cols[$chr_c]}{$left_coord}) {
-	print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
-      }
-      elsif ($cols[$cc1] >= $left_coord &&
-	     $cols[$cc1] <= $store_s_coords{$cols[$chr_c]}{$left_coord} &&
-	     $cols[$cc2] >= $left_coord &&
-	     $cols[$cc2] <= $store_s_coords{$cols[$chr_c]}{$left_coord}) {
-	print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
-      }
-      elsif ($cols[$cc1] >= $left_coord &&
-	     $cols[$cc1] <= $store_s_coords{$cols[$chr_c]}{$left_coord} &&
-	     $cols[$cc2] >= $left_coord &&
-	     $cols[$cc2] >= $store_s_coords{$cols[$chr_c]}{$left_coord} ) {
-	print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
-      }
+    if (exists $store_s_coords{$cols[$chr_c]}) {
+        foreach my $left_coord (sort {$a <=> $b} keys %{$store_s_coords{$cols[$chr_c]}}) {
+            foreach my $right_coord (sort {$a <=> $b} values @{$store_s_coords{$cols[$chr_c]}{$left_coord}}) {
+                if ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
+                    print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
+                }
+                elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
+                    print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
+                }
+                elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord ) {
+                    print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
+                }
+            }
+        }
+        foreach my $left_coord (sort {$a <=> $b} keys %{$store_s_coords{$cols[$chr_c]}}) {
+            foreach my $right_coord(sort {$a <=> $b} values @{$store_s_coords{$cols[$chr_c]}{$left_coord}}) {
+                if (!is_duplicate($line) && defined $unique) {
+                    print $j_fh $line, "\n";
+                }
+            }
+        }
     }
-    foreach my $left_coord (sort {$a <=> $b} keys %{$store_s_coords{$cols[$chr_c]}}) {
-      if (!is_duplicate($line) && defined $unique) {
-	print $j_fh $line, "\n";
-      }
-    }
-  }
 }
 
 close $s_fh;
