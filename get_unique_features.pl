@@ -70,23 +70,23 @@ my $j_fh = $io->open_file('>', $new_f);
 # Store source coordinates in memory.
 
 while (my $line = <$s_fh>) {
-  chomp $line;
-  $line = $io->strip_leading_trailing_spaces($line);
-  my @cols = split/\t/, $line;
-  $io->error('Cannot find chromosome column') if ($cols[$chr_s] !~ m/^chr/i);
-  $cols[$chr_s] = lc ($cols[$chr_s]);
-
-  if (!exists $seen_s{$cols[$chr_s] . $cols[$sc1] . $cols[$sc2]}) {
-      $seen_s{$cols[$chr_s] . $cols[$sc1] . $cols[$sc2]} = 1;
-      push @{$store_s_coords{$cols[$chr_s]}{$cols[$sc1]}}, $cols[$sc2];
-  }
+    chomp $line;
+    $line = $io->strip_leading_and_trailing_spaces($line);
+    my @cols = split/\t/, $line;
+    $io->error('Cannot find chromosome column') if ($cols[$chr_s] !~ m/^chr/i);
+    $cols[$chr_s] = lc ($cols[$chr_s]);
+    
+    if (!exists $seen_s{$cols[$chr_s] . $cols[$sc1] . $cols[$sc2]}) {
+	$seen_s{$cols[$chr_s] . $cols[$sc1] . $cols[$sc2]} = 1;
+	push @{$store_s_coords{$cols[$chr_s]}{$cols[$sc1]}}, $cols[$sc2];
+    }
 }
 
 # Now, extract either common or unique features.
 
 while (my $line = <$c_fh>) {
     chomp $line;
-    $line = $io->strip_leading_trailing_spaces($line);
+    $line = $io->strip_leading_and_trailing_spaces($line);
     my @cols = split/\t/, $line;
     $io->error('Cannot find chromosome column') if ($cols[$chr_c] !~ m/^chr/i);
     $cols[$chr_c] = lc($cols[$chr_c]);
@@ -106,12 +106,9 @@ while (my $line = <$c_fh>) {
                 }
             }
         }
-        foreach my $left_coord (sort {$a <=> $b} keys %{$store_s_coords{$cols[$chr_c]}}) {
-            foreach my $right_coord(sort {$a <=> $b} values @{$store_s_coords{$cols[$chr_c]}{$left_coord}}) {
-                if (!is_duplicate($line) && defined $unique) {
-                    print $j_fh $line, "\n";
-                }
-            }
+
+	if (!is_duplicate($line) && defined $unique) {
+	    print $j_fh $line, "\n";
         }
     }
 }
