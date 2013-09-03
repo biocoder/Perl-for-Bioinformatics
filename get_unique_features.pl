@@ -71,14 +71,32 @@ my $j_fh = $io->open_file('>', $new_f);
 
 while (my $line = <$s_fh>) {
     chomp $line;
+    my ($left_coords, $right_coords) = [];
+
     $line = $io->strip_leading_and_trailing_spaces($line);
     my @cols = split/\t/, $line;
     $io->error('Cannot find chromosome column') if ($cols[$chr_s] !~ m/^chr/i);
+
     $cols[$chr_s] = lc ($cols[$chr_s]);
+
+    if ($cols[$sc1] =~ m/\,/ && $cols[$sc2] =~ m/\,/) {
+	chop $cols[$sc1] if ($cols[$sc1] =~ m/\,$/);
+	chop $cols[$sc2] if ($cols[$sc2] =~ m/\,$/);
+	@$left_coords = split/\,/, $cols[$sc1];
+	@$right_coords = split/\,/, $cols[$sc2];
+	$io->error('Number of left coordinates is not equal to number of right coordinates')
+	    if (scalar(@$left_coords) != scalar(@$right_coords));
+    }
+    else {
+	push @{$left_coords}, $cols[$sc1];
+	push @{$right_coords}, $cols[$sc2];
+    }
     
-    if (!exists $seen_s{$cols[$chr_s] . $cols[$sc1] . $cols[$sc2]}) {
-	$seen_s{$cols[$chr_s] . $cols[$sc1] . $cols[$sc2]} = 1;
-	push @{$store_s_coords{$cols[$chr_s]}{$cols[$sc1]}}, $cols[$sc2];
+    for (0 .. $#$left_coords) {
+	if (!exists $seen_s{$cols[$chr_s] . $left_coords->[$_] . $right_coords->[$_]}) {
+	    $seen_s{$cols[$chr_s] . $left_coords->[$_] . $right_coords->[$_]} = 1;
+	    push @{$store_s_coords{$cols[$chr_s]}{$left_coords->[$_]}}, $right_coords->[$_];
+	}
     }
 }
 
@@ -148,7 +166,7 @@ Examples:
 
 =head1 DESCRIPTION
 
-This script makes it easy to find out the common overlapping or non-overlapping features of the genome given two gene feature files in different file formats. For example, the BED format file stores the gene boundary information in first, second and third columns respectively, whereas the refGene.txt file stores the reference gene boundary information in second, fourth and fifth columns respectively. Now, if you want to find out whether the features in the BED file overlap or do not overlap with reference genes in refGene.txt file, you specify the refGene.txt file as "Source file" and BED file as "Compare file". Then the Source file's column information would be 2, 4, 5 (i.e -scc 2, -s1 4, -s2 5) respectively and the Compare file's column information will be 1, 2 and 3 (i.e -ccc 1, -c1 2, -c2 3) respectively. The output file will be created at the location of the "Compare" file. This script is strand agnostic, meaning that the features either common or unique are reported irrespective of the Source feature's strand information.
+This script makes it easy to find out the common overlapping or non-overlapping features of the genome given two gene feature files in different file formats. For example, the BED format file stores the gene boundary information in first, second and third columns respectively, whereas the refGene.txt file stores the reference gene boundary information in second, fourth and fifth columns respectively. Now, if you want to find out whether the features in the BED file overlap or do not overlap with reference genes in refGene.txt file, you specify the refGene.txt file as "Source file" and BED file as "Compare file". Then the Source file's column information would be 2, 4, 5 (i.e -scc 2, -s1 4, -s2 5) respectively and the Compare file's column information will be 1, 2 and 3 (i.e -ccc 1, -c1 2, -c2 3) respectively. You can directly use refGene.txt as source file and use exonStarts and exonEnds columns to extract ncRNAs. The output file will be created at the location of the "Compare" file. This script is strand agnostic, meaning that the features either common or unique are reported irrespective of the Source feature's strand information.
 
 
 =head1 OPTIONS
