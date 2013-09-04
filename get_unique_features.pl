@@ -43,7 +43,9 @@ $cc2--;
 $chr_s--;
 $chr_c--;
 
-my ($filename, $path, $suffix) = fileparse($cf, qr/\.[^.]*/);
+my ($cf_filename, $path, $suffix) = fileparse($cf, qr/\.[^.]*/);
+my $sf_filename = sub {my @file_p_attrs = fileparse(shift, qr/\.[^.]*/); return $file_p_attrs[0]};
+
 if (defined($unique)) {
   $io->execute_system_command(0,
 			      'Getting unique features...',
@@ -57,7 +59,7 @@ else {
   $suffix = '.common.txt';
 }
 
-my $new_f = $path . basename($sf) . '_' . basename($cf) . $suffix;
+my $new_f = $path . &$sf_filename($sf) . '_' . $cf_filename . $suffix;
 
 $io->execute_system_command(0,
                             "New file will be $new_f",
