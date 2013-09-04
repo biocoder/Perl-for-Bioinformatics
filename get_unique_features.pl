@@ -59,7 +59,7 @@ else {
   $suffix = '.common.txt';
 }
 
-my $new_f = $path . &$sf_filename($sf) . '_' . $cf_filename . $suffix;
+my $new_f = $path . $sf_filename->($sf) . '_' . $cf_filename . $suffix;
 
 $io->execute_system_command(0,
                             "New file will be $new_f",
