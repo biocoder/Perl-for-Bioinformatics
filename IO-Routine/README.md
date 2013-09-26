@@ -14,11 +14,11 @@ To install this module, run the following commands:
 	make install
 
 To install IO::Routine at custom location, run the following commands:
-   
+
 	perl Makefile.PL PREFIX=/path/to/custom/perllib LIB=/path/to/custom/perllib/lib
-        make
-        make test
-        make install
+	make
+	make test
+	make install
 
 and then in your script add that path to your @INC variable as:
 
