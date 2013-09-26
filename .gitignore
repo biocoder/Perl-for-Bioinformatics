@@ -9,6 +9,6 @@
 /IO-Routine/blib/*
 /IO-Routine/Makefile
 /IO-Routine/pm_to_blib/*
-/IO-Routine/MYMETA.json
-/IO-Routine/MYMETA.yml
+/IO-Routine/META.json
+/IO-Routine/META.yml
 /IO-Routine/pm_to_blib
