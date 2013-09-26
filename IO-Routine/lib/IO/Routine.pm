@@ -7,6 +7,7 @@ use Carp;
 use Pod::Usage;
 use Module::Load;
 use Exporter;
+use Time::HiRes qw(gettimeofday tv_interval);
 
 =head1 NAME
 
@@ -20,14 +21,13 @@ IO::Routine - An attempt to provide a solution to avoid routine IO chores.
 
 =over 3
 
-Version 0.06
+Version 0.07
 
 =back
 
 =cut
 
-our $VERSION = '0.06';
-
+our $VERSION = '0.07';
 
 =head1 SYNOPSIS
 
@@ -51,6 +51,8 @@ To avoid some of the repetetive stuff, this module:
 
 =item * Gets current memory usage of the program ( in GB(s) for Linux ).
 
+=item * Starts timer to calculate elapsed time, print time stamp.
+
 =back
 
 =head1 USAGE
@@ -61,6 +63,7 @@ To avoid some of the repetetive stuff, this module:
     use Getopt::Long;
 
     my $io = IO::Routine->new();
+    my $s_time = $io->start_timer();
 
     my $is_valid_option = $io->GetOptions('help|?' => \$help,
                                           'quiet' => \$quiet,
@@ -86,6 +89,8 @@ To avoid some of the repetetive stuff, this module:
                               ['2.10', '8.13', '8.13', '8.13']);
 
     my ($v_mem, $r_mem) = $io->get_mem_usage();
+    print "Elapsed time ", $io->end_timer($s_time);
+    print "Analysis finished  ", $io->c_time();
 
 =back
 
@@ -232,6 +237,42 @@ Prints Program's name, version control information (Supported for only SVN).
 =over 5
 
 Get memory usage on LINUX systems ( in GB(s) ) based on PID from /proc/PID and using vmmap utility for OS X systems.  Useful in data structure loops. You need to specify $|++; to flush buffer.
+
+=back
+
+=over 4
+
+=item start_timer()
+
+=back
+
+=over 5
+
+Start timer to calculate elapsed time and return reference.
+
+=back
+
+=over 4
+
+=item end_timer()
+
+=back
+
+=over 5
+
+End timer and return elapsed time in floating point seconds.
+
+=back
+
+=over 4
+
+=item c_time()
+
+=back
+
+=over 5
+
+Return ctime using localtime function.
 
 =back
 
@@ -648,5 +689,27 @@ sub get_mem_usage {
     return;
 }
 
+# Subroutine to start timer
+
+sub start_timer {
+    my $self = shift;
+    my $start_time = [gettimeofday()];
+    return $start_time;
+}
+
+# Subroutine to end timer
+
+sub end_timer {
+    my $self = shift;
+    my $start_time = shift;
+    return sprintf("%.2f", tv_interval($start_time)), " Seconds";
+}
+
+# Subroutine return current ctime
+
+sub c_time {
+    my $self = shift;
+    return scalar(localtime(time));
+}
 
 1; # End of IO::Routine

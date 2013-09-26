@@ -23,7 +23,8 @@ WriteMakefile(
 		            'Carp'           => 0,
 			    'Module::Load'   => 0,
 			    'Pod::Usage'     => 0,
-			    'Exporter'       => 0
+			    'Exporter'       => 0,
+			    'Time::HiRes'    => 0
 			   },
 	      dist  => { COMPRESS => 'gzip -9f', SUFFIX => 'gz', },
 	      clean => { FILES => 'IO-Routine-*' },

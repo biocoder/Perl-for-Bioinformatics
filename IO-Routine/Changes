@@ -9,3 +9,7 @@ Revision history for IO-Routine
 0.06    2013-08-28
         Sixth version. Adding support to get memory information based on PID
         for OS X.
+
+0.07	2013-26-09
+	Adding timer functions to calculate elapsed time and a function
+	to return timestamp using localtime()
