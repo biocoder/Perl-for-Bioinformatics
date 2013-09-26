@@ -4,4 +4,4 @@ perl:
  - "5.16"
  - "5.14"
 install: 
- - "perl ./IO-Routine/Makefile.PL && make && make test && make install"
+ - "cd ./IO-Routine; perl Makefile.PL && make && make test && make install"
