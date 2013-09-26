@@ -1,0 +1,6 @@
+language: perl
+perl:
+	- "5.18"
+	- "5.16"
+	- "5.14"
+script:	"perl ./IO-Routine/Makefile.PL && make && make test && make install"
