@@ -4,6 +4,7 @@ IO-Routine [![Build Status](https://travis-ci.org/biocoder/Perl-for-Bioinformati
 An attempt to provide a solution to avoid routine IO chores.
 
 INSTALLATION
+------------
 
 To install this module, run the following commands:
 
@@ -28,10 +29,11 @@ or, for UNIX systems, edit your .bash_profile by adding custom location to PERL5
 export PERL5LIB=$PERL5LIB:/path/to/custom/perllib/lib
 
 VERSION
-
+-------
 0.07
 
 SUPPORT AND DOCUMENTATION
+-------------------------
 
 After installing, you can find documentation for this module with the
 perldoc command.
@@ -54,6 +56,7 @@ You can also look for information at:
 
 
 LICENSE AND COPYRIGHT
+---------------------
 
 Copyright (C) 2013 Kranti Konganti
 
