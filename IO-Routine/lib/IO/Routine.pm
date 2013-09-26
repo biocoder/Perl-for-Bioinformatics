@@ -98,6 +98,30 @@ To avoid some of the repetetive stuff, this module:
 
 =over 4
 
+=item new()
+
+=back
+
+=over 5
+
+Instantiates a new IO::Routine object and returns it.
+
+=back
+
+=over 4
+
+=item strip_leading_and_trailing_spaces()
+
+=back
+
+=over 5
+
+Strips leading and traling white spaces.
+
+=back
+
+=over 4
+
 =item verify_options()
 
 =back
@@ -170,7 +194,7 @@ Execute system level command and capture everything from STDERR and STDOUT.
 
 =over 4
 
-=item check_sys_level_commands()
+=item check_sys_level_cmds()
 
 =back
 
