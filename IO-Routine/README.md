@@ -43,8 +43,7 @@ perldoc command.
 You can also look for information at:
 
 1. RT, CPAN's request tracker (report bugs here)
-
-..* http://rt.cpan.org/NoAuth/Bugs.html?Dist=IO-Routine
+   http://rt.cpan.org/NoAuth/Bugs.html?Dist=IO-Routine
 
 2. AnnoCPAN, Annotated CPAN documentation
 ..* http://annocpan.org/dist/IO-Routine
