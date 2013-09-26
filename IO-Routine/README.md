@@ -22,11 +22,11 @@ To install IO::Routine at custom location, run the following commands:
 
 and then in your script add that path to your @INC variable as:
 
-BEGIN{ push (@INC, '/path/to/custom/perllib/lib') };
+`BEGIN{ push (@INC, '/path/to/custom/perllib/lib') };`
 
 or, for UNIX systems, edit your .bash_profile by adding custom location to PERL5LIB
 
-export PERL5LIB=$PERL5LIB:/path/to/custom/perllib/lib
+`export PERL5LIB=$PERL5LIB:/path/to/custom/perllib/lib`
 
 VERSION
 -------
@@ -42,17 +42,14 @@ perldoc command.
 
 You can also look for information at:
 
-    RT, CPAN's request tracker (report bugs here)
-        http://rt.cpan.org/NoAuth/Bugs.html?Dist=IO-Routine
-
-    AnnoCPAN, Annotated CPAN documentation
-        http://annocpan.org/dist/IO-Routine
-
-    CPAN Ratings
-        http://cpanratings.perl.org/d/IO-Routine
-
-    Search CPAN
-        http://search.cpan.org/dist/IO-Routine/
+1. RT, CPAN's request tracker (report bugs here)
+..*http://rt.cpan.org/NoAuth/Bugs.html?Dist=IO-Routine
+2. AnnoCPAN, Annotated CPAN documentation
+..*http://annocpan.org/dist/IO-Routine
+3. CPAN Ratings
+..*http://cpanratings.perl.org/d/IO-Routine
+4. Search CPAN
+..*http://search.cpan.org/dist/IO-Routine/
 
 
 LICENSE AND COPYRIGHT
