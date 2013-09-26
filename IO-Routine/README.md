@@ -43,14 +43,17 @@ perldoc command.
 
 You can also look for information at:
 
-1. RT, CPAN's request tracker (report bugs here)
-..* http://rt.cpan.org/NoAuth/Bugs.html?Dist=IO-Routine
-2. AnnoCPAN, Annotated CPAN documentation
-..* http://annocpan.org/dist/IO-Routine
-3. CPAN Ratings
-..* http://cpanratings.perl.org/d/IO-Routine
-4. Search CPAN
-..* http://search.cpan.org/dist/IO-Routine/
+1. RT, CPAN's request tracker (report bugs here)  
+  * http://rt.cpan.org/NoAuth/Bugs.html?Dist=IO-Routine  
+
+2. AnnoCPAN, Annotated CPAN documentation  
+  * http://annocpan.org/dist/IO-Routine
+
+3. CPAN Ratings  
+  * http://cpanratings.perl.org/d/IO-Routine
+
+4. Search CPAN  
+  * http://search.cpan.org/dist/IO-Routine/
 
 
 License and Copyright
