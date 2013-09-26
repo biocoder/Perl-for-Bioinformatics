@@ -26,7 +26,9 @@ and then in your script add that path to your @INC variable as:
 
 or, for UNIX systems, edit your .bash_profile by adding custom location to PERL5LIB
 
+``
 `export PERL5LIB=$PERL5LIB:/path/to/custom/perllib/lib`
+``
 
 Version
 -------
