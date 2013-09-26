@@ -37,7 +37,7 @@ $io->this_script_info($0, $VERSION, $AUTHORFULLNAME, $LASTCHANGEDBY, $LASTCHANGE
 
 
 $io->execute_system_command(0,
-			   'Validating refGene.txt File ...',
+			   "Validating $refGeneTxt File ...",
 			   $quiet);
 
 while (my $line = <$refGeneTxt_fh>) {
@@ -45,9 +45,12 @@ while (my $line = <$refGeneTxt_fh>) {
   my @refGeneCols = split/\t/, $line;
 
   $io->error("It seems like the $refGeneTxt file has invalid number of columns")
-    if (scalar(@refGeneCols) != 16);
+    if (scalar(@refGeneCols) < 13);
+  $refGeneCols[11] = $refGeneCols[13] if ($refGeneCols[11] eq '');
+  $refGeneCols[11] = $refGeneCols[12] if ($refGeneCols[11] == 0);
+  my $feat_len = $refGeneCols[5] - $refGeneCols[4];
 
-  print $bed_fh "$refGeneCols[2]\t$refGeneCols[4]\t$refGeneCols[5]\t$refGeneCols[12]\t$refGeneCols[11]\t$refGeneCols[3]\n";
+  print $bed_fh "$refGeneCols[2]\t$refGeneCols[4]\t$refGeneCols[5]\t$refGeneCols[12]\t$feat_len\t$refGeneCols[3]\t$refGeneCols[11]\n";
 }
 
 close $bed_fh;
