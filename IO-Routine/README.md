@@ -18,7 +18,7 @@ To install IO::Routine at custom location, run the following commands:
 	perl Makefile.PL PREFIX=/path/to/custom/perllib LIB=/path/to/custom/perllib/lib
         make
         make test
-        make install   make
+        make install
 
 and then in your script add that path to your @INC variable as:
 
@@ -44,8 +44,7 @@ perldoc command.
 You can also look for information at:
 
 1. RT, CPAN's request tracker (report bugs here)
-..* http://rt.cpan.org/NoAuth/Bugs.html?Dist=IO-Routine
-
+* http://rt.cpan.org/NoAuth/Bugs.html?Dist=IO-Routine
 2. AnnoCPAN, Annotated CPAN documentation
 ..* http://annocpan.org/dist/IO-Routine
 3. CPAN Ratings
