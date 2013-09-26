@@ -11,7 +11,7 @@ my $io = IO::Routine->new();
 my ($help, $quiet, $sc1, $sc2, $cc1, $cc2,
     $sf, $cf, $chr_s, $chr_c,
     %seen_coord, %store_s_coords, %seen_s,
-    $unique);
+    $unique, $pipe2stdout, $j_fh);
 
 my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'source-column-2|sc-2|s2=s'  => \$sc2,
@@ -23,7 +23,8 @@ my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'compare-chr-column|ccc=s'   => \$chr_c,
 				 'help'                       => \$help,
 				 'quiet'                      => \$quiet,
-				 'unique'                     => \$unique
+				 'unique'                     => \$unique,
+				 'stdout'                   => \$pipe2stdout
 				);
 
 $io->verify_options([$is_valid_option, $sc1, $sc2, $cc1, $cc2,
@@ -59,15 +60,19 @@ else {
   $suffix = '.common.txt';
 }
 
-my $new_f = $path . $sf_filename->($sf) . '_' . $cf_filename . $suffix;
-
-$io->execute_system_command(0,
-                            "New file will be $new_f",
-                            $quiet);
+if (defined $pipe2stdout ) {
+    $j_fh = *STDOUT;
+}
+else {
+    my $new_f = $path . $sf_filename->($sf) . '_' . $cf_filename . $suffix;
+    $j_fh = $io->open_file('>', $new_f);
+    $io->execute_system_command(0,
+				"New file will be $new_f",
+				$quiet);
+}
 
 my $s_fh = $io->open_file('<', $sf);
 my $c_fh = $io->open_file('<', $cf);
-my $j_fh = $io->open_file('>', $new_f);
 
 # Store source coordinates in memory.
 
@@ -168,7 +173,7 @@ Examples:
 
 =head1 DESCRIPTION
 
-This script makes it easy to find out the common overlapping or non-overlapping features of the genome given two gene feature files in different file formats. For example, the BED format file stores the gene boundary information in first, second and third columns respectively, whereas the refGene.txt file stores the reference gene boundary information in second, fourth and fifth columns respectively. Now, if you want to find out whether the features in the BED file overlap or do not overlap with reference genes in refGene.txt file, you specify the refGene.txt file as "Source file" and BED file as "Compare file". Then the Source file's column information would be 2, 4, 5 (i.e -scc 2, -s1 4, -s2 5) respectively and the Compare file's column information will be 1, 2 and 3 (i.e -ccc 1, -c1 2, -c2 3) respectively. You can directly use refGene.txt as source file and use exonStarts and exonEnds columns to extract ncRNAs. The output file will be created at the location of the "Compare" file. This script is strand agnostic, meaning that the features either common or unique are reported irrespective of the Source feature's strand information.
+This script makes it easy to find out the common overlapping or non-overlapping features of the genome given two gene feature files in different file formats. For example, the BED format file stores the gene boundary information in first, second and third columns respectively, whereas the refGene.txt file stores the reference gene boundary information in second, fourth and fifth columns respectively. Now, if you want to find out whether the features in the BED file overlap or do not overlap with reference genes in refGene.txt file, you specify the refGene.txt file as "Source file" and BED file as "Compare file". Then the Source file's column information would be 2, 4, 5 (i.e -scc 2, -s1 4, -s2 5) respectively and the Compare file's column information will be 1, 2 and 3 (i.e -ccc 1, -c1 2, -c2 3) respectively. You can directly use refGene.txt as source file and use exonStarts and exonEnds columns to extract ncRNAs. The output file will be created at the location of the "Compare" file. The output can be printed to STDOUT with -stdout option. This script is strand agnostic, meaning that the features either common or unique are reported irrespective of the Source feature's strand information.
 
 
 =head1 OPTIONS
@@ -217,6 +222,10 @@ Column number of the Source file's chromosome right coordinate (end coordinate) 
 =item -cf or --compare-file (Required)
 
   Path to "Compare" gene feature file.
+
+=item -stdout
+
+  Print output to STDOUT instead of a file.
 
 =back
 
