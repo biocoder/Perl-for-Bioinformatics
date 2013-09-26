@@ -47,11 +47,11 @@ To avoid some of the repetetive stuff, this module:
 
 =item * Checks for minimum version requirement for GNU Core Utils.
 
-=item * Prints SVN version control information (If requested).
+=item * Prints SVN version control information ( If requested ).
 
 =item * Gets current memory usage of the program ( in GB(s) for Linux ).
 
-=item * Starts timer to calculate elapsed time, print time stamp.
+=item * Starts timer to calculate elapsed time, prints time stamp.
 
 =back
 
@@ -355,7 +355,7 @@ L<http://search.cpan.org/dist/IO-Routine/>
 
 =over 3
 
-Copyright 2012 Kranti Konganti.
+Copyright 2013 Kranti Konganti.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the the Artistic License (2.0). You may obtain a
