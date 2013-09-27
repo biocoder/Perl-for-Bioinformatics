@@ -8,6 +8,7 @@ use Pod::Usage;
 use Module::Load;
 use Exporter;
 use Time::HiRes qw(gettimeofday tv_interval);
+use Cwd;
 
 =head1 NAME
 
@@ -89,8 +90,8 @@ To avoid some of the repetetive stuff, this module:
                               ['2.10', '8.13', '8.13', '8.13']);
 
     my ($v_mem, $r_mem) = $io->get_mem_usage();
-    print "Elapsed time ", $io->end_timer($s_time);
-    print "Analysis finished  ", $io->c_time();
+    print $io->end_timer($s_time, $quiet);
+    print $io->c_time("\nAnalysis Finished on ", $quiet);
 
 =back
 
@@ -624,6 +625,10 @@ sub open_file {
     my $self = shift;
     my $mode = shift;
     my $file = shift;
+
+    return getcwd() if ($mode =~ m/^cwd$/i);
+    return *STDOUT if ($mode =~ m/^stdout$/i);
+
     my $tainted_filename;
 
     if ($file =~ m/(.+?)\z/i) {
@@ -726,14 +731,27 @@ sub start_timer {
 sub end_timer {
     my $self = shift;
     my $start_time = shift;
-    return sprintf("%.2f", tv_interval($start_time)), " Seconds";
+    my $quiet = shift;
+    if (!$quiet || !defined($quiet)) {
+	return "Time Elapsed: ", sprintf("%.2f", tv_interval($start_time)), " Seconds";
+    }
+    else {
+	return '';
+    }
 }
 
 # Subroutine return current ctime
 
 sub c_time {
     my $self = shift;
-    return scalar(localtime(time));
+    my $msg = shift;
+    my $quiet = shift;
+    if (!$quiet || !defined($quiet)) {
+	return scalar(localtime(time)) . $msg;
+    }
+    else {
+	return '';
+    }
 }
 
 1; # End of IO::Routine
