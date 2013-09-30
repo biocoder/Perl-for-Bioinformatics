@@ -77,21 +77,21 @@ To avoid some of the repetetive stuff, this module:
                         $help);
     $io->verify_files([$file2, $file2], ['file1 msg', 'file2 msg'])
 
-    my $output = $io->validate_create_path($output, 'create');
-    my $output = $io->validate_create_path($output, 'do not create');
+    my $output = $io->validate_create_path($output, 'create', 'Output directory');
+    my $output = $io->validate_create_path($output, 'do not create', 'Input directory');
 
     $io->execute_system_command(0,
                                 "\nChecking the version requirement for system level commands ...\n",
                                 $quiet);
-    my $unix_date = $io->execute_get_sys_command_output("/bin/date",
+    my $unix_date = $io->execute_get_sys_cmd_output("/bin/date",
                                                         "\nGetting system date ... \n",
                                                         $quiet);
     $io->check_sys_level_cmds(['grep', 'ls', 'sort', 'basename'],
                               ['2.10', '8.13', '8.13', '8.13']);
 
     my ($v_mem, $r_mem) = $io->get_mem_usage();
-    print $io->end_timer($s_time, $quiet);
-    print $io->c_time("\nAnalysis Finished on ", $quiet);
+    $io->end_timer($s_time, $quiet);
+    $io->c_time("\nAnalysis Finished on ", $quiet);
 
 =back
 
@@ -479,6 +479,9 @@ sub verify_files {
 
     foreach my $file (@$files) {
 
+	confess error($self, "Empty argument!\nPath to file not provided?")
+	    if (!$file || $file eq '');
+
         confess error($self, "@$what_files[$file_no] file not specified: $!")
             if (!defined $file);
 
@@ -536,6 +539,9 @@ sub validate_create_path {
     my $path = shift;
     my $create_dir = shift;
     my $msg = shift;
+
+    confess error($self, "Invalid number of options for validate_create_path!\nLog Message not provided...")
+	if (!$msg || $msg eq '');
 
     confess error ($self, "$msg path not defined or entered!")
         if (!defined $path || $path eq '');
@@ -625,6 +631,9 @@ sub open_file {
     my $self = shift;
     my $mode = shift;
     my $file = shift;
+
+    confess error($self, "Empty argument!\nPath to file not provided?")
+        if (!$file || $file eq '');
 
     return getcwd() if ($mode =~ m/^cwd$/i);
     return *STDOUT if ($mode =~ m/^stdout$/i);
@@ -747,11 +756,12 @@ sub c_time {
     my $msg = shift;
     my $quiet = shift;
     if (!$quiet || !defined($quiet)) {
-	return scalar(localtime(time)) . $msg;
+	print "\n", scalar(localtime(time)) . "\t$msg\n";
     }
     else {
-	return '';
+	return;
     }
+    return;
 }
 
 1; # End of IO::Routine
