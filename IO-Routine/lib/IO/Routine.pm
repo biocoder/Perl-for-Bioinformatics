@@ -742,6 +742,15 @@ sub end_timer {
     my $start_time = shift;
     my $quiet = shift;
     if (!$quiet || !defined($quiet)) {
+	if (sprintf("%.2f", tv_interval($start_time)) > 60) {
+	    return "Time Elapsed: ", sprintf("%.2f", tv_interval($start_time)) / 60, " Minute(s)";
+	}
+	elsif (( sprintf("%.2f", tv_interval($start_time)) / 60 ) > 60) {
+	    return "Time Elapsed: ", sprintf("%.2f", tv_interval($start_time)) / 3600, " Hour(s)";
+	}
+	elsif ((( sprintf("%.2f", tv_interval($start_time)) / 60 ) / 60 ) > 24) {
+	    return "Time Elapsed: ", sprintf("%.2f", tv_interval($start_time)) / 86400, " Day(s)";
+	}
 	return "Time Elapsed: ", sprintf("%.2f", tv_interval($start_time)), " Seconds";
     }
     else {
