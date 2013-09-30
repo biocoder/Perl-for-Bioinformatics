@@ -61,6 +61,8 @@ for (0 .. $#ARGV) {
     unlink $p_file_names_gtf->[$_] if (-e $p_file_names_gtf->[$_] && defined($overwrite));
 }
 
+get_genePred() if (!defined $overwrite);
+
 $io->c_time('Getting putative list of ncRNAs in GTF format...', $quiet);
 while (my $line = <$cuffcmp_fh>) {
     chomp $line;
@@ -79,15 +81,19 @@ while (my $line = <$cuffcmp_fh>) {
     }
 }
 
-$io->c_time('Converting putative ncRNAs list to Gene Prediction format using gtfToGenePred tool', $quiet);
-my $check_for_gtfToGenePred = $io->execute_get_sys_cmd_output('gtfToGenePred', 0);
-
-$io->error('Cannot find gtfToGenePred tool in your path') 
-    if ($check_for_gtfToGenePred !~ m/.*?gtfToGenePred.*?convert a GTF file to a genePred/i);
-
-for (0 .. $#$p_file_names_gtf) {
-    $io->execute_system_command("gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[0] $p_file_names_txt->[0]", '');
+sub get_genePred {
+    $io->c_time('Converting putative ncRNAs list to Gene Prediction format using gtfToGenePred tool', $quiet);
+    my $check_for_gtfToGenePred = $io->execute_get_sys_cmd_output('gtfToGenePred', 0);
+    
+    $io->error('Cannot find gtfToGenePred tool in your path') 
+	if ($check_for_gtfToGenePred !~ m/.*?gtfToGenePred.*?convert a GTF file to a genePred/i);
+    
+    for (0 .. $#$p_file_names_gtf) {
+	$io->execute_system_command("gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_]",
+	    "gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_]");
+    }
+    print $io->end_timer($s_time, $quiet), "\n";
+    exit;
 }
 
 print $io->end_timer($s_time, $quiet), "\n";
-
