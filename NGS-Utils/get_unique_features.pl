@@ -7,11 +7,12 @@ use IO::Routine;
 use File::Basename;
 
 my $io = IO::Routine->new();
+my $s_time = $io->start_timer();
 
 my ($help, $quiet, $sc1, $sc2, $cc1, $cc2,
     $sf, $cf, $chr_s, $chr_c,
     %seen_coord, %store_s_coords, %seen_s,
-    $unique, $pipe2stdout, $j_fh);
+    $unique, $pipe2stdout, $j_fh, $overlap);
 
 my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'source-column-2|sc-2|s2=s'  => \$sc2,
@@ -24,7 +25,8 @@ my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'help'                       => \$help,
 				 'quiet'                      => \$quiet,
 				 'unique'                     => \$unique,
-				 'stdout'                   => \$pipe2stdout
+				 'overlap=i'                    => \$overlap,
+				 'stdout'                     => \$pipe2stdout
 				);
 
 $io->verify_options([$is_valid_option, $sc1, $sc2, $cc1, $cc2,
@@ -121,14 +123,21 @@ while (my $line = <$c_fh>) {
         foreach my $left_coord (sort {$a <=> $b} keys %{$store_s_coords{$cols[$chr_c]}}) {
             foreach my $right_coord (sort {$a <=> $b} values @{$store_s_coords{$cols[$chr_c]}{$left_coord}}) {
                 if ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
+		    last if (defined($overlap) && (($cols[$cc2] - $left_coord) <= $overlap));
                     print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
                 }
                 elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
+		    last if (defined($overlap) && (($cols[$cc2] - $cols[$cc1]) <= $overlap));
                     print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
                 }
-                elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord ) {
+                elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord) {
+		    last if (defined($overlap) && (($right_coord - $cols[$cc1]) <= $overlap));
                     print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
                 }
+		elsif ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord) {
+		    last if (defined($overlap) && (($right_coord - $left_coord) <= $overlap));
+		    print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
+		}
             }
         }
 
@@ -152,6 +161,8 @@ sub is_duplicate {
   }
   return 1;
 }
+
+print "\nDone!\n\n", $io->end_timer($s_time, $quiet), "\n\n";
 
 __END__
 
@@ -223,9 +234,13 @@ Column number of the Source file's chromosome right coordinate (end coordinate) 
 
   Path to "Compare" gene feature file.
 
-=item -stdout
+=item -stdout (Optional)
 
   Print output to STDOUT instead of a file.
+
+=item -ov or --overlap (Optional)
+    
+  Extract features that are unique or overlap by this many number of bases
 
 =back
 
