@@ -81,6 +81,8 @@ while (my $line = <$cuffcmp_fh>) {
     }
 }
 
+get_genePred();
+
 sub get_genePred {
     $io->c_time('Converting putative ncRNAs list to Gene Prediction format using gtfToGenePred tool', $quiet);
     my $check_for_gtfToGenePred = $io->execute_get_sys_cmd_output('gtfToGenePred', 0);
@@ -95,5 +97,3 @@ sub get_genePred {
     print $io->end_timer($s_time, $quiet), "\n";
     exit;
 }
-
-print $io->end_timer($s_time, $quiet), "\n";
