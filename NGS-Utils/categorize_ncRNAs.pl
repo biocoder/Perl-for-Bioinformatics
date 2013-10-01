@@ -154,7 +154,9 @@ sub class_ncRNAs {
 		    
 		    # Only lncRNAs, adjustable by user with -length and -min-exons parameters
 		    if (($nc_tr_end - $nc_tr_start) >= $length && $nc_exons >= 2) { 
-			if ($ref_strand ne $nc_strand) {  # Antisense ncRNA
+			if ($ref_strand ne $nc_strand &&
+			    $ref_strand =~ m/^\+|\-$/ &&
+			    $nc_strand =~ m/^\+|\-$/) {  # Antisense ncRNA
 			    if (is_exonicOverlap($ref_exon_starts, $ref_exon_ends, $nc_exon_starts, $nc_exon_ends)) {
 				$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ Antisense exonic overlap; $ref_tr_id\/\' >> $c_ncRNAs", 0);
 
