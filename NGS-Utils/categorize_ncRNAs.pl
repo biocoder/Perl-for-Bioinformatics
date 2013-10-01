@@ -11,7 +11,7 @@ my $s_time = $io->start_timer();
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
-    $min_exons, $overlap);
+    $min_exons, $overlap, $no_novel, $extract_pat);
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 
 my $is_valid_option = GetOptions('help|?'         => \$help,
@@ -26,7 +26,8 @@ my $is_valid_option = GetOptions('help|?'         => \$help,
 				 'categorize'     => \$categorize,
 				 'length=i'       => \$length,
 				 'min-exons=i'    => \$min_exons,
-				 'overlap=i'      => \$overlap);
+				 'overlap=i'      => \$overlap,
+				 'no-novel'       => \$no_novel);
 
 
 $io->verify_options([$is_valid_option, $sample_names, 
@@ -101,12 +102,19 @@ exit;
 # to cufflinks assembled transcript fragments.
 sub get_putative_ncRNAs {
     $io->c_time('Getting putative list of ncRNAs in GTF format...', $quiet);
+    if (!defined $no_novel) {
+	$extract_pat = 'm/j|i|o|u|x/i';
+    }
+    else {
+	$extract_pat = 'm/i|o|u|x/i';
+    }
+    
     while (my $line = <$cuffcmp_fh>) {
 	chomp $line;
 	$line = $io->strip_leading_and_trailing_spaces($line);
 	my ($t_id, $loc_id, $loc_name, $class_code, @cols) = split/\t/, $line;
 	for (0 .. $#cols) {
-	    if ($class_code =~ m/j|i|o|u|x/i) {
+	    if ($class_code =~ $extract_pat) {
 		my ($q_loc_id, $q_t_id, $discard) = split/\|/, $cols[$_];
 		next if (!$q_t_id || $q_t_id eq '');
 		$q_t_id =~ s/\./\\./g;
@@ -120,6 +128,22 @@ sub get_putative_ncRNAs {
     return;
 }
 
+# Convert GTF to gene prediction format.
+sub get_genePred {
+    $io->c_time('Converting putative ncRNAs list to Gene Prediction format using gtfToGenePred tool', $quiet);
+    my $check_for_gtfToGenePred = $io->execute_get_sys_cmd_output('gtfToGenePred', 0);
+    
+    $io->error('Cannot find gtfToGenePred tool in your path') 
+	if ($check_for_gtfToGenePred !~ m/.*?gtfToGenePred.*?convert a GTF file to a genePred/i);
+    
+    for (0 .. $#$p_file_names_gtf) {
+	$io->verify_files([$p_file_names_gtf->[$_]], ['GTF']);
+	$io->execute_system_command("gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_]",
+	    "gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_]");
+    }
+    return;
+}
+
 # Categorize ncRNAs.
 sub class_ncRNAs {
     $io->c_time('Categorizing ncRNAs...', $quiet);
@@ -127,7 +151,7 @@ sub class_ncRNAs {
     for (0 .. $#ARGV) {
 	my $p_gtf = $p_file_names_gtf->[$_];
 	my $p_ncRNAs = store_coords($p_file_names_txt->[$_]);
-	my $c_ncRNAs = $output . $file_basename->($ARGV[$_]) . '.' . $lables[$_] . '.class.ncRNAs.txt';
+	my $c_ncRNAs = $output . $file_basename->($ARGV[$_]) . '.' . $lables[$_] . '.class.ncRNAs.gtf';
 	unlink $c_ncRNAs if (-e $c_ncRNAs);
     
 
@@ -153,13 +177,24 @@ sub class_ncRNAs {
 			$ref_tr_id) = get_parts($ref_gene);
 		    
 		    # Only lncRNAs, adjustable by user with -length and -min-exons parameters
-		    if (($nc_tr_end - $nc_tr_start) >= $length && $nc_exons >= 2) { 
+		    if (($nc_tr_end - $nc_tr_start) >= $length && 
+			$nc_exons >= 2) { 
 			if ($ref_strand ne $nc_strand &&
 			    $ref_strand =~ m/^\+|\-$/ &&
 			    $nc_strand =~ m/^\+|\-$/) {  # Antisense ncRNA
 			    if (is_exonicOverlap($ref_exon_starts, $ref_exon_ends, $nc_exon_starts, $nc_exon_ends)) {
 				$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ Antisense exonic overlap; $ref_tr_id\/\' >> $c_ncRNAs", 0);
 
+			    }
+			    if ($nc_tr_start > $ref_tr_start && 
+				$nc_tr_end < $ref_tr_end) {
+				my $retain_overlap = $overlap;
+				$overlap = 0;
+				if (!is_exonicOverlap($ref_exon_starts, $ref_exon_ends, $nc_exon_starts, $nc_exon_ends)) {
+				    
+				    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ Sense intronic (Ponc); $ref_tr_id\/\' >> $c_ncRNAs", 0);
+				}
+				$overlap = $retain_overlap;
 			    }
 			}
 		    }
@@ -193,22 +228,6 @@ sub store_coords {
     return $store;
 }
 
-# Convert GTF to gene prediction format.
-sub get_genePred {
-    $io->c_time('Converting putative ncRNAs list to Gene Prediction format using gtfToGenePred tool', $quiet);
-    my $check_for_gtfToGenePred = $io->execute_get_sys_cmd_output('gtfToGenePred', 0);
-    
-    $io->error('Cannot find gtfToGenePred tool in your path') 
-	if ($check_for_gtfToGenePred !~ m/.*?gtfToGenePred.*?convert a GTF file to a genePred/i);
-    
-    for (0 .. $#$p_file_names_gtf) {
-	$io->verify_files([$_], ['GTF']);
-	$io->execute_system_command("gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_]",
-	    "gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_]");
-    }
-    return;
-}
-
 # Split and return columns
 sub get_parts {
     my @line_parts = split /\|/, shift;
@@ -225,17 +244,32 @@ sub get_parts {
 sub is_exonicOverlap {
     my ($s_ex_st, $s_ex_end, $c_ex_st, $c_ex_end) = @_;
     for (0 .. $#$s_ex_st) {	
-	if ($c_ex_st->[$_] <= $s_ex_st->[$_] && $c_ex_st->[$_] <= $s_ex_end->[$_] && $c_ex_end->[$_] >= $s_ex_st->[$_] && $c_ex_end->[$_] <= $s_ex_end->[$_]) {
-	    return 1 if ( defined($overlap) && ( ( ( ($c_ex_end->[$_] - $s_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
+	if ($c_ex_st->[$_] <= $s_ex_st->[$_] && 
+	    $c_ex_st->[$_] <= $s_ex_end->[$_] && 
+	    $c_ex_end->[$_] >= $s_ex_st->[$_] && 
+	    $c_ex_end->[$_] <= $s_ex_end->[$_]) {
+	    return 1 if ( defined($overlap) &&
+			  ( ( ( ($c_ex_end->[$_] - $s_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
 	}
-	elsif ($c_ex_st->[$_] >= $s_ex_st->[$_] && $c_ex_st->[$_] <= $s_ex_end->[$_] && $c_ex_end->[$_] >= $s_ex_st->[$_] && $c_ex_end->[$_] <= $s_ex_end->[$_]) {
-	    return 1 if ( defined($overlap) && ( ( ( ($c_ex_end->[$_] - $c_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
+	elsif ($c_ex_st->[$_] >= $s_ex_st->[$_] &&
+	       $c_ex_st->[$_] <= $s_ex_end->[$_] &&
+	       $c_ex_end->[$_] >= $s_ex_st->[$_] &&
+	       $c_ex_end->[$_] <= $s_ex_end->[$_]) {
+	    return 1 if ( defined($overlap) &&
+			  ( ( ( ($c_ex_end->[$_] - $c_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
 	}
-	elsif ($c_ex_st->[$_] >= $s_ex_st->[$_] && $c_ex_st->[$_] <= $s_ex_end->[$_] && $c_ex_end->[$_] >= $s_ex_st->[$_] && $c_ex_end->[$_] >= $s_ex_end->[$_]) {
-	   return 1 if ( defined($overlap) && ( ( ( ($s_ex_end->[$_] - $c_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
+	elsif ($c_ex_st->[$_] >= $s_ex_st->[$_] &&
+	       $c_ex_st->[$_] <= $s_ex_end->[$_] &&
+	       $c_ex_end->[$_] >= $s_ex_st->[$_] &&
+	       $c_ex_end->[$_] >= $s_ex_end->[$_]) {
+	   return 1 if ( defined($overlap) &&
+			 ( ( ( ($s_ex_end->[$_] - $c_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
 	}
-	elsif ($c_ex_st->[$_] <= $s_ex_st->[$_] && $c_ex_st->[$_] <= $s_ex_end->[$_] && $c_ex_end->[$_] >= $s_ex_st->[$_] && $c_ex_end->[$_] >= $s_ex_end->[$_]) {
-	    return 1 if ( defined($overlap) && ( ( ( ($s_ex_end->[$_] - $s_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
+	elsif ($c_ex_st->[$_] <= $s_ex_st->[$_] &&
+	       $c_ex_st->[$_] <= $s_ex_end->[$_] &&
+	       $c_ex_end->[$_] >= $s_ex_st->[$_] && $c_ex_end->[$_] >= $s_ex_end->[$_]) {
+	    return 1 if ( defined($overlap) &&
+			  ( ( ( ($s_ex_end->[$_] - $s_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
 	}
     }
     return 0;
