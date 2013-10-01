@@ -11,7 +11,7 @@ my $s_time = $io->start_timer();
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
-    $min_exons, $overlap, $no_novel, $extract_pat);
+    $min_exons, $overlap, $novel, $extract_pat);
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 
 my $is_valid_option = GetOptions('help|?'         => \$help,
@@ -27,7 +27,7 @@ my $is_valid_option = GetOptions('help|?'         => \$help,
 				 'length=i'       => \$length,
 				 'min-exons=i'    => \$min_exons,
 				 'overlap=i'      => \$overlap,
-				 'no-novel'       => \$no_novel);
+				 'novel'          => \$novel);
 
 
 $io->verify_options([$is_valid_option, $sample_names, 
@@ -102,7 +102,7 @@ exit;
 # to cufflinks assembled transcript fragments.
 sub get_putative_ncRNAs {
     $io->c_time('Getting putative list of ncRNAs in GTF format...', $quiet);
-    if (!defined $no_novel) {
+    if (defined $novel) {
 	$extract_pat = 'm/j|i|o|u|x/i';
     }
     else {
