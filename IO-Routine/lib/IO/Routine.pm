@@ -764,11 +764,11 @@ sub c_time {
     my $self = shift;
     my $msg = shift;
     my $quiet = shift;
-    if (!$quiet || !defined($quiet)) {
-	print "\n", scalar(localtime(time)) . "\t$msg\n";
+    if (!$quiet || !defined($quiet) && ($msg ne '')) {
+	print "\n", scalar(localtime(time)), "\t$msg\n";
     }
     else {
-	return;
+	print "\n", scalar(localtime(time));
     }
     return;
 }
