@@ -112,7 +112,7 @@ sub get_putative_ncRNAs {
 		$q_t_id =~ s/\./\\./g;
 		my $t_lines = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_]", 0);
 		if ($t_lines =~ m/.+?FPKM.+?\"(.+?)\".+?cov.+?\"(.+?)\".+/i) {
-		    $io->execute_system_command("grep -iP \'$q_t_id\' $ARGV[$_] >> $p_file_names_gtf->[$_]")if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff);
+		    $io->execute_system_command("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ Class code \"$class_code\"\;\/' >> $p_file_names_gtf->[$_]")if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff);
 		}	
 	    }
 	}
@@ -122,6 +122,7 @@ sub get_putative_ncRNAs {
 
 # Categorize ncRNAs.
 sub class_ncRNAs {
+    $io->c_time('Categorizing ncRNAs...', $quiet);
     my $refAnnot = store_coords($refGenePred);
     for (0 .. $#ARGV) {
 	my $p_gtf = $p_file_names_gtf->[$_];
