@@ -13,6 +13,7 @@ my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
     $min_exons, $overlap, $novel, $extract_pat);
 my ($p_file_names_gtf, $p_file_names_txt) = [];
+my $ncRNA_class = {};
 
 my $is_valid_option = GetOptions('help|?'         => \$help,
 				 'quiet'          => \$quiet,
@@ -103,18 +104,18 @@ exit;
 sub get_putative_ncRNAs {
     $io->c_time('Getting putative list of ncRNAs in GTF format...', $quiet);
     if (defined $novel) {
-	$extract_pat = 'm/j|i|o|u|x/i';
+	$extract_pat = 'j|i|o|u|x';
     }
     else {
-	$extract_pat = 'm/i|o|u|x/i';
+	$extract_pat = 'i|o|u|x';
     }
     
     while (my $line = <$cuffcmp_fh>) {
 	chomp $line;
 	$line = $io->strip_leading_and_trailing_spaces($line);
 	my ($t_id, $loc_id, $loc_name, $class_code, @cols) = split/\t/, $line;
-	for (0 .. $#cols) {
-	    if ($class_code =~ $extract_pat) {
+	if ($class_code =~ m/$extract_pat/i) {
+	    for (0 .. $#cols) {
 		my ($q_loc_id, $q_t_id, $discard) = split/\|/, $cols[$_];
 		next if (!$q_t_id || $q_t_id eq '');
 		$q_t_id =~ s/\./\\./g;
@@ -144,62 +145,205 @@ sub get_genePred {
     return;
 }
 
-# Categorize ncRNAs.
+# Categorize ncRNAs
 sub class_ncRNAs {
-    $io->c_time('Categorizing ncRNAs...', $quiet);
     my $refAnnot = store_coords($refGenePred);
+
     for (0 .. $#ARGV) {
-	my $p_gtf = $p_file_names_gtf->[$_];
-	my $p_ncRNAs = store_coords($p_file_names_txt->[$_]);
-	my $c_ncRNAs = $output . $file_basename->($ARGV[$_]) . '.' . $lables[$_] . '.class.ncRNAs.gtf';
-	unlink $c_ncRNAs if (-e $c_ncRNAs);
-    
+        my $p_gtf = $p_file_names_gtf->[$_];
+        my $p_ncRNAs = store_coords($p_file_names_txt->[$_]);
+        my $c_ncRNAs = $output . $file_basename->($ARGV[$_]) . '.' . $lables[$_] . '.class.ncRNAs.gtf';
+        unlink $c_ncRNAs if (-e $c_ncRNAs);
+	
+	$io->c_time('Categorizing ncRNAs (Exonic overlaps)...', $quiet);
+	calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	# Calculate overlap.
-	foreach my $nc_chr (keys %{$p_ncRNAs}) {
-	    foreach my $ncRNA (values @{$p_ncRNAs->{$nc_chr}}) {
-		my ($nc_strand,
-		    $nc_tr_start,
-		    $nc_tr_end,
-		    $nc_exons,
-		    $nc_exon_starts,
-		    $nc_exon_ends, 
-		    $nc_tr_id) = get_parts($ncRNA); 
+	#$io->c_time('Categorizing ncRNAs (Intronic overlaps - poncs)...', $quiet);
+	#calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+
+	$io->c_time('Categorizing ncRNAs (Intronic overlaps - incs)...', $quiet);
+	calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+
+	$io->c_time('Categorizing ncRNAs (Intronic overlaps - concs)...', $quiet);
+	calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+
+	$io->c_time('Categorizing ncRNAs (lincRNA)...', $quiet);
+        calc_overlaps('lincRNA', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+    }
+	return;
+}
+
+# Calcualte overlaps of putative ncRNAs with reference information.
+sub calc_overlaps {
+    my $mode = shift;
+    my $p_gtf = shift;
+    my $p_ncRNAs = shift;
+    my $c_ncRNAs = shift;
+    my $refAnnot = shift;
+
+    # Calculate overlap.
+    foreach my $nc_chr (keys %{$p_ncRNAs}) {
+	
+	for (my $ncRNA_line=0; $ncRNA_line <= $#{$p_ncRNAs->{$nc_chr}}; $ncRNA_line++) {
+	    my $ncRNA_OFFSET = $_;
+	    my $ncRNA = ${$p_ncRNAs->{$nc_chr}}[$ncRNA_OFFSET];
+	  
+	    my ($nc_strand,
+		$nc_tr_start,
+		$nc_tr_end,
+		$nc_exons,
+		$nc_exon_starts,
+		$nc_exon_ends, 
+		$nc_tr_id) = get_parts($ncRNA);
+	    
+	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" .
+		@$nc_exon_starts . @$nc_exon_ends;
+
+	    foreach my $ref_gene (values @{$refAnnot->{$nc_chr}}) {
 		
-		foreach my $ref_gene (values @{$refAnnot->{$nc_chr}}) {
-		    
-		    my ($ref_strand, 
-			$ref_tr_start, 
-			$ref_tr_end, 
-			$ref_exons, 
-			$ref_exon_starts, 
-			$ref_exon_ends,
-			$ref_tr_id) = get_parts($ref_gene);
-		    
-		    # Only lncRNAs, adjustable by user with -length and -min-exons parameters
-		    if (($nc_tr_end - $nc_tr_start) >= $length && 
-			$nc_exons >= 2) { 
-			if ($ref_strand ne $nc_strand &&
-			    $ref_strand =~ m/^\+|\-$/ &&
-			    $nc_strand =~ m/^\+|\-$/) {  # Antisense ncRNA
-			    if (is_exonicOverlap($ref_exon_starts, $ref_exon_ends, $nc_exon_starts, $nc_exon_ends)) {
-				$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ Antisense exonic overlap; $ref_tr_id\/\' >> $c_ncRNAs", 0);
+		my ($ref_strand, 
+		    $ref_tr_start, 
+		    $ref_tr_end, 
+		    $ref_exons, 
+		    $ref_exon_starts, 
+		    $ref_exon_ends,
+		    $ref_tr_id) = get_parts($ref_gene);
+		
+		my $is_strand_Antisense = is_Antisense($ref_strand, $nc_strand);
+		my $is_ncRNA_Conc = is_intronicOverlap($ref_tr_start, $ref_tr_end, $nc_exon_starts, $nc_exon_ends);
+		my $is_ncRNA_Inc = is_intronicOverlap($nc_tr_start, $nc_tr_end, $ref_exon_starts, $ref_exon_ends);
+		my $is_ncRNA_exonicOverlap = is_exonicOverlap($ref_exon_starts, $ref_exon_ends, $nc_exon_starts, $nc_exon_ends);
 
-			    }
-			    if ($nc_tr_start > $ref_tr_start && 
-				$nc_tr_end < $ref_tr_end) {
-				my $retain_overlap = $overlap;
-				$overlap = 0;
-				if (!is_exonicOverlap($ref_exon_starts, $ref_exon_ends, $nc_exon_starts, $nc_exon_ends)) {
-				    
-				    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ Sense intronic (Ponc); $ref_tr_id\/\' >> $c_ncRNAs", 0);
-				}
-				$overlap = $retain_overlap;
-			    }
+		# Only lncRNAs, adjustable by user with -length and -min-exons parameters.
+		if (($nc_tr_end - $nc_tr_start) >= $length &&
+		    $nc_exons >= $min_exons) { 
+
+		    # LincRNA
+		    if ($mode =~ m/^lincrna$/i &&
+			   !$is_ncRNA_exonicOverlap &&
+			   !exists $ncRNA_class->{$unique_key}) {
+			$ncRNA_class->{$unique_key} = "LincRNA;";
+			splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
+			$ncRNA_line=0;
+		    }
+
+		    # Complete overlap reference gene with ncRNA intron.
+		    if ($mode =~ m/^conc$/i &&
+                        $nc_tr_start < $ref_tr_start &&
+                        $nc_tr_end > $ref_tr_end) {
+			
+			if ($is_ncRNA_Conc &&
+			    $is_strand_Antisense &&
+			    !exists $ncRNA_class->{$unique_key}) {
+			    $ncRNA_class->{$unique_key} = "Sense intronic overlap (Conc) with $ref_tr_id;";
+			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
+                            $ncRNA_line=0;
 			}
+			elsif ($is_ncRNA_Conc &&
+			       !$is_strand_Antisense &&
+			       !exists $ncRNA_class->{$unique_key}) {
+			    $ncRNA_class->{$unique_key} = "Sense intronic overlap (Conc) with $ref_tr_id;";
+			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
+                            $ncRNA_line=0;
+			}
+			elsif (!$is_ncRNA_exonicOverlap &&
+			    !exists $ncRNA_class->{$unique_key}) {
+			    $ncRNA_class->{$unique_key} = "Sense intronic overlap (Conc);";
+			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
+			    $ncRNA_line=0;
+			}
+		    }
+		    
+		    # Complete overlap of ncRNA within reference intron	
+		    if ($mode =~ m/^inc$/i &&
+			$nc_tr_start > $ref_tr_start &&
+                        $nc_tr_end < $ref_tr_end) {
+
+			if ($is_ncRNA_Inc &&
+			    $is_strand_Antisense &&
+			    !exists $ncRNA_class->{$unique_key}) {
+			    $ncRNA_class->{$unique_key} = "Antisense intronic overlap (Inc) with $ref_tr_id;";
+			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
+			    $ncRNA_line=0;
+			}
+			elsif ($is_ncRNA_Inc &&
+			       !$is_strand_Antisense &&
+			       !exists $ncRNA_class->{$unique_key}) {
+			    $ncRNA_class->{$unique_key} = "Sense intronic overlap (Inc) with $ref_tr_id;";
+			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
+			    $ncRNA_line=0;
+			}
+			elsif ($is_ncRNA_Inc &&
+			       !exists $ncRNA_class->{$unique_key}) {
+			    $ncRNA_class->{$unique_key} = "Intronic overlap (Inc) with $ref_tr_id;";
+			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
+			    $ncRNA_line=0;
+			}
+		    }
+
+		    # Antisense and Sense partial reference intronic overlap.
+		    #if ($mode =~ m/^ponc$/i && $nc_tr_start > $ref_tr_start && 
+		#	$nc_tr_end < $ref_tr_end) {
+		#	my $retain_overlap = $overlap;
+		#	$overlap = 0;
+			
+			#if ($nc_tr_id eq 'CUFF.4981.1') {
+			#	print join(',', @$ref_exon_starts), "\n";
+			#	print join(',', @$ref_exon_ends), "\n";
+			#	print join(',', @$nc_exon_starts), "\n";
+			#	print join(',', @$nc_exon_ends), "\n";
+			#	print "$ref_tr_id\n";
+			#	exit;
+			#   }
+			
+		#	if (!$is_ncRNA_exonicOverlap &&
+		#	    $is_strand_Antisense &&
+		#	    !exists $ncRNA_class->{$unique_key}) {
+		#	    $ncRNA_class->{$unique_key} = "Antisense partial intronic overlap (Ponc) with $ref_tr_id;";
+		#	    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
+		#	}
+		#	elsif (!$is_ncRNA_exonicOverlap &&
+		#	       !$is_strand_Antisense &&
+		#	       !exists $ncRNA_class->{$unique_key}) {
+		#	    $ncRNA_class->{$unique_key} = "Sense partial intronic overlap (Ponc) with $ref_tr_id;";
+		#	    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
+		#	}
+		#	elsif (!$is_ncRNA_exonicOverlap &&
+		#	       !$is_strand_Antisense &&
+		#	       !exists $ncRNA_class->{$unique_key}) {
+		#	    $ncRNA_class->{$unique_key} = "Partial intronic overlap (Ponc) with $ref_tr_id;";
+		#	    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
+		#	}
+		 #   }
+		    
+		    # Antisense and Sense reference exonic overlap.
+		    if ($mode =~ m/^exonic$/i &&
+			$is_ncRNA_exonicOverlap &&
+			$is_strand_Antisense &&
+			!exists $ncRNA_class->{$unique_key}) {
+			$ncRNA_class->{$unique_key} = "Antisense exonic overlap with $ref_tr_id;";
+			splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
+			$ncRNA_line=0;
+		    }
+		    elsif ($mode =~ m/^exonic$/i &&
+			   $is_ncRNA_exonicOverlap &&
+			   !$is_strand_Antisense &&
+			   !exists $ncRNA_class->{$unique_key}) {
+			$ncRNA_class->{$unique_key} = "Sense exonic overlap with $ref_tr_id;";
+			splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
+			$ncRNA_line=0;
+		    }
+		    elsif ($mode =~ m/^exonic$/i &&
+			   $is_ncRNA_exonicOverlap &&
+			   !exists $ncRNA_class->{$unique_key}) {
+			$ncRNA_class->{$unique_key} = "Exonic overlap with $ref_tr_id;";
+			splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
+			$ncRNA_line=0;
 		    }
 		}
 	    }
+	    $io->execute_system_command(0, "grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ $ncRNA_class->{$unique_key}\/\' >> $c_ncRNAs", 0)
+		if ($ncRNA_class->{$unique_key} ne '');
 	}
     }
     return;
@@ -223,12 +367,13 @@ sub store_coords {
 	$io->error('Supplied file [ ' . $file_basename->($f, 'suffix') . ' ] does not seem to be in gene prediction format...' .
 		   "\nError occured on line:\n\n$line\n")
 	    if ($chr !~ m/^chr/i || $strand !~ m/^\+|\-|\.$/ || $num_exons !~ m/\d+/);
+	#if ($t_id eq 'CUFF.2070.3'){print "$t_id\n";exit;}
 	push @{$store->{lc($chr)}}, "$strand|$tr_start|$tr_end|$cds_start|$cds_end|$num_exons|$exon_starts|$exon_ends|$t_id";
     }
     return $store;
 }
 
-# Split and return columns
+# Split and return columns.
 sub get_parts {
     my @line_parts = split /\|/, shift;
     return ($line_parts[0],
@@ -240,37 +385,69 @@ sub get_parts {
 	    $line_parts[8]);
 }
 
-# Calculate exonic overlap
+# Calculate exonic overlap.
 sub is_exonicOverlap {
     my ($s_ex_st, $s_ex_end, $c_ex_st, $c_ex_end) = @_;
-    for (0 .. $#$s_ex_st) {	
-	if ($c_ex_st->[$_] <= $s_ex_st->[$_] && 
-	    $c_ex_st->[$_] <= $s_ex_end->[$_] && 
-	    $c_ex_end->[$_] >= $s_ex_st->[$_] && 
-	    $c_ex_end->[$_] <= $s_ex_end->[$_]) {
-	    return 1 if ( defined($overlap) &&
-			  ( ( ( ($c_ex_end->[$_] - $s_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
-	}
-	elsif ($c_ex_st->[$_] >= $s_ex_st->[$_] &&
-	       $c_ex_st->[$_] <= $s_ex_end->[$_] &&
-	       $c_ex_end->[$_] >= $s_ex_st->[$_] &&
-	       $c_ex_end->[$_] <= $s_ex_end->[$_]) {
-	    return 1 if ( defined($overlap) &&
-			  ( ( ( ($c_ex_end->[$_] - $c_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
-	}
-	elsif ($c_ex_st->[$_] >= $s_ex_st->[$_] &&
-	       $c_ex_st->[$_] <= $s_ex_end->[$_] &&
-	       $c_ex_end->[$_] >= $s_ex_st->[$_] &&
-	       $c_ex_end->[$_] >= $s_ex_end->[$_]) {
-	   return 1 if ( defined($overlap) &&
-			 ( ( ( ($s_ex_end->[$_] - $c_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
-	}
-	elsif ($c_ex_st->[$_] <= $s_ex_st->[$_] &&
-	       $c_ex_st->[$_] <= $s_ex_end->[$_] &&
-	       $c_ex_end->[$_] >= $s_ex_st->[$_] && $c_ex_end->[$_] >= $s_ex_end->[$_]) {
-	    return 1 if ( defined($overlap) &&
-			  ( ( ( ($s_ex_end->[$_] - $s_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
+    
+    for (0 .. $#$c_ex_st) {
+	my $nc_ex_coord = $_;
+	
+	for (0 .. $#$s_ex_st) {
+	    if ($c_ex_st->[$nc_ex_coord] <= $s_ex_st->[$_] && 
+		$c_ex_st->[$nc_ex_coord] <= $s_ex_end->[$_] && 
+		$c_ex_end->[$nc_ex_coord] >= $s_ex_st->[$_] && 
+		$c_ex_end->[$nc_ex_coord] <= $s_ex_end->[$_]) {
+		return 1 if ( defined($overlap) &&
+			      ( ( ( ($c_ex_end->[$_] - $s_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
+	    }
+	    elsif ($c_ex_st->[$nc_ex_coord] >= $s_ex_st->[$_] &&
+		   $c_ex_st->[$nc_ex_coord] <= $s_ex_end->[$_] &&
+		   $c_ex_end->[$nc_ex_coord] >= $s_ex_st->[$_] &&
+		   $c_ex_end->[$nc_ex_coord] <= $s_ex_end->[$_]) {
+		return 1 if ( defined($overlap) &&
+			      ( ( ( ($c_ex_end->[$_] - $c_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
+	    }
+	    elsif ($c_ex_st->[$nc_ex_coord] >= $s_ex_st->[$_] &&
+		   $c_ex_st->[$nc_ex_coord] <= $s_ex_end->[$_] &&
+		   $c_ex_end->[$nc_ex_coord] >= $s_ex_st->[$_] &&
+		   $c_ex_end->[$nc_ex_coord] >= $s_ex_end->[$_]) {
+		return 1 if ( defined($overlap) &&
+			      ( ( ( ($s_ex_end->[$_] - $c_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
+	    }
+	    elsif ($c_ex_st->[$nc_ex_coord] <= $s_ex_st->[$_] &&
+		   $c_ex_st->[$nc_ex_coord] <= $s_ex_end->[$_] &&
+		   $c_ex_end->[$nc_ex_coord] >= $s_ex_st->[$_] && 
+		   $c_ex_end->[$nc_ex_coord] >= $s_ex_end->[$_]) {
+		return 1 if ( defined($overlap) &&
+			      ( ( ( ($s_ex_end->[$_] - $s_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
+	    }
 	}
     }
+    return 0;
+}
+
+# Calculate ncRNA intronic overlap with reference gene information, both Concs and Poncs.
+sub is_intronicOverlap {
+    my ($tr_start, $tr_end, $ex_st, $ex_end) = @_;
+    
+    # Return false if it is only single exon transcript.
+    return 0 if ($#$ex_st < 1);
+
+    for (1 .. $#$ex_st) {
+	my $prev_exon_end = $_ - 1;
+	return 1 if ( ($tr_end - $tr_start) < ($ex_st->[$_] - $ex_end->[$prev_exon_end]) )
+    }
+    return 0;
+}
+
+# Calculate strandedness.
+sub is_Antisense {
+    my ($ref_strand, $comp_strand) = @_;
+
+    if ($ref_strand ne $comp_strand &&
+	$ref_strand =~ m/^\+|\-$/ &&
+	$comp_strand =~ m/^\+|\-$/) {
+	return 1;
+    } 
     return 0;
 }
