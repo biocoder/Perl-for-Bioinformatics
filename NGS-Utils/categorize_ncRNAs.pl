@@ -156,19 +156,27 @@ sub class_ncRNAs {
         unlink $c_ncRNAs if (-e $c_ncRNAs);
 	
 	$io->c_time('Categorizing ncRNAs (Exonic overlaps)...', $quiet);
-	calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	my $num_ex_ov = calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
 	#$io->c_time('Categorizing ncRNAs (Intronic overlaps - poncs)...', $quiet);
 	#calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
 	$io->c_time('Categorizing ncRNAs (Intronic overlaps - incs)...', $quiet);
-	calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	my $num_incs = calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
 	$io->c_time('Categorizing ncRNAs (Intronic overlaps - concs)...', $quiet);
-	calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	my $num_concs = calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
 	$io->c_time('Categorizing ncRNAs (lincRNA)...', $quiet);
-        calc_overlaps('lincRNA', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+        my $num_lincs = calc_overlaps('lincRNA', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	
+	$io->c_time("\n\nncRNA Summary:\n" . 
+		    "------------------\n" .
+		    "LincRNAs: $num_lincs\n" . 
+		    "Intronic overlaps - concs: $num_concs\n" . 
+		    "Intronic overlaps - incs: $num_incs\n" . 
+		    "Exonic overlaps: $num_ex_ov\n" . 
+		    "Total: " . ($num_lincs + $num_concs + $num_incs + $num_ex_ov) . "\n" );
     }
 	return;
 }
@@ -180,6 +188,7 @@ sub calc_overlaps {
     my $p_ncRNAs = shift;
     my $c_ncRNAs = shift;
     my $refAnnot = shift;
+    my $found = 0;
 
     # Calculate overlap.
     foreach my $nc_chr (keys %{$p_ncRNAs}) {
@@ -225,6 +234,7 @@ sub calc_overlaps {
 			$ncRNA_class->{$unique_key} = "LincRNA;";
 			splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
 			$ncRNA_line=0;
+			$found++;
 		    }
 
 		    # Complete overlap reference gene with ncRNA intron.
@@ -238,6 +248,7 @@ sub calc_overlaps {
 			    $ncRNA_class->{$unique_key} = "Sense intronic overlap (Conc) with $ref_tr_id;";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
                             $ncRNA_line=0;
+			    $found++;
 			}
 			elsif ($is_ncRNA_Conc &&
 			       !$is_strand_Antisense &&
@@ -245,12 +256,14 @@ sub calc_overlaps {
 			    $ncRNA_class->{$unique_key} = "Sense intronic overlap (Conc) with $ref_tr_id;";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
                             $ncRNA_line=0;
+			    $found++;
 			}
 			elsif (!$is_ncRNA_exonicOverlap &&
 			    !exists $ncRNA_class->{$unique_key}) {
 			    $ncRNA_class->{$unique_key} = "Sense intronic overlap (Conc);";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
 			    $ncRNA_line=0;
+			    $found++;
 			}
 		    }
 		    
@@ -265,6 +278,7 @@ sub calc_overlaps {
 			    $ncRNA_class->{$unique_key} = "Antisense intronic overlap (Inc) with $ref_tr_id;";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
 			    $ncRNA_line=0;
+			    $found++;
 			}
 			elsif ($is_ncRNA_Inc &&
 			       !$is_strand_Antisense &&
@@ -272,12 +286,14 @@ sub calc_overlaps {
 			    $ncRNA_class->{$unique_key} = "Sense intronic overlap (Inc) with $ref_tr_id;";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
 			    $ncRNA_line=0;
+			    $found++;
 			}
 			elsif ($is_ncRNA_Inc &&
 			       !exists $ncRNA_class->{$unique_key}) {
 			    $ncRNA_class->{$unique_key} = "Intronic overlap (Inc) with $ref_tr_id;";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
 			    $ncRNA_line=0;
+			    $found++;
 			}
 		    }
 
@@ -324,6 +340,7 @@ sub calc_overlaps {
 			$ncRNA_class->{$unique_key} = "Antisense exonic overlap with $ref_tr_id;";
 			splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
 			$ncRNA_line=0;
+			$found++;
 		    }
 		    elsif ($mode =~ m/^exonic$/i &&
 			   $is_ncRNA_exonicOverlap &&
@@ -332,6 +349,7 @@ sub calc_overlaps {
 			$ncRNA_class->{$unique_key} = "Sense exonic overlap with $ref_tr_id;";
 			splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
 			$ncRNA_line=0;
+			$found++;
 		    }
 		    elsif ($mode =~ m/^exonic$/i &&
 			   $is_ncRNA_exonicOverlap &&
@@ -339,14 +357,15 @@ sub calc_overlaps {
 			$ncRNA_class->{$unique_key} = "Exonic overlap with $ref_tr_id;";
 			splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_OFFSET, 1);
 			$ncRNA_line=0;
+			$found++;
 		    }
 		}
 	    }
-	    $io->execute_system_command(0, "grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ $ncRNA_class->{$unique_key}\/\' >> $c_ncRNAs", 0)
+	    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ $ncRNA_class->{$unique_key}\/\' >> $c_ncRNAs", 0)
 		if ($ncRNA_class->{$unique_key} ne '');
 	}
     }
-    return;
+    return $found;
 }
 
 # Store genome coordinates.
