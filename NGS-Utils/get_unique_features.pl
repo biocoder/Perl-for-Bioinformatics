@@ -84,7 +84,7 @@ while (my $line = <$s_fh>) {
 
     $line = $io->strip_leading_and_trailing_spaces($line);
     my @cols = split/\t/, $line;
-    $io->error('Cannot find chromosome column') if ($cols[$chr_s] !~ m/^chr/i);
+    $io->error('Cannot find chromosome column in file [ ' . $sf . ' ]') if ($cols[$chr_s] !~ m/^chr/i);
 
     $cols[$chr_s] = lc ($cols[$chr_s]);
 
@@ -115,7 +115,7 @@ while (my $line = <$c_fh>) {
     chomp $line;
     $line = $io->strip_leading_and_trailing_spaces($line);
     my @cols = split/\t/, $line;
-    $io->error('Cannot find chromosome column') if ($cols[$chr_c] !~ m/^chr/i);
+    $io->error('Cannot find chromosome column in file [ ' . $cf . ' ]') if ($cols[$chr_c] !~ m/^chr/i);
     $cols[$chr_c] = lc($cols[$chr_c]);
     #print "$cols[$chr_c]\t$cols[$cc1]\t$cols[$cc2]\n";
 
