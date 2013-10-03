@@ -256,7 +256,7 @@ sub calc_overlaps {
     # Calculate overlap.
     foreach my $nc_chr (keys %{$p_ncRNAs}) {
 
-	my $nc_int_tree = Set::IntervalTree->new() if ($mode =~ m/^ponc$/i);
+	my $nc_int_tree = Set::IntervalTree->new() if ($mode =~ m/^ponc|conc$/i);
 	    
 	for (my $ncRNA_line=0; $ncRNA_line <= $#{$p_ncRNAs->{$nc_chr}}; $ncRNA_line++) {
 	    my $ncRNA = ${$p_ncRNAs->{$nc_chr}}[$ncRNA_line];
@@ -272,7 +272,7 @@ sub calc_overlaps {
 	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" .
 		@$nc_exon_starts . @$nc_exon_ends;
 
-	    $nc_int_tree->insert($nc_tr_id, $nc_tr_start, $nc_tr_end) if ($mode =~ m/^ponc$/i);
+	    $nc_int_tree->insert($nc_tr_id, $nc_tr_start, $nc_tr_end) if ($mode =~ m/^ponc|conc$/i);
 
 	    foreach my $ref_gene (values @{$refAnnot->{$nc_chr}}) {
 		
@@ -295,7 +295,12 @@ sub calc_overlaps {
                         $nc_tr_start < $ref_tr_start &&
                         $nc_tr_end > $ref_tr_end) {
 
-			my $is_ncRNA_Conc = is_intronicOverlap($ref_tr_start, $ref_tr_end, $nc_exon_starts, $nc_exon_ends);
+			my $ov_tr_found = $nc_int_tree->fetch($ref_tr_start ,$ref_tr_end);
+
+			my $is_ncRNA_Conc = 0;
+			$is_ncRNA_Conc = 1 if (scalar(@$ov_tr_found) >= 1);
+						
+			#my $is_ncRNA_Conc = is_intronicOverlap($ref_tr_start, $ref_tr_end, $nc_exon_starts, $nc_exon_ends);
 			
 			if ($is_ncRNA_Conc &&
 			    $is_strand_Antisense &&
