@@ -398,11 +398,6 @@ sub calc_overlaps {
 			    $ncRNA_line-- if ($ncRNA_line > 0);
 			    $ncRNA_line = 0 if ($ncRNA_line = 0);
 			    $found++;
-
-			    if($nc_tr_id eq 'CUFF.4597.1') {
-				print "$nc_chr\n$ref_tr_start\t$ref_tr_end\n$nc_tr_start\t$nc_tr_end\n\n";
-				exit;
-			    }
 			}
 			elsif (!$is_ncRNA_exonicOverlap &&
 			       !exists $ncRNA_class->{$unique_key} &&
@@ -477,7 +472,7 @@ sub store_coords {
 	$io->error('Supplied file [ ' . $file_basename->($f, 'suffix') . ' ] does not seem to be in gene prediction format...' .
 		   "\nError occured on line:\n\n$line\n")
 	    if ($chr !~ m/^chr/i || $strand !~ m/^\+|\-|\.$/ || $num_exons !~ m/\d+/);
-	#if ($t_id eq 'CUFF.1002.1'){print "$t_id\n";exit;}
+	
 	push @{$store->{lc($chr)}}, "$strand|$tr_start|$tr_end|$cds_start|$cds_end|$num_exons|$exon_starts|$exon_ends|$t_id";
     }
     return $store;
