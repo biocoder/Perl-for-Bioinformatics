@@ -179,16 +179,16 @@ while (my $line = <$c_fh>) {
 	    foreach my $tr_coord (values @{$trans_bd_on_chr->{$cols[$chr_c]}}) {
 
 		my ($tr_start, $tr_end) = split /\|/, $tr_coord;
+		my $id = $cols[$chr_c] . ':' . $tr_start . '-' . $tr_end;
 
-		if (!exists $seen_tr_tree->{"$cols[$chr_c]:$tr_start-$tr_end"}) {
-		    $tr_tree->insert("$cols[$chr_c]:$tr_start-$tr_end",
-				     $tr_start, $tr_end);
-		    $seen_tr_tree->{"$cols[$chr_c]:$tr_start-$tr_end"} = 1;
+		if (!exists $seen_tr_tree->{$id}) {
+		    $tr_tree->insert($id, $tr_start, $tr_end);
+		    $seen_tr_tree->{$id} = 1;
 		}
 	    }
 	    
 	    my $tr_intersect = $tr_tree->fetch($cols[$cc1], $cols[$cc2]);
-	    
+	    	    
 	    if (scalar(@$tr_intersect) > 0) {
 		print $j_fh $line, "\ti\n";
 	    }
