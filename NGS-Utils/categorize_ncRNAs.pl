@@ -41,7 +41,12 @@ $io->verify_options([$is_valid_option, $sample_names,
 		     $refGenePred, $out],
                     $help);
 
-$io->this_script_info($0, $VERSION, $AUTHORFULLNAME, $LASTCHANGEDBY, $LASTCHANGEDDATE, $quiet);
+$io->this_script_info($io->file_basename($0),
+		      $VERSION,
+		      $AUTHORFULLNAME,
+		      $LASTCHANGEDBY,
+		      $LASTCHANGEDDATE,
+		      $quiet);
 
 $io->c_time('Analysis started...', $quiet);
 $io->c_time('Verifying options...', $quiet);
@@ -436,9 +441,9 @@ sub calc_overlaps {
 			    $ncRNA_line-- if ($ncRNA_line > 0);
 			    $ncRNA_line = 0 if ($ncRNA_line == 0);
 			    $found++;
+			    
 			}
-			elsif ($mode =~ m/^exonic$/i &&
-			       $is_ncRNA_exonicOverlap &&
+			elsif ($is_ncRNA_exonicOverlap &&
 			       !$is_strand_Antisense &&
 			       !exists $ncRNA_class->{$unique_key}) {
 			    $ncRNA_class->{$unique_key} = "Sense exonic overlap with $ref_tr_id;";
@@ -446,15 +451,16 @@ sub calc_overlaps {
 			    $ncRNA_line-- if ($ncRNA_line > 0);
 			    $ncRNA_line = 0 if ($ncRNA_line = 0);
 			    $found++;
+			    
 			}
-			elsif ($mode =~ m/^exonic$/i &&
-			       $is_ncRNA_exonicOverlap &&
+			elsif ($is_ncRNA_exonicOverlap &&
 			       !exists $ncRNA_class->{$unique_key}) {
 			    $ncRNA_class->{$unique_key} = "Exonic overlap with $ref_tr_id;";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line-- if ($ncRNA_line > 0);
 			    $ncRNA_line = 0 if ($ncRNA_line = 0);
 			    $found++;
+			    
 			}
 		    }
 		}
