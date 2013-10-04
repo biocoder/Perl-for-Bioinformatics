@@ -19,8 +19,8 @@ my ($help, $quiet, $sc1, $sc2, $cc1, $cc2,
     $sf, $cf, $chr_s, $chr_c,
     %seen_coord, %store_s_coords, %seen_s,
     $unique, $pipe2stdout, $j_fh, $overlap, 
-    $tr_coords, $tr_tree, $tr_start_col,
-    $tr_end_col);
+    $tr_coords, $tr_start_col,
+    $tr_end_col, $trans_bd_on_chr);
 
 my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'source-column-2|sc-2|s2=s'  => \$sc2,
@@ -90,7 +90,6 @@ my $c_fh = $io->open_file('<', $cf);
 if (defined($tr_coords) && 
     ($tr_coords ne '') &&
      ($tr_coords =~ m/^\d+\s*\,\s*\d+$/)) {
-    $tr_tree = Set::IntervalTree->new();
     $tr_coords =~ s/\s+//g;
 }
 elsif (defined($tr_coords) &&
@@ -102,10 +101,9 @@ elsif (defined($tr_coords) &&
 # Store source coordinates in memory.
 
 while (my $line = <$s_fh>) {
+    
     chomp $line;
     my ($left_coords, $right_coords) = [];
-    ($tr_start_col, $tr_end_col) = split/\,/, $tr_coords
-	if (defined ($tr_coords));
     
     $line = $io->strip_leading_and_trailing_spaces($line);
     my @cols = split/\t/, $line;
@@ -133,12 +131,13 @@ while (my $line = <$s_fh>) {
 	}
     }
 
-    $tr_tree->insert("$cols[$chr_s]$cols[$tr_start_col]$cols[$tr_end_col]", 
-		     $cols[$tr_start_col],
-		     $cols[$tr_end_col])
-	if (defined($tr_coords));
+    if (defined ($tr_coords)) {
+	($tr_start_col, $tr_end_col) = split/\,/, $tr_coords;
+	$tr_start_col--;
+	$tr_end_col--;
+	push @{$trans_bd_on_chr->{$cols[$chr_s]}}, "$cols[$tr_start_col]|$cols[$tr_end_col]";
+    }
 }
-
 # Now, extract either common or unique features.
 
 while (my $line = <$c_fh>) {
@@ -171,9 +170,25 @@ while (my $line = <$c_fh>) {
             }
         }
 
-	if (!is_duplicate($line) && defined($unique) && defined($tr_coords)) {
-	    my $tr_intersect = $tr_tree->fetch($cols[$cc1], $cols[$cc2]);
 
+	if (!is_duplicate($line) && defined($unique) && defined($tr_coords)) {
+
+	    my $tr_tree = Set::IntervalTree->new();
+	    my $seen_tr_tree = {};
+
+	    foreach my $tr_coord (values @{$trans_bd_on_chr->{$cols[$chr_c]}}) {
+
+		my ($tr_start, $tr_end) = split /\|/, $tr_coord;
+
+		if (!exists $seen_tr_tree->{"$cols[$chr_c]:$tr_start-$tr_end"}) {
+		    $tr_tree->insert("$cols[$chr_c]:$tr_start-$tr_end",
+				     $tr_start, $tr_end);
+		    $seen_tr_tree->{"$cols[$chr_c]:$tr_start-$tr_end"} = 1;
+		}
+	    }
+	    
+	    my $tr_intersect = $tr_tree->fetch($cols[$cc1], $cols[$cc2]);
+	    
 	    if (scalar(@$tr_intersect) > 0) {
 		print $j_fh $line, "\ti\n";
 	    }
@@ -203,7 +218,7 @@ sub is_duplicate {
   return 1;
 }
 
-$io->end_timer($s_time, $quiet), "\n\n";
+$io->end_timer($s_time, $quiet);
 
 __END__
 

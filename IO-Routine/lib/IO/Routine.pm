@@ -771,9 +771,7 @@ sub end_timer {
 	}
 	return "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time)), " Seconds\n";
     }
-    else {
-	return '';
-    }
+    return;
 }
 
 # Subroutine return current ctime
