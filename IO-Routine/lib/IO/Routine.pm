@@ -302,7 +302,7 @@ Start timer to calculate elapsed time and return reference.
 
 =over 5
 
-End timer and return elapsed time in floating point seconds.
+End timer and print elapsed time in floating point seconds.
 
 =back
 
@@ -761,15 +761,15 @@ sub end_timer {
     
     if (!$quiet || !defined($quiet)) {
 	if (sprintf("%.2f", tv_interval($start_time)) > 60) {
-	    return "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 60 ), " Minute(s)\n";
+	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 60 ), " Minute(s)\n\n";
 	}
 	elsif (( sprintf("%.2f", tv_interval($start_time)) / 60 ) > 60) {
-	    return "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 3600), " Hour(s)\n";
+	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 3600), " Hour(s)\n\n";
 	}
 	elsif ((( sprintf("%.2f", tv_interval($start_time)) / 60 ) / 60 ) > 24) {
-	    return "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 86400), " Day(s)\n";
+	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 86400), " Day(s)\n\n";
 	}
-	return "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time)), " Seconds\n";
+	print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time)), " Seconds\n\n";
     }
     return;
 }

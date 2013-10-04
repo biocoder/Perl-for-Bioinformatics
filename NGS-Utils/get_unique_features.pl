@@ -203,6 +203,8 @@ while (my $line = <$c_fh>) {
     }
 }
 
+$io->end_timer($s_time, $quiet);
+
 close $s_fh;
 close $c_fh;
 close $j_fh;
@@ -217,8 +219,6 @@ sub is_duplicate {
   }
   return 1;
 }
-
-$io->end_timer($s_time, $quiet);
 
 __END__
 
