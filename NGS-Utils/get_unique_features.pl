@@ -1,4 +1,4 @@
-#!/opt/perl/bin/perl
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
@@ -307,9 +307,9 @@ Column number of the Source file's chromosome right coordinate (end coordinate) 
     
   Extract features that are unique or overlap by this many number of bases
 
-=item --no-exon-match (Optional)
+=item -no or --no-exon-match (Optional)
    
- Extract features that fall either within entire reference intron or in intergenic regions
+ Extract features that fall either within entire reference intron or in intergenic regions.
 
 =back
 
