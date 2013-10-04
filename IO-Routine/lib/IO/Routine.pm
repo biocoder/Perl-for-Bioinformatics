@@ -8,6 +8,7 @@ use Pod::Usage;
 use Module::Load;
 use Exporter;
 use Time::HiRes qw(gettimeofday tv_interval);
+use File::Basename;
 use Cwd;
 
 =head1 NAME
@@ -92,6 +93,10 @@ To avoid some of the repetetive stuff, this module:
     my ($v_mem, $r_mem) = $io->get_mem_usage();
     $io->end_timer($s_time, $quiet);
     $io->c_time("\nAnalysis Finished on ", $quiet);
+    
+    my $filename = $io->file_basename($file);
+    my $filename_w_suffix = $io->file_basename($file, 'suffix');
+    my ($filename, $path, $suffix) = $io->file_basename($file, 'all');
 
 =back
 
@@ -106,6 +111,18 @@ To avoid some of the repetetive stuff, this module:
 =over 5
 
 Instantiates a new IO::Routine object and returns it.
+
+=back
+
+=over 4
+
+=item file_basename()
+
+=back
+
+=over 5
+
+Returns file's basename or suffix or both if requested
 
 =back
 
@@ -741,6 +758,7 @@ sub end_timer {
     my $self = shift;
     my $start_time = shift;
     my $quiet = shift;
+    
     if (!$quiet || !defined($quiet)) {
 	if (sprintf("%.2f", tv_interval($start_time)) > 60) {
 	    return "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 60 ), " Minute(s)\n";
@@ -771,6 +789,20 @@ sub c_time {
 	print "\n", scalar(localtime(time));
     }
     return;
+}
+
+# Subroutine to return filename parts
+
+sub file_basename {
+    my $self = shift;
+    my $file = shift;
+    my $mode = shift;
+    
+    my @file_attrs = fileparse($file, qr/\.[^.]*/);
+
+    return $file_attrs[0] if (!defined($mode));
+    return "$file_attrs[0]$file_attrs[2]" if ($mode eq 'suffix');
+    return ($file_attrs[0], $file_attrs[1], $file_attrs[2]) if ($mode eq 'all');
 }
 
 1; # End of IO::Routine

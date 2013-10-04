@@ -5,6 +5,12 @@ use warnings;
 use Getopt::Long;
 use IO::Routine;
 use File::Basename;
+use Set::IntervalTree;
+
+my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-10-04 09:08:44 -0500 (Fri, 04 Oct 2013) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 62 $ =~ m/.+?(\d+)/;
+my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my $io = IO::Routine->new();
 my $s_time = $io->start_timer();
@@ -12,7 +18,9 @@ my $s_time = $io->start_timer();
 my ($help, $quiet, $sc1, $sc2, $cc1, $cc2,
     $sf, $cf, $chr_s, $chr_c,
     %seen_coord, %store_s_coords, %seen_s,
-    $unique, $pipe2stdout, $j_fh, $overlap);
+    $unique, $pipe2stdout, $j_fh, $overlap, 
+    $tr_coords, $tr_tree, $tr_start_col,
+    $tr_end_col);
 
 my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'source-column-2|sc-2|s2=s'  => \$sc2,
@@ -25,7 +33,8 @@ my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'help'                       => \$help,
 				 'quiet'                      => \$quiet,
 				 'unique'                     => \$unique,
-				 'overlap=i'                    => \$overlap,
+				 'overlap=i'                  => \$overlap,
+				 'no-exon-match=s'            => \$tr_coords,
 				 'stdout'                     => \$pipe2stdout
 				);
 
@@ -37,6 +46,8 @@ $io->verify_files([$sf, $cf],
                   ['Chromosome feature ( Source )',
                    'Chromosome feature ( Compare )']);
 
+$io->this_script_info($0, $VERSION, $AUTHORFULLNAME, $LASTCHANGEDBY, $LASTCHANGEDDATE, $quiet);
+
 # In Perl index starts at 0.
 
 $sc1--;
@@ -46,8 +57,7 @@ $cc2--;
 $chr_s--;
 $chr_c--;
 
-my ($cf_filename, $path, $suffix) = fileparse($cf, qr/\.[^.]*/);
-my $sf_filename = sub {my @file_p_attrs = fileparse(shift, qr/\.[^.]*/); return $file_p_attrs[0]};
+my ($cf_filename, $path, $suffix) = $io->file_basename($cf, 'all');
 
 if (defined($unique)) {
   $io->execute_system_command(0,
@@ -66,7 +76,7 @@ if (defined $pipe2stdout ) {
     $j_fh = *STDOUT;
 }
 else {
-    my $new_f = $path . $sf_filename->($sf) . '_' . $cf_filename . $suffix;
+    my $new_f = $path . $io->file_basename($sf) . '_' . $cf_filename . $suffix;
     $j_fh = $io->open_file('>', $new_f);
     $io->execute_system_command(0,
 				"New file will be $new_f",
@@ -76,12 +86,27 @@ else {
 my $s_fh = $io->open_file('<', $sf);
 my $c_fh = $io->open_file('<', $cf);
 
+# If asked to find intronic and intergenic features, start a tree
+if (defined($tr_coords) && 
+    ($tr_coords ne '') &&
+     ($tr_coords =~ m/^\d+\s*\,\s*\d+$/)) {
+    $tr_tree = Set::IntervalTree->new();
+    $tr_coords =~ s/\s+//g;
+}
+elsif (defined($tr_coords) &&
+       ($tr_coords ne '') &&
+       ($tr_coords !~ m/\d+|\,/)) {
+    $io->error('Transcript coordinates must be numeric and be separated by a comma')
+}
+
 # Store source coordinates in memory.
 
 while (my $line = <$s_fh>) {
     chomp $line;
     my ($left_coords, $right_coords) = [];
-
+    ($tr_start_col, $tr_end_col) = split/\,/, $tr_coords
+	if (defined ($tr_coords));
+    
     $line = $io->strip_leading_and_trailing_spaces($line);
     my @cols = split/\t/, $line;
     $io->error('Cannot find chromosome column in file [ ' . $sf . ' ]') if ($cols[$chr_s] !~ m/^chr/i);
@@ -107,6 +132,11 @@ while (my $line = <$s_fh>) {
 	    push @{$store_s_coords{$cols[$chr_s]}{$left_coords->[$_]}}, $right_coords->[$_];
 	}
     }
+
+    $tr_tree->insert("$cols[$chr_s]$cols[$tr_start_col]$cols[$tr_end_col]", 
+		     $cols[$tr_start_col],
+		     $cols[$tr_end_col])
+	if (defined($tr_coords));
 }
 
 # Now, extract either common or unique features.
@@ -141,7 +171,18 @@ while (my $line = <$c_fh>) {
             }
         }
 
-	if (!is_duplicate($line) && defined $unique) {
+	if (!is_duplicate($line) && defined($unique) && defined($tr_coords)) {
+	    my $tr_intersect = $tr_tree->fetch($cols[$cc1], $cols[$cc2]);
+
+	    if (scalar(@$tr_intersect) > 0) {
+		print $j_fh $line, "\ti\n";
+	    }
+	    elsif (scalar(@$tr_intersect) == 0) {
+		print $j_fh $line, "\tu\n";
+	    }
+	}
+
+	if (!is_duplicate($line) && defined($unique)) {
 	    print $j_fh $line, "\n";
         }
     }
@@ -162,7 +203,7 @@ sub is_duplicate {
   return 1;
 }
 
-print "\nDone!\n\n", $io->end_timer($s_time, $quiet), "\n\n";
+$io->end_timer($s_time, $quiet), "\n\n";
 
 __END__
 
@@ -175,6 +216,10 @@ get_unique_features.pl
 This script will extract unique or common features between 2 chromosome feature files of different formats like
 GTF, GFF, BED etc...
 
+Complete Description: 
+
+    perldoc get_unique_features.pl
+
 Examples:
 
     perl get_unique_features.pl -h
@@ -185,6 +230,12 @@ Examples:
 =head1 DESCRIPTION
 
 This script makes it easy to find out the common overlapping or non-overlapping features of the genome given two gene feature files in different file formats. For example, the BED format file stores the gene boundary information in first, second and third columns respectively, whereas the refGene.txt file stores the reference gene boundary information in second, fourth and fifth columns respectively. Now, if you want to find out whether the features in the BED file overlap or do not overlap with reference genes in refGene.txt file, you specify the refGene.txt file as "Source file" and BED file as "Compare file". Then the Source file's column information would be 2, 4, 5 (i.e -scc 2, -s1 4, -s2 5) respectively and the Compare file's column information will be 1, 2 and 3 (i.e -ccc 1, -c1 2, -c2 3) respectively. You can directly use refGene.txt as source file and use exonStarts and exonEnds columns to extract common or unique features. The output file will be created at the location of the "Compare" file. The output can be printed to STDOUT with -stdout option. This script is strand agnostic, meaning that the features either common or unique are reported irrespective of the Source feature's strand information.
+
+=head1 EXAMPLE
+
+get_unique_features.pl -sf rn4_refGene.txt -cf H3K9me3_mapped-W200-G200-E100.bed -ccc 1 -c1 2 -c2 3 -scc 3 -s1 10 -s2 11 -u --no-exon-match '5,6'
+
+The above command will extract H3K9me3 peaks that fall within entire reference intron or in intergenic regions when comparing the BED file [H3K9me3_mapped-W200-G200-E100.bed] with reference annotation. In this case, the reference annotation [refGene.txt] becomes the source file (-sf) and [H3K9me3_mapped-W200-G200-E100.bed] becomes the compare file (-cf), where -scc 1 -s1 10 -s2 11 --no-exon-match '5,6' are the column numbers of Chromosome (1), ExonStarts (10), ExonEnds (11), TranscriptStart (5) TranscriptEnd (6) features for refGene.txt file and -ccc 1 -c1 2 -c2 3 are the column numbers of Chromosome (1), PeakBoundaries (2, 3) for H3K9me3_mapped-W200-G200-E100.bed file.
 
 
 =head1 OPTIONS
@@ -205,11 +256,11 @@ get_unique_features.pl takes the following arguments:
 =item -scc or --source-chr-column (Required)
 
   Column number of the Source file's chromosome information.
-
+  
 =item -s1 or --source-column-1 (Required)
 
  Column number of the Source file's chromosome left coordinate (start coordinate) information.
-
+ 
 =item -s2 or --source-column-2 (Required)
 
 Column number of the Source file's chromosome right coordinate (end coordinate) information.
@@ -241,6 +292,10 @@ Column number of the Source file's chromosome right coordinate (end coordinate) 
 =item -ov or --overlap (Optional)
     
   Extract features that are unique or overlap by this many number of bases
+
+=item --no-exon-match (Optional)
+   
+ Extract features that fall either within entire reference intron or in intergenic regions
 
 =back
 

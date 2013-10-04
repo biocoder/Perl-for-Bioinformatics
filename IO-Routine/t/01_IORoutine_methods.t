@@ -3,7 +3,7 @@
 use 5.14.2;
 use strict;
 use warnings FATAL => 'all';
-use Test::More tests => 27;
+use Test::More tests => 28;
 
 my ($pathTest, $errorTest, $openFileTest, $tmpLoc) = 0;
 $|=0;
@@ -107,5 +107,8 @@ ok( defined( $io ) && can_ok($io, 'end_timer'), 'end_timer() - Is loadable, Retu
 
 diag( "Testing method c_time()" );
 ok( defined( $io ) && can_ok($io, 'c_time'), 'c_time - Is loadable, Returns ctime from localtime().');
+
+diag( "Testing method file_basename()" );
+ok( $io->file_basename($tmpLocFile, 'suffix') =~ m/txt$/i , 'file_basename() - Returns suffix of a file.');
 
 diag("\n\nTesting Complete!\n\n");

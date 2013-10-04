@@ -7,6 +7,11 @@ use IO::Routine;
 use File::Basename;
 use Set::IntervalTree;
 
+my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-10-04 09:08:44 -0500 (Fri, 04 Oct 2013) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 62 $ =~ m/.+?(\d+)/;
+my $AUTHORFULLNAME = 'Kranti Konganti';
+
 my $io = IO::Routine->new();
 my $s_time = $io->start_timer();
 
@@ -35,6 +40,8 @@ my $is_valid_option = GetOptions('help|?'         => \$help,
 $io->verify_options([$is_valid_option, $sample_names, 
 		     $refGenePred, $out],
                     $help);
+
+$io->this_script_info($0, $VERSION, $AUTHORFULLNAME, $LASTCHANGEDBY, $LASTCHANGEDDATE, $quiet);
 
 $io->c_time('Analysis started...', $quiet);
 $io->c_time('Verifying options...', $quiet);
