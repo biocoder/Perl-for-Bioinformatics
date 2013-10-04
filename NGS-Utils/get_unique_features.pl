@@ -4,7 +4,6 @@ use strict;
 use warnings;
 use Getopt::Long;
 use IO::Routine;
-use File::Basename;
 use Set::IntervalTree;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
