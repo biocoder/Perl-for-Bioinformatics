@@ -50,12 +50,21 @@ $io->this_script_info($io->file_basename($0),
 $io->c_time('Analysis started...', $quiet);
 $io->c_time('Verifying options...', $quiet);
 
-# Define defaults
+# Define Defaults
 $fpkm_cutoff = 0.0 if (!defined $fpkm_cutoff || $fpkm_cutoff eq '');
-$cov_cutoff = 0.0 if (!defined $fpkm_cutoff || $fpkm_cutoff eq '');
+$cov_cutoff = 0.0 if (!defined $cov_cutoff || $cov_cutoff eq '');
 $length = 200 if (!defined $length || $length eq '');
 $overlap = 0 if (!defined $overlap || $overlap eq '');
 $min_exons = 2 if (!defined $min_exons || $min_exons eq '');
+
+$io->c_time('', $quiet);
+$io->execute_system_command(0,
+			    "Using options:\n--------------\n" .
+                            "FPKM Cutoff                            : $fpkm_cutoff\n" .
+                            "Coverage Cutoff                        : $cov_cutoff\n".
+                            "Minimum transcript length              : $length\n" .
+                            "Exon overlap percentage                : $overlap\n" .
+                            "Minimum number of exons per transcript : $min_exons");
 
 $io->c_time('Validating output path...', $quiet);
 my $output = $io->validate_create_path($out, 'create', 
@@ -185,7 +194,7 @@ sub class_ncRNAs {
         ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 	
 	$io->c_time("\n\nncRNA Summary:\n" . 
-		    "------------------\n" .
+		    "--------------\n" .
 		    "LincRNAs: $num_lincs\n" . 
 		    "Intronic overlaps - concs: $num_concs\n" .
                     "Intronic overlaps - poncs: $num_poncs\n" . 
