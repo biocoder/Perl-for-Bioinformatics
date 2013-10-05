@@ -7,8 +7,8 @@ use IO::Routine;
 use Set::IntervalTree;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-10-04 09:08:44 -0500 (Fri, 04 Oct 2013) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 62 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-10-05 16:08:25 -0500 (Sat, 05 Oct 2013) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 63 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my $io = IO::Routine->new();
@@ -45,7 +45,12 @@ $io->verify_files([$sf, $cf],
                   ['Chromosome feature ( Source )',
                    'Chromosome feature ( Compare )']);
 
-$io->this_script_info($0, $VERSION, $AUTHORFULLNAME, $LASTCHANGEDBY, $LASTCHANGEDDATE, $quiet);
+$io->this_script_info($io->file_basename($0),
+		      $VERSION,
+		      $AUTHORFULLNAME,
+		      $LASTCHANGEDBY,
+		      $LASTCHANGEDDATE,
+		      $quiet);
 
 # In Perl index starts at 0.
 
