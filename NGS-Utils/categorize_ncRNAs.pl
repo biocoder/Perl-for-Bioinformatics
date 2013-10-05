@@ -57,15 +57,6 @@ $length = 200 if (!defined $length || $length eq '');
 $overlap = 0 if (!defined $overlap || $overlap eq '');
 $min_exons = 2 if (!defined $min_exons || $min_exons eq '');
 
-$io->c_time('', $quiet);
-$io->execute_system_command(0,
-			    "Using options:\n--------------\n" .
-                            "FPKM Cutoff                            : $fpkm_cutoff\n" .
-                            "Coverage Cutoff                        : $cov_cutoff\n".
-                            "Minimum transcript length              : $length\n" .
-                            "Exon overlap percentage                : $overlap\n" .
-                            "Minimum number of exons per transcript : $min_exons");
-
 $io->c_time('Validating output path...', $quiet);
 my $output = $io->validate_create_path($out, 'create', 
 				       'Output directory');
@@ -105,6 +96,13 @@ elsif (defined($genePred)) {
     class_ncRNAs();
 }
 else {
+    $io->execute_system_command(0,
+				"Using options:\n--------------\n" .
+				"FPKM Cutoff                            : $fpkm_cutoff\n" .
+				"Coverage Cutoff                        : $cov_cutoff\n".
+				"Minimum transcript length              : $length\n" .
+				"Exon overlap percentage                : $overlap\n" .
+				"Minimum number of exons per transcript : $min_exons");
     get_putative_ncRNAs();
     get_genePred();
     class_ncRNAs();
