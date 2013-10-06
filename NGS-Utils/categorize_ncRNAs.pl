@@ -315,7 +315,7 @@ sub calc_overlaps {
 			if ($is_ncRNA_Conc &&
 			    $is_strand_Antisense &&
 			    !exists $ncRNA_class->{$unique_key}) {
-			    $ncRNA_class->{$unique_key} = "Sense intronic overlap (Conc) with $ref_tr_id;";
+			    $ncRNA_class->{$unique_key} = "Antisense intronic overlap (Conc) with $ref_tr_id;";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
@@ -330,7 +330,7 @@ sub calc_overlaps {
 			}
 			elsif (!$is_ncRNA_Conc &&
 			    !exists $ncRNA_class->{$unique_key}) {
-			    $ncRNA_class->{$unique_key} = "Sense intronic overlap (Conc);";
+			    $ncRNA_class->{$unique_key} = "Intronic overlap (Conc);";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
