@@ -28,7 +28,9 @@ my $is_valid_option = GetOptions ('help|?' => \$help,
 
 # Check for the validity of options
 verify_options($is_valid_option, $help);
-verify_input_files([$tmap], ['TMAP ( ex: proximal_vs_reference.cmp.transcripts.gtf.class_codes_u_and_i.tmap )']);
+verify_input_files([$tmap],
+		   ['TMAP ( ex: proximal_vs_reference.cmp.transcripts.gtf.class_codes_u_and_i.tmap )']);
+
 error("DBKEY not mentioned.\nThis option is required to fetch sequences from UCSC Database.\nEx: rn4, hg19 etc..\n")
     if (!defined $dbkey);
 

@@ -19,7 +19,7 @@ my ($help, $quiet, $sc1, $sc2, $cc1, $cc2,
     %seen_coord, %store_s_coords, %seen_s,
     $unique, $pipe2stdout, $j_fh, $overlap, 
     $tr_coords, $tr_start_col,
-    $tr_end_col, $trans_bd_on_chr);
+    $tr_end_col, $trans_bd_on_chr, $keyword, $keyword_col);
 
 my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'source-column-2|sc-2|s2=s'  => \$sc2,
@@ -32,9 +32,11 @@ my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'help'                       => \$help,
 				 'quiet'                      => \$quiet,
 				 'unique'                     => \$unique,
-				 'overlap=i'                  => \$overlap,
+				 'overlap=f'                  => \$overlap,
 				 'no-exon-match=s'            => \$tr_coords,
-				 'stdout'                     => \$pipe2stdout
+				 'stdout'                     => \$pipe2stdout,
+				 'compare-keyword|ck=s'       => \$keyword,
+				 'keyword-col|kc=i'           => \$keyword_col
 				);
 
 $io->verify_options([$is_valid_option, $sc1, $sc2, $cc1, $cc2,
@@ -60,6 +62,7 @@ $cc1--;
 $cc2--;
 $chr_s--;
 $chr_c--;
+$keyword_col-- if(defined($keyword_col) && ($keyword_col ne ''));
 
 my ($cf_filename, $path, $suffix) = $io->file_basename($cf, 'all');
 
@@ -147,35 +150,53 @@ while (my $line = <$s_fh>) {
 while (my $line = <$c_fh>) {
     chomp $line;
     $line = $io->strip_leading_and_trailing_spaces($line);
+
     my @cols = split/\t/, $line;
     $io->error('Cannot find chromosome column in file [ ' . $cf . ' ]') if ($cols[$chr_c] !~ m/^chr/i);
     $cols[$chr_c] = lc($cols[$chr_c]);
     #print "$cols[$chr_c]\t$cols[$cc1]\t$cols[$cc2]\n";
 
+    if (defined($keyword) && ($keyword ne '') &&
+	defined($keyword_col) && ($keyword_col ne '')) {
+	next if ($cols[$keyword_col] ne $keyword);
+    }
+    
+    $overlap = 0 if (!defined($overlap) || $overlap eq '');
+    #print $line, "\n";
+
     if (exists $store_s_coords{$cols[$chr_c]}) {
         foreach my $left_coord (sort {$a <=> $b} keys %{$store_s_coords{$cols[$chr_c]}}) {
             foreach my $right_coord (sort {$a <=> $b} values @{$store_s_coords{$cols[$chr_c]}{$left_coord}}) {
+
+		my $s_ex_len = $right_coord -  $left_coord;
+		my $c_ex_len = $cols[$cc2] - $cols[$cc1];
+		my $ex_ov_per = ($s_ex_len / $c_ex_len) * 100 if ($c_ex_len > 0);
+
                 if ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
-		    last if (defined($overlap) && (($cols[$cc2] - $left_coord) <= $overlap));
-                    print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
-                }
+		    if (defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line) && !defined($unique)) {
+			print $j_fh $line, "\n";
+		    }
+		}
                 elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
-		    last if (defined($overlap) && (($cols[$cc2] - $cols[$cc1]) <= $overlap));
-                    print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
+                    if (defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line) && !defined($unique)) {
+                        print $j_fh $line, "\n";
+                    }
                 }
                 elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord) {
-		    last if (defined($overlap) && (($right_coord - $cols[$cc1]) <= $overlap));
-                    print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
+                    if (defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line) && !defined($unique)) {
+                        print $j_fh $line, "\n";
+                    }
                 }
 		elsif ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord) {
-		    last if (defined($overlap) && (($right_coord - $left_coord) <= $overlap));
-		    print $j_fh $line, "\n" if (!is_duplicate($line) && !defined $unique);
+                    if (defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line) && !defined($unique)) {
+                        print $j_fh $line, "\n";
+                    }
 		}
             }
         }
 
 
-	if (!is_duplicate($line) && defined($unique) && defined($tr_coords)) {
+	if (defined($unique) && defined($tr_coords) && !is_duplicate($line)) {
 
 	    my $tr_tree = Set::IntervalTree->new();
 	    my $seen_tr_tree = {};
@@ -201,7 +222,7 @@ while (my $line = <$c_fh>) {
 	    }
 	}
 
-	if (!is_duplicate($line) && defined($unique)) {
+	if (defined($unique) && !is_duplicate($line)) {
 	    print $j_fh $line, "\n";
         }
     }
@@ -310,7 +331,7 @@ Column number of the Source file's chromosome right coordinate (end coordinate) 
 
 =item -ov or --overlap (Optional)
     
-  Extract features that are unique or overlap by this many number of bases
+  Extract common features that overlap with source feature by at least this much percentage.
 
 =item -no or --no-exon-match (Optional)
    
