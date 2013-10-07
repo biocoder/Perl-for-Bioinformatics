@@ -16,7 +16,7 @@ my $s_time = $io->start_timer();
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
-    $min_exons, $overlap, $novel, $extract_pat);
+    $min_exons, $overlap, $novel, $extract_pat, $no_tmp);
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 my $ncRNA_class = {};
 
@@ -33,7 +33,8 @@ my $is_valid_option = GetOptions('help|?'         => \$help,
 				 'length=i'       => \$length,
 				 'min-exons=i'    => \$min_exons,
 				 'overlap=i'      => \$overlap,
-				 'novel'          => \$novel);
+				 'include-novel'  => \$novel,
+				 'clean-tmp'       => \$no_tmp);
 
 
 $io->verify_options([$is_valid_option, $sample_names, 
@@ -89,23 +90,41 @@ for (0 .. $#ARGV) {
 }
 
 if (defined($categorize)) {
-    class_ncRNAs();
+         $io->execute_system_command(0,
+				     "Using options:\n--------------\n" .
+				     "Minimum transcript length              : $length\n" .
+				     "Minimum exon overlap percentage        : $overlap\n" .
+				     "Minimum number of exons per transcript : $min_exons");
+	 class_ncRNAs();
 }
 elsif (defined($genePred)) {
+    $io->execute_system_command(0,
+                                "Using options:\n--------------\n" .
+                                "Minimum transcript length              : $length\n" .
+                                "Minimum exon overlap percentage        : $overlap\n" .
+				"Minimum number of exons per transcript : $min_exons");
     get_genePred();
     class_ncRNAs();
 }
 else {
     $io->execute_system_command(0,
 				"Using options:\n--------------\n" .
-				"FPKM Cutoff                            : $fpkm_cutoff\n" .
-				"Coverage Cutoff                        : $cov_cutoff\n".
+				"FPKM cutoff                            : $fpkm_cutoff\n" .
+				"Coverage cutoff                        : $cov_cutoff\n".
 				"Minimum transcript length              : $length\n" .
-				"Exon overlap percentage                : $overlap\n" .
+				"Minimum exon overlap percentage        : $overlap\n" .
 				"Minimum number of exons per transcript : $min_exons");
     get_putative_ncRNAs();
     get_genePred();
     class_ncRNAs();
+}
+
+if (defined($no_tmp)) {
+    $io->c_time('Removing intermediate files...', $quiet);
+    for (0 .. $#ARGV) {
+	unlink $p_file_names_gtf->[$_];
+	unlink $p_file_names_txt->[$_];
+    }
 }
 
 $io->c_time('Done!', $quiet);
@@ -115,8 +134,6 @@ exit;
 
 
 ############################# Functions ###############################
-
-
 
 # Get putative list of ncRNAs from Cuffcompare tracking file corresponding
 # to cufflinks assembled transcript fragments.
@@ -172,7 +189,9 @@ sub class_ncRNAs {
         my $p_gtf = $p_file_names_gtf->[$_];
         my $p_ncRNAs = store_coords($p_file_names_txt->[$_]);
         my $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.class.ncRNAs.gtf';
+	my $u_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.noClass.ncRNAs.gtf';
         unlink $c_ncRNAs if (-e $c_ncRNAs);
+	unlink $u_ncRNAs if (-e $u_ncRNAs);
 	
 	my ($num_ex_ov, $num_incs, $num_concs, $num_poncs, $num_lincs, $noclass) = 0;
 
@@ -189,7 +208,7 @@ sub class_ncRNAs {
         $num_poncs = calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
 	$io->c_time('Categorizing ncRNAs (lincRNA)...', $quiet);
-        ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+        ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 	
 	$io->c_time("\n\nncRNA Summary:\n" . 
 		    "--------------\n" .
@@ -214,6 +233,7 @@ sub calc_lincRNAs {
     my $p_ncRNAs = shift;
     my $c_ncRNAs = shift;
     my $refAnnot = shift;
+    my $u_ncRNAs = shift;
     my $found = 0;
     my $num_noClass = 0;
 
@@ -241,16 +261,24 @@ sub calc_lincRNAs {
 		$nc_exon_starts,
 		$nc_exon_ends,
 		$nc_tr_id) = get_parts($transfrag);
-	    
+	 
+	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" .
+                @$nc_exon_starts . @$nc_exon_ends;
+	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
+	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
 	    my $ov_found = $ref_gene_tree->fetch($nc_tr_start, $nc_tr_end);
 	    
-	    if (scalar(@$ov_found) == 0) {
+	    if (scalar(@$ov_found) == 0 &&
+		!exists $ncRNA_class->{$unique_key} &&
+		$ncRNA_length >= $length) {
 		$found++;
-		    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ LincRNA;\/\' >> $c_ncRNAs", 0)
+		$ncRNA_class->{$unique_key} = 1;
+		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length: $ncRNA_length\; LincRNA;\/\' >> $c_ncRNAs", 0)
 	    }
-	    else {
+	    elsif (!exists $ncRNA_class->{$unique_key}) {
 		$num_noClass++;
-		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ No Class \(\?\);\/\' >> $c_ncRNAs", 0)
+		$ncRNA_class->{$unique_key} = 1;
+		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length: $ncRNA_length\; No Class \(\?\)\;\/\' >> $u_ncRNAs", 0)
 	    }
 	}
     }
@@ -284,6 +312,7 @@ sub calc_overlaps {
 	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" .
 		@$nc_exon_starts . @$nc_exon_ends;
 
+	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
 	    $nc_int_tree->insert($nc_tr_id, $nc_tr_start, $nc_tr_end) if ($mode =~ m/^ponc|conc$/i);
 
 	    foreach my $ref_gene (values @{$refAnnot->{$nc_chr}}) {
@@ -297,9 +326,10 @@ sub calc_overlaps {
 		    $ref_tr_id) = get_parts($ref_gene);
 		
 		my $is_strand_Antisense = is_Antisense($ref_strand, $nc_strand);
-		
+
 		# Only lncRNAs, adjustable by user with -length and -min-exons parameters.
-		if (($nc_tr_end - $nc_tr_start) >= $length &&
+		
+		if ($ncRNA_length >= $length &&
 		    $nc_exons >= $min_exons) { 
 
 		    # Complete overlap reference gene with ncRNA intron.
@@ -319,6 +349,7 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
+			    last;
 			}
 			elsif ($is_ncRNA_Conc &&
 			       !$is_strand_Antisense &&
@@ -327,6 +358,7 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
                             $ncRNA_line--;
 			    $found++;
+			    last;
 			}
 			elsif (!$is_ncRNA_Conc &&
 			    !exists $ncRNA_class->{$unique_key}) {
@@ -334,16 +366,15 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
+			    last;
 			}
 		    }
-		    
+		    		    
 		    # Complete overlap of ncRNA within reference intron	
 		    if ($mode =~ m/^inc$/i &&
 			$nc_tr_start >= $ref_tr_start &&
                         $nc_tr_end <= $ref_tr_end) {
 			
-			my $retain_overlap = $overlap;
-			$overlap = 0;
 			my $is_ncRNA_Inc = is_intronicOverlap($nc_tr_start, $nc_tr_end, $ref_exon_starts, $ref_exon_ends);
 			
 			if ($is_ncRNA_Inc &&
@@ -353,6 +384,7 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
+			    last;
 			}
 			elsif ($is_ncRNA_Inc &&
 			       !$is_strand_Antisense &&
@@ -361,6 +393,7 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
+			    last;
 			}
 			elsif ($is_ncRNA_Inc &&
 			       !exists $ncRNA_class->{$unique_key}) {
@@ -368,9 +401,8 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
+			    last;
 			}
-			
-			$overlap = $retain_overlap;
 		    }
 
 		    # Antisense and Sense partial reference intronic overlap.
@@ -396,6 +428,7 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
+			    last;
 			}
 			elsif (!$is_ncRNA_exonicOverlap &&
 			       !$is_strand_Antisense &&
@@ -405,6 +438,7 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
+			    last;
 			}
 			elsif (!$is_ncRNA_exonicOverlap &&
 			       !exists $ncRNA_class->{$unique_key} &&
@@ -413,6 +447,7 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
+			    last;
 			}
 			$overlap = $retain_overlap;
 		    }
@@ -422,18 +457,13 @@ sub calc_overlaps {
 			
 			my $is_ncRNA_exonicOverlap = is_exonicOverlap($ref_exon_starts, $ref_exon_ends, $nc_exon_starts, $nc_exon_ends);
 
-			#if ($is_ncRNA_exonicOverlap && ($nc_tr_id eq 'CUFF.1248.2')) {
+			#if ($nc_tr_id eq 'CUFF.2285.1' && $ref_tr_id eq 'uc008cnc.2') {
 			#    print $nc_tr_id, "\t$ref_tr_id\n";
                         #    print $ncRNA_line, "\n";
+			#    print "@$ref_exon_starts\n@$ref_exon_ends\n";
                         #    print $p_ncRNAs->{$nc_chr}->[$ncRNA_line], "\n";
-                        #}
-
-
-			#if ($is_ncRNA_exonicOverlap && ($nc_tr_id eq 'CUFF.1264.2')) {
-			#    print $nc_tr_id, "\t$ref_tr_id\n";
-                        #    print $ncRNA_line, "\n";
-                        #    print $p_ncRNAs->{$nc_chr}->[$ncRNA_line], "\n";
-                            #exit;
+			#    print "\nis_exonic_Overlap = $is_ncRNA_exonicOverlap\n\n";
+			#    exit;
                         #}
 
 			if ($is_ncRNA_exonicOverlap &&
@@ -465,7 +495,7 @@ sub calc_overlaps {
 		    }
 		}
 	    }
-	    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ $ncRNA_class->{$unique_key}\/\' >> $c_ncRNAs", 0)
+	    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length: $ncRNA_length\; $ncRNA_class->{$unique_key}\/\' >> $c_ncRNAs", 0)
 		if ($ncRNA_class->{$unique_key} ne '');
 	}
     }
@@ -514,36 +544,38 @@ sub is_exonicOverlap {
     my ($s_ex_st, $s_ex_end, $c_ex_st, $c_ex_end) = @_;
     
     for (0 .. $#$c_ex_st) {
+
 	my $nc_ex_coord = $_;
+	my $c_ex_len = $c_ex_end->[$nc_ex_coord] - $c_ex_st->[$nc_ex_coord];
 	
 	for (0 .. $#$s_ex_st) {
+
+	    my $s_ex_len = $s_ex_end->[$_] - $s_ex_st->[$_];
+	    my $ex_ov_per = ($c_ex_len / $s_ex_len) * 100;
+	    
 	    if ($c_ex_st->[$nc_ex_coord] <= $s_ex_st->[$_] && 
 		$c_ex_st->[$nc_ex_coord] <= $s_ex_end->[$_] && 
 		$c_ex_end->[$nc_ex_coord] >= $s_ex_st->[$_] && 
 		$c_ex_end->[$nc_ex_coord] <= $s_ex_end->[$_]) {
-		return 1 if ( defined($overlap) &&
-			      ( ( ( ($c_ex_end->[$_] - $s_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
+		return 1 if ( defined($overlap) && ($ex_ov_per >= $overlap) );
 	    }
 	    elsif ($c_ex_st->[$nc_ex_coord] >= $s_ex_st->[$_] &&
 		   $c_ex_st->[$nc_ex_coord] <= $s_ex_end->[$_] &&
 		   $c_ex_end->[$nc_ex_coord] >= $s_ex_st->[$_] &&
 		   $c_ex_end->[$nc_ex_coord] <= $s_ex_end->[$_]) {
-		return 1 if ( defined($overlap) &&
-			      ( ( ( ($c_ex_end->[$_] - $c_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
+		return 1 if ( defined($overlap) && ($ex_ov_per >= $overlap) );
 	    }
 	    elsif ($c_ex_st->[$nc_ex_coord] >= $s_ex_st->[$_] &&
 		   $c_ex_st->[$nc_ex_coord] <= $s_ex_end->[$_] &&
 		   $c_ex_end->[$nc_ex_coord] >= $s_ex_st->[$_] &&
 		   $c_ex_end->[$nc_ex_coord] >= $s_ex_end->[$_]) {
-		return 1 if ( defined($overlap) &&
-			      ( ( ( ($s_ex_end->[$_] - $c_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
+		return 1 if ( defined($overlap) && ($ex_ov_per >= $overlap) );
 	    }
 	    elsif ($c_ex_st->[$nc_ex_coord] <= $s_ex_st->[$_] &&
 		   $c_ex_st->[$nc_ex_coord] <= $s_ex_end->[$_] &&
 		   $c_ex_end->[$nc_ex_coord] >= $s_ex_st->[$_] && 
 		   $c_ex_end->[$nc_ex_coord] >= $s_ex_end->[$_]) {
-		return 1 if ( defined($overlap) &&
-			      ( ( ( ($s_ex_end->[$_] - $s_ex_st->[$_]) / ($s_ex_end->[$_] - $s_ex_st->[$_]) ) * 100 ) >= $overlap) );
+		return 1 if ( defined($overlap) && ($ex_ov_per >= $overlap) );
 	    }
 	}
     }
@@ -556,7 +588,7 @@ sub is_intronicOverlap {
 	$ex_st, $ex_end) = @_;
     
     # Return false if it is only single exon transcript.
-    return 0 if ($#$ex_st < 1);
+    return 0 if ($#$ex_st == 0);
 
     for (1 .. $#$ex_st) {
 	my $prev_exon_end = $_ - 1;
