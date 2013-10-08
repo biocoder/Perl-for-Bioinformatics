@@ -44,12 +44,9 @@ $io->this_script_info($io->file_basename($0),
 $io->verify_options([$is_valid_option, $dbkey,
 		     $tmap, $output]);
 
-$io->c_time('Analysis started...');
-
 $io->c_time('Verifying file [ ' .
 	    $io->file_basename($tmap) .
 	    ' ] ...');
-
 $io->verify_files([$tmap],
 		  ['TMAP']);
 
@@ -78,20 +75,21 @@ else {
     $print_seq_fh = $io->open_file('>>', $fa);
 }
 
-$io->c_time('Checking for required GNU core utils...', $quiet);
-$io->check_sys_level_cmds(['grep'],
-                          ['2.6.3']);
+$io->c_time('Analysis started...');
 
 while (my $line = <$tmap_fh>) {
     chomp $line;
-    my ($u_seq_id, $unique_seq_id) = '';
+    my $unique_seq_id;
 
     next if ($line =~ m/^ref\_gene\_id/);
     next if (defined $skip_re &&
 	     $skip_re ne '' &&
 	     $line =~ m/$skip_re/i);
-    ($u_seq_id) = ($line =~ qr/$id_re/) if (defined $id_re && $id_re ne '');
-   
+    my ($u_seq_id) = ($line =~ m/$id_re/i)
+	if (defined $id_re && $id_re ne '');
+    
+    print $line, "\n";
+
     my @cols = split/\t/, $line;
     
     if (ref($chr_info) eq 'ARRAY') {
@@ -117,10 +115,13 @@ while (my $line = <$tmap_fh>) {
 		   $cols[13] . ', ' . $cols[14], ', and ' . $cols[15]);
     }
 
-    my $fetched_seq = $io->execute_get_sys_cmd_output("grep -A 1 \'$unique_seq_id\' $fa");
+    my $fetched_seq = $io->execute_get_sys_cmd_output("grep -A 1 $unique_seq_id $fa");
     chomp $fetched_seq;
 
-    if ($fetched_seq !~ m/STDERR/i) {
+    print $fetched_seq, "\n";
+    exit;
+
+    if ($fetched_seq || $fetched_seq ne '') {
         $io->execute_system_command(0,
 				    "Skipping $unique_seq_id ... Already fetched!");
         next;
@@ -136,7 +137,7 @@ while (my $line = <$tmap_fh>) {
     print_seq(\$xml_nodes, $unique_seq_id);
 }
 
-$io->end_timer($s_time);
+$io->end_timer;
 close $tmap_fh;
 close $print_seq_fh;
 
