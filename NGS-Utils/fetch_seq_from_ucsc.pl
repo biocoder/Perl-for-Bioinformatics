@@ -117,6 +117,8 @@ while (my $line = <$tmap_fh>) {
 		   $cols[13] . ', ' . $cols[14], ', and ' . $cols[15]);
     }
 
+    $cols[13] =~ s/chr//;
+
     my $fetched_seq = $io->execute_get_sys_cmd_output("grep -A 1 \'$unique_seq_id\' $fa");
     chomp $fetched_seq;
 
