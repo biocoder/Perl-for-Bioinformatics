@@ -34,7 +34,7 @@ my $is_valid_option = GetOptions('help|?'         => \$help,
 				 'min-exons=i'    => \$min_exons,
 				 'overlap=i'      => \$overlap,
 				 'include-novel'  => \$novel,
-				 'clean-tmp'       => \$no_tmp);
+				 'clean-tmp'      => \$no_tmp);
 
 
 $io->verify_options([$is_valid_option, $sample_names, 
