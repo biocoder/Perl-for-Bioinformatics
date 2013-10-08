@@ -427,8 +427,12 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # IO::Routine Constructor
 
+my ($thisHelp, $thisQuiet) = 0;
+
 sub new {
     my $class = shift;
+    $thisHelp = shift;
+    $thisQuiet = shift;
     my $self = {};
     bless $self, $class;
     return $self;
@@ -468,6 +472,8 @@ sub verify_options {
     my $self = shift;
     my $valid_options = shift;
     my $help = shift;
+
+    $help = $thisHelp if (!$help);
 
     if ($help) {
         pod2usage(-exitval => 1,
@@ -567,7 +573,7 @@ sub validate_create_path {
         if (defined $path) {
             execute_system_command($self,
                                    "mkdir -p $path",
-                                   "\nAttempting to create $path ...\n\n",
+                                   "Attempting to make directory $path ...",
                                    )
                 if (defined ($path) && !-d $path);
         }
@@ -593,6 +599,8 @@ sub execute_system_command {
     my $print_msg = shift;
     my $quiet = shift;
 
+    $quiet = $thisQuiet if (!$quiet);
+
     if (!$quiet) {
        print "\n$print_msg\n\n" if ($print_msg);
        system ("$command") if ($command);
@@ -610,6 +618,8 @@ sub execute_get_sys_cmd_output {
     my $command = shift;
     my $print_msg = shift;
     my $quiet = shift;
+
+    $quiet = $thisQuiet if (!$quiet);
 
     if (!$quiet) {
        print "\n$print_msg\n\n" if ($print_msg);
@@ -671,7 +681,10 @@ sub open_file {
 
 sub this_script_info {
     my ($self, $PRGNAME, $VERSION, $AUTHORFULLNAME, $CHANGEDBY, $LASTCHANGEDDATE, $quiet) = @_;
+
+    $quiet = $thisQuiet if (!$quiet);
     return if $quiet;
+
     print "\n", '@ ', '*' x 78, ' @', "\n";
     print "    Program Name       :  " , $PRGNAME, "\n";
     print "    Version            :  $VERSION\n" if ($VERSION);
@@ -679,6 +692,8 @@ sub this_script_info {
     print "    Last Changed By    : $CHANGEDBY\n" if ($CHANGEDBY);
     print "    Last Changed Date  : $LASTCHANGEDDATE\n";
     print '@ ', '*' x 78, ' @', "\n\n";
+    
+    return;
 }
 
 # Subroutine to check the least required version of system command.
@@ -758,16 +773,18 @@ sub end_timer {
     my $self = shift;
     my $start_time = shift;
     my $quiet = shift;
+
+    $quiet = $thisQuiet if (!$quiet);
     
     if (!$quiet || !defined($quiet)) {
 	if (sprintf("%.2f", tv_interval($start_time)) > 60) {
-	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 60 ), " Minute(s).\n\n";
+	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time)) / 60 , " Minute(s).\n\n";
 	}
 	elsif (( sprintf("%.2f", tv_interval($start_time)) / 60 ) > 60) {
-	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 3600), " Hour(s).\n\n";
+	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time)) / 3600, " Hour(s).\n\n";
 	}
 	elsif ((( sprintf("%.2f", tv_interval($start_time)) / 60 ) / 60 ) > 24) {
-	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 86400), " Day(s).\n\n";
+	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time)) / 86400, " Day(s).\n\n";
 	}
 	elsif (sprintf("%.2f", tv_interval($start_time)) <= 60) {
 	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time)), " Seconds.\n\n";
@@ -782,10 +799,13 @@ sub c_time {
     my $self = shift;
     my $msg = shift;
     my $quiet = shift;
+
+    $quiet = $thisQuiet if (!$quiet);
+
     if (!$quiet || !defined($quiet) && ($msg ne '')) {
 	print "\n", scalar(localtime(time)), "\t$msg\n";
     }
-    else {
+    elsif (!$quiet) {
 	print "\n", scalar(localtime(time));
     }
     return;

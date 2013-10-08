@@ -1,78 +1,134 @@
-#!/opt/perl/bin/perl
+#!/usr/bin/env perl
 
 use strict;
 use warnings;
 use Carp;
+use Getopt::Long;
+use LWP::Simple;
+use XML::XPath;
+use XML::XPath::XMLParser;
+use IO::Routine;
 
-my ($CHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
+my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
 my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-07-29 10:34:50 -0500 (Mon, 29 Jul 2013) $ =~ m/.+?\:(.+)/;
 my ($VERSION) = q$LastChangedRevision: 48 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
-
-# Being extra cautious for nice die message instead of Perl's message
-
-check_and_load_modules(['Pod::Usage', 'Getopt::Long', 'File::Basename',
-                        'LWP::Simple', 'XML::XPath', 'XML::XPath::XMLParser']);
-this_script_info();
-
 # Declare initial global variables
+my ($quiet, $tmap, $output, $help, $dbkey, $print_seq_fh,
+    $chr_coords, $chr_info, $id_re, $skip_re);
 
-my ($quiet, $tmap, $output, $help, $dbkey, $print_seq_fh);
-my $is_valid_option = GetOptions ('help|?' => \$help,
-                                  'quiet' => \$quiet,
-                                  'output=s' => \$output,
-                                  'tmap=s' => \$tmap,
-                                  'dbkey=s' => \$dbkey
+my $is_valid_option = GetOptions ('help|?'     => \$help,
+                                  'quiet'      => \$quiet,
+                                  'output=s'   => \$output,
+                                  'tmap=s'     => \$tmap,
+                                  'dbkey=s'    => \$dbkey,
+				  'chr-cols=s' => \$chr_coords,
+				  'id-re=s'    => \$id_re,
+				  'skip-re=s'  => \$skip_re,
                                   );
 
+# Print info if not quiet
+my $io = IO::Routine->new($help, $quiet);
+my $s_time = $io->start_timer;
+
+$io->this_script_info($io->file_basename($0),
+                      $VERSION,
+                      $AUTHORFULLNAME,
+                      $LASTCHANGEDBY,
+                      $LASTCHANGEDDATE);
+		      
+
+
 # Check for the validity of options
-verify_options($is_valid_option, $help);
-verify_input_files([$tmap],
-		   ['TMAP ( ex: proximal_vs_reference.cmp.transcripts.gtf.class_codes_u_and_i.tmap )']);
+$io->verify_options([$is_valid_option, $dbkey,
+		     $tmap, $output]);
 
-error("DBKEY not mentioned.\nThis option is required to fetch sequences from UCSC Database.\nEx: rn4, hg19 etc..\n")
-    if (!defined $dbkey);
+$io->c_time('Verifying file [ ' .
+	    $io->file_basename($tmap) .
+	    ' ] ...');
+$io->verify_files([$tmap],
+		  ['TMAP']);
 
-$output = validate_create_path($output, 'create', 'Output');
+$output = $io->validate_create_path($output, 'create', 'Output');
 
-execute_system_command(0,
-                       "\nChromosome files will be stored at $output ...\n");
+$io->c_time("Chromosome files will be stored at $output ...");
+$io->c_time('Fetching Sequences ...');
 
-execute_system_command(0,
-                       "\nFetching Sequences ...\n");
+if (defined $chr_coords && $chr_coords ne '') {
+    $chr_coords = $io->strip_leading_and_trailing_spaces($chr_coords);
+    $chr_coords =~ s/\s+//g;
+    $chr_info = [split /\,/, $chr_coords];
+    for (0 .. $#$chr_info) {
+	$chr_info->[$_]--;
+    }
+}
 
-my $tmap_fh = open_file($tmap, '<');
-my ($tmap_filename, $tmap_filepath, $suffix) = fileparse($tmap, qr/\.[^.]*/);
+my $tmap_fh = $io->open_file('<', $tmap);
+my ($tmap_filename, $tmap_filepath, $suffix) = $io->file_basename($tmap, 'all');
 my $fa = $output . $tmap_filename . '.fa';
 
 if (!-e $fa && !-s $fa) {
-    $print_seq_fh = open_file($fa, '>')
+    $print_seq_fh = $io->open_file('>', $fa)
 }
 else {
-    $print_seq_fh = open_file($fa, '>>');
+    $print_seq_fh = $io->open_file('>>', $fa);
 }
+
+$io->c_time('Analysis started...');
 
 while (my $line = <$tmap_fh>) {
     chomp $line;
-    next if ($line =~ m/^ref\_gene\_id/);
-    my (@cols) = split/\t/, $line;
-    error("TMAP file does not contain a total 16 columns\nCurrent column count $#cols + 1\n")
-        if ($#cols != 15);
-    my $unique_seq_id = $cols[4] . '_' . "class_code:$cols[2]" . '_' . $cols[13] . ':' . $cols[14] . '-' . $cols[15];
-    $cols[13] =~ s/Chr/chr/i;
+    my $unique_seq_id;
 
-    my $fetched_seq = `grep -A 1 $unique_seq_id $fa`;
+    next if ($line =~ m/^ref\_gene\_id/);
+    next if (defined $skip_re &&
+	     $skip_re ne '' &&
+	     $line =~ m/$skip_re/i);
+    my ($u_seq_id) = ($line =~ m/$id_re/i)
+	if (defined $id_re && $id_re ne '');
+    
+    print $line, "\n";
+
+    my @cols = split/\t/, $line;
+    
+    if (ref($chr_info) eq 'ARRAY') {
+	$cols[13] = lc($cols[$chr_info->[0]]);
+	$cols[14] = $cols[$chr_info->[1]];
+	$cols[15] = $cols[$chr_info->[2]];
+	if ($u_seq_id) {
+	    $unique_seq_id = $u_seq_id . '|' . $cols[13] . ':' . $cols[14] . '-' . $cols[15]; 
+	}
+	else {
+	    $unique_seq_id = $cols[13] . ':' . $cols[14] . '-' . $cols[15]; 
+	}
+    }
+    else {
+	$unique_seq_id = $cols[4] . '|' . "class_code:$cols[2]" . '_' . lc($cols[13]) . ':' . $cols[14] . '-' . $cols[15];
+    }
+
+    if ($cols[13] !~ m/^chr/i &&
+	$cols[14] !~ m/^\d+$/ &&
+	$cols[15] !~ m/^\d+$/) {
+	$io->error("Cannot find chromosome information in columns...\n".
+		   "Encountered columns for chromosome id, chromosome start and chromosome end are:\n" .
+		   $cols[13] . ', ' . $cols[14], ', and ' . $cols[15]);
+    }
+
+    my $fetched_seq = $io->execute_get_sys_cmd_output("grep -A 1 $unique_seq_id $fa");
     chomp $fetched_seq;
 
+    print $fetched_seq, "\n";
+    exit;
+
     if ($fetched_seq || $fetched_seq ne '') {
-        execute_system_command(0,
-                               "Skipping $unique_seq_id ... Already fetched!\n");
+        $io->execute_system_command(0,
+				    "Skipping $unique_seq_id ... Already fetched!");
         next;
     }
     else {
-	execute_system_command(0,
-                               "Querying $unique_seq_id against UCSC DAS ...\n");
+	$io->execute_system_command(0,
+				    "Querying $unique_seq_id against UCSC DAS ...");
     }
 
     my $xml = get("http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=$cols[13]:$cols[14],$cols[15]");
@@ -81,6 +137,7 @@ while (my $line = <$tmap_fh>) {
     print_seq(\$xml_nodes, $unique_seq_id);
 }
 
+$io->end_timer;
 close $tmap_fh;
 close $print_seq_fh;
 
@@ -93,168 +150,10 @@ sub print_seq {
 
     foreach my $xml_node ($$xml_nodes->get_nodelist) {
         my $seq = $xml_node->getValue;
-        $seq = strip_white_spaces_and_newlines($seq);
+	chomp $seq;
+        $seq = $io->strip_leading_and_trailing_spaces($seq);
         print $print_seq_fh ">$seq_id\n$seq\n";
     }
-    return;
-}
-
-# Strip white spaces
-sub strip_white_spaces_and_newlines {
-    my $line = shift;
-    $line =~ s/^\s+//;
-    $line =~ s/\s+$//;
-    $line = uc($line); # upper case all nucleotides
-    $line =~ s/[\n\r]*//g;
-    return $line;
-}
-
-# To check and load modules.
-sub check_and_load_modules {
-    my $module_list = shift;
-    my $is_module_loadable = 1;
-    my $req_modules = '';
-
-    foreach my $module (@$module_list) {
-        my $module_installed = eval ("use $module; 1");
-	$is_module_loadable = 0,
-	$req_modules .= "$module, "
-	    if (!$module_installed);
-    }
-
-    $req_modules =~ s/\,\s+$//;
-
-    confess error("Required module(s) not installed. Following modules and its dependencies must be installed at system level:\n$req_modules\n")
-	if (!$is_module_loadable);
-
-    return;
-}
-
-# Check if all options entered by user are valid
-sub verify_options {
-    my $valid_options = shift;
-    my $help = shift;
-
-    if (!$valid_options) {
-        pod2usage(-exitval => 2,
-		  -verbose => 2,
-                  -msg => "\nSee $0 -h for options.\n");
-    }
-
-    if ($help) {
-        pod2usage(-exitval => 1,
-                  -sections => "OPTIONS",
-                  -msg => "\n");
-    }
-    return;
-}
-
-# File checks
-sub verify_input_files {
-    my $files = shift;
-    my $what_files = shift;
-    my $file_no = 0;
-
-    foreach my $file (@$files) {
-
-        confess error("@$what_files[$file_no] file not specified: $!")
-            if (!defined $file);
-
-        confess error("@$what_files[$file_no] file ( $file ) does not exist: $!")
-            if (!-e $file);
-
-        confess error("@$what_files[$file_no] file ($file) is empty: $!")
-            if (-s $file == 0);
-
-        # Removing DOS Carriage returns
-        `perl -i -p -e 's/\r/\n/g' $file`;
-        `perl -i -p -e 's/^\n//' $file`;
-
-        $file_no++;
-    }
-    return;
-}
-
-# Check if output path is mentioned, else create output path
-sub validate_create_path {
-    my $path = shift;
-    my $create_dir = shift;
-    my $msg = shift;
-
-    confess error ("$msg path not defined or entered!")
-        if (!defined $path || $path eq '');
-
-    if ($create_dir eq 'create') {
-        if (defined $path) {
-            execute_system_command("mkdir -p $path",
-                                   "\nAttempting to create $path ...\n\n",
-                                   )
-                if (defined ($path) && !-d $path);
-        }
-        else {
-            $path = $ENV{'PWD'};
-        }
-    }
-
-    confess error("Path ( $path ) does not exist: $!")
-        if (!-d $path);
-
-    $path .= '/'
-        if ($path !~ m/\/$/);
-
-    return $path;
-}
-
-# Subroutine to execute system command with verbosity
-sub execute_system_command {
-    my $command = shift;
-    my $print_msg = shift;
-
-    if (!$quiet) {
-       print $print_msg if ($print_msg);
-       system ("$command") if ($command);
-    }
-    elsif ($quiet) {
-        system ("$command 1>/dev/null 2>/dev/null") if ($command);
-    }
-    return;
-}
-
-# Shell msg that differentiates log from error
-sub error {
-    my $msg = shift;
-    print "\nERROR!\n------\n$msg\n\n";
-    pod2usage(-exitval => 2,
-	      -verbose => 2);
-}
-
-# Shell msg for warning
-sub warning {
-    my $msg = shift;
-    print "\nWARNING!\n--------\n$msg\n\n";
-    return;
-}
-
-# Subroutine to open files and return file handle
-sub open_file {
-    my $file = shift;
-    my $mode = shift;
-    open (my $file_handle, "$mode", $file) ||
-        confess error("Cannot open ( $file ) in mode ( $mode ): $!");
-    return $file_handle;
- }
-
-# Subroutine to print SCRIPT Version
-# Print this script's info
-
-sub this_script_info {
-    print "\n", '@', '-' x 80, '@', "\n";
-    print "  Program Name       :  " , basename($0), "\n";
-    print "  Version            :  $VERSION\n" if ($VERSION);
-    print "  Author             :  $AUTHORFULLNAME\n" if ($AUTHORFULLNAME);
-    print "  Last Changed By    : $CHANGEDBY\n" if ($CHANGEDBY);
-    print "  Last Changed Date  : $LASTCHANGEDDATE\n";
-    print '@', '-' x 80, '@', "\n\n";
     return;
 }
 
@@ -314,6 +213,22 @@ fetch_seq_from_ucsc.pl takes the following arguments:
 =item -o or --output (Required)
 
   Path to output directory .i.e where should the fasta files be stored?
+
+=item -c or --chr-cols (Optional)
+
+  If you have chromosome information in custom columns, specify it with this option. 
+  For example, if you have chromosome id, chromosome start, chromosome end in 
+  columns 1, 2 and 3 respectively, specify as: -c '1,2,3'.
+
+=item -id or --id-re (Optional)
+    
+  If you want to extract an ID based on pattern matched from the provided input file, 
+  provide the regex with this option. For example, -id 'transcript_id.+?\"(.+?)\"'.
+
+=item -skip or --skip-re (Optional)
+
+  If you want to skip lines containing this pattern, provide regex with this option.
+  For example, -skip '\texon\t'
 
 =back
 
