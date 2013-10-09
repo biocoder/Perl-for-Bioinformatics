@@ -744,14 +744,14 @@ categorize_ncRNAs.pl takes the following arguments:
 
 =item -len or --length (Optional)
 
-    Default: disabled
+    Default: 200
 
     Extract transcripts whose length is at least this much.
 
 
 =item -min or --min-exons (Optional)
 
-    Default: disabled
+    Default: 2
 
     Extract transcripts which contain at least this many number of exons.
 
