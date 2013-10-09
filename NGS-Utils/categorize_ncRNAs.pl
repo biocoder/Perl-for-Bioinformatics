@@ -195,19 +195,20 @@ sub class_ncRNAs {
         unlink $c_ncRNAs if (-e $c_ncRNAs);
 	unlink $u_ncRNAs if (-e $u_ncRNAs);
 	
-	my ($num_ex_ov, $num_incs, $num_concs, $num_poncs, $num_lincs, $noclass) = 0;
+	my ($num_ex_ov, $num_incs, $num_concs, $num_poncs, $num_lincs, $noclass, $num_noSense,
+	    $discard) = 0;
 
 	$io->c_time('Categorizing ncRNAs (Exonic overlaps)...', $quiet);
-	my $num_ex_ov = calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	($num_ex_ov, $num_noSense) = calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
 	$io->c_time('Categorizing ncRNAs (Intronic overlaps - incs)...', $quiet);
-	$num_incs = calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	($num_incs, $discard) = calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
 	$io->c_time('Categorizing ncRNAs (Intronic overlaps - concs)...', $quiet);
-	$num_concs = calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	($num_concs, $discard) = calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
 	$io->c_time('Categorizing ncRNAs (Intronic overlaps - poncs)...', $quiet);
-        $num_poncs = calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+        ($num_poncs, $discard) = calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
 	$io->c_time('Categorizing ncRNAs (lincRNA)...', $quiet);
         ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
@@ -224,7 +225,8 @@ sub class_ncRNAs {
 					     $num_incs + 
 					     $num_ex_ov +
 					     $num_poncs) . 
-		    "\nUncategorized: $noclass\n" );
+		    "\nUncategorized: " . 
+		    ($noclass + $num_noSense) . "\n" );
     }
 	return;
 }
@@ -295,6 +297,7 @@ sub calc_overlaps {
     my $c_ncRNAs = shift;
     my $refAnnot = shift;
     my $found = 0;
+    my $num_noSense = 0;
 
     # Calculate overlap.
     foreach my $nc_chr (keys %{$p_ncRNAs}) {
@@ -480,20 +483,20 @@ sub calc_overlaps {
 			elsif ($is_ncRNA_exonicOverlap &&
 			       !$is_strand_Antisense &&
 			       !exists $ncRNA_class->{$unique_key}) {
-			    last if (defined($antisense_only));
-			    $ncRNA_class->{$unique_key} = "Sense exonic overlap with $ref_tr_id;";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--; 
+			    $num_noSense++, last if (defined($antisense_only) && $antisense_only);
 			    $found++;
+			    $ncRNA_class->{$unique_key} = "Sense exonic overlap with $ref_tr_id;";
 			    last;
 			}
 			elsif ($is_ncRNA_exonicOverlap &&
 			       !exists $ncRNA_class->{$unique_key}) {
-			    last if (defined($antisense_only));
-			    $ncRNA_class->{$unique_key} = "Exonic overlap with $ref_tr_id;";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
+			    $num_noSense++, last if (defined($antisense_only) && $antisense_only);
 			    $found++;
+			    $ncRNA_class->{$unique_key} = "Exonic overlap with $ref_tr_id;";
 			    last;
 			}
 		    }
@@ -503,7 +506,7 @@ sub calc_overlaps {
 		if ($ncRNA_class->{$unique_key} ne '');
 	}
     }
-    return $found;
+    return ($found, $num_noSense);
 }
 
 # Store genome coordinates.
@@ -726,7 +729,7 @@ categorize_ncRNAs.pl takes the following arguments:
     *putative_ncRNAs.gtf files to Gene Prediction format and then 
     the categorization step with this option.
 
-=item --categorize (Optional)
+=item -cat or --categorize (Optional)
 
     Default: disabled
 
@@ -740,7 +743,7 @@ categorize_ncRNAs.pl takes the following arguments:
     Extract transcripts whole length is at least this much.
 
 
-=item --min-exons (Optional)
+=item -min or --min-exons (Optional)
 
     Default: disabled
 
