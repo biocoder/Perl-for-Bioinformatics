@@ -654,7 +654,7 @@ transcripts for each sample in GTF format and produces a putative list of novel 
 them as mentioned in the paper (http://genome.cshlp.org/content/22/3/577.full). Best results can be 
 obtained when all the known annotation resources are combined. For organisms like Human and Mouse, 
 combining RefSeq, UCSC Known genes and Ensembl genes can help filter a lot of known protein-coding 
-genes and known ncRNAs. When Cufflinks' assembled transripts files are supplied in GTF format, it
+genes and known ncRNAs. When Cufflinks' assembled transript files are supplied in GTF format, it
 is first converted to Gene Prediction format using gtfToGenePred tool from UCSC, which can be downloaded
 from http://hgdownload.cse.ucsc.edu/admin/exe. The tool is flexible and can resume in parts as mentioned
 in the OPTIONS' section.
@@ -696,7 +696,7 @@ categorize_ncRNAs.pl takes the following arguments:
 
     Path to output directory.
 
-=item --sample-names (Required)
+=item -sample or --sample-names (Required)
 
     Sample names in order of supplied transcripts files.
     Ex: --sample-names 'Sample1,Sample2,Sample3';
@@ -719,11 +719,11 @@ categorize_ncRNAs.pl takes the following arguments:
 
     Default: disabled
 
-    By default transcript features belonging to class codes "x", "o", "i" and "u"
+    By default, transcript features belonging to class codes "x", "o", "i" and "u"
     are extracted. Providing this option also extracts Cufflinks transcripts 
     classified as novel ("j") isoforms.
 
-=item --genePred (Optional)
+=item -gene or -genePred (Optional)
 
     Default: disabled
 
@@ -742,11 +742,11 @@ categorize_ncRNAs.pl takes the following arguments:
     Providing this option skips the extraction and convertion steps and
     continues the pipeline from categorizing  putative ncRNAs.
 
-=item -l or --length (Optional)
+=item -len or --length (Optional)
 
     Default: disabled
 
-    Extract transcripts whole length is at least this much.
+    Extract transcripts whose length is at least this much.
 
 
 =item -min or --min-exons (Optional)
@@ -769,7 +769,7 @@ categorize_ncRNAs.pl takes the following arguments:
     Default: disabled
 
     Remove intermediate files. Specifically, *putative_ncRNAs.gtf and
-    *putative_ncRNAs.txt are removed.
+    *putative_ncRNAs.txt files are removed.
 
 =item -anti or --antisense (Optional)
 
