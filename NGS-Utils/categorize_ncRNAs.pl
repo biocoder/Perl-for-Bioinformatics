@@ -7,8 +7,8 @@ use IO::Routine;
 use Set::IntervalTree;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-10-05 16:08:25 -0500 (Sat, 05 Oct 2013) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 63 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-10-09 12:46:11 -0500 (Wed, 09 Oct 2013) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 64 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my $io = IO::Routine->new();
@@ -16,7 +16,8 @@ my $s_time = $io->start_timer();
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
-    $min_exons, $overlap, $novel, $extract_pat, $no_tmp);
+    $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
+    $antisense_only);
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 my $ncRNA_class = {};
 
@@ -34,11 +35,12 @@ my $is_valid_option = GetOptions('help|?'         => \$help,
 				 'min-exons=i'    => \$min_exons,
 				 'overlap=i'      => \$overlap,
 				 'include-novel'  => \$novel,
-				 'clean-tmp'      => \$no_tmp);
+				 'clean-tmp'      => \$no_tmp,
+				 'antisense-only' => \$antisense_only);
 
 
 $io->verify_options([$is_valid_option, $sample_names, 
-		     $refGenePred, $out],
+		     $refGenePred, $out, $cuffcmp],
                     $help);
 
 $io->this_script_info($io->file_basename($0),
@@ -478,6 +480,7 @@ sub calc_overlaps {
 			elsif ($is_ncRNA_exonicOverlap &&
 			       !$is_strand_Antisense &&
 			       !exists $ncRNA_class->{$unique_key}) {
+			    last if (defined($antisense_only));
 			    $ncRNA_class->{$unique_key} = "Sense exonic overlap with $ref_tr_id;";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--; 
@@ -486,6 +489,7 @@ sub calc_overlaps {
 			}
 			elsif ($is_ncRNA_exonicOverlap &&
 			       !exists $ncRNA_class->{$unique_key}) {
+			    last if (defined($antisense_only));
 			    $ncRNA_class->{$unique_key} = "Exonic overlap with $ref_tr_id;";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
@@ -611,3 +615,172 @@ sub is_Antisense {
     } 
     return 0;
 }
+
+__END__
+
+=head1 NAME
+
+categorize_ncRNAs.pl
+
+=head1 SYNOPSIS
+
+This script will categorize the Cufflinks' assembled transcripts into ncRNA classes as mentioned 
+in the paper: http://genome.cshlp.org/content/22/3/577.full. 
+
+=head2 DOCUMENTATION
+
+    perldoc categorize_ncRNAs.pl
+
+=head3 EXAMPLES:
+
+    perl categorize_ncRNAs.pl -min-exons 1 -fpkm 2 -length 200 -annotation refSeq_ucscKnown_ensemble.txt -sample-names 'M0,M1,M2' -out lncRNA -cuffcmp cuffcmp.tracking m0/transcripts.gtf m1/transcripts.gtf m2/cufflinks/transcripts.gtf
+
+=head1 DESCRIPTION
+
+Cufflinks includes a program called Cuffcompare, which will compare the transcripts generated 
+across all the samples with provided reference annotation of choice and generates class code 
+for each of the assembled transcripts, while tracking the transcripts at the respective loci in 
+each sample. This script will take in the Cuffcompare tracking file and the corresponding assembled 
+transcripts for each sample in GTF format and produces a putative list of novel ncRNAs and categorizes
+them as mentioned in the paper (http://genome.cshlp.org/content/22/3/577.full). Best results can be 
+obtained when all the known annotation resources are combined. For organisms like Human and Mouse, 
+combining RefSeq, UCSC Known genes and Ensembl genes can help filter a lot of known protein-coding 
+genes and known ncRNAs. When Cufflinks' assembled transripts files are supplied in GTF format, it
+is first converted to Gene Prediction format using gtfToGenePred tool from UCSC, which can be downloaded
+from http://hgdownload.cse.ucsc.edu/admin/exe. The tool is flexible and can resume in parts as mentioned
+in the OPTIONS' section.
+
+=head2 KNOWN ISSUES
+
+The annotation should be in the Gene Prediction format. When Gene Prediction format files for RefSeq
+are downloaded from UCSC, the first column is generally a "bin" id unique to SQL table from UCSC. This
+column *MUST* be removed prior to using it as an annotation file. This can be done but using "cut"
+command.
+
+Ex: cut -f 2- refGene.txt > refGene.nobin.txt
+
+=head1 OPTIONS
+
+categorize_ncRNAs.pl takes the following arguments:
+
+=over 4
+
+=item -h or --help (Optional)
+
+    Displays this helpful message.
+
+=item -q or --quiet (Optional)
+
+    Turn off logging.
+
+=item -cuff or --cuffcmp (Required)
+
+    Path to Cuffcompare tracking file.
+    Ex: cuffcmp.tracking
+
+=item -annot or --annotation (Required)
+
+    Path to annotation file in Gene Prediction format.
+    Ex: refGene.txt
+
+=item --out (Required)
+
+    Path to output directory.
+
+=item --sample-names (Required)
+
+    Sample names in order of supplied transcripts files.
+    Ex: --sample-names 'Sample1,Sample2,Sample3';
+
+=item -fpkm or --fpkm-cutoff (Optional)
+
+    Default: disabled
+
+    Extract transcript features whose FPKM value is at least this much.
+    This can be a floating point value.
+
+=item -cov or --cov-cutoff (Optional)
+
+    Default: disabled
+
+    Extract transript features whose coverage is at least this much. This
+    can be a floating point value.
+
+=item -include or --include-novel (Optional)
+
+    Default: disabled
+
+    By default transcript features belonging to class codes "x", "o", "i" and "u"
+    are extracted. Providing this option also extracts Cufflinks transcripts 
+    classified as novel ("j") isoforms.
+
+=item --genePred (Optional)
+
+    Default: disabled
+
+    The script first extracts transcripts that belong to the Cufflinks'
+    class codes "x", "o", "i" and "u" or class codes "x", "o", "i", "u"
+    and "j" and generates the respective *putative_ncRNAs.gtf files.
+    If for any reason the script fails on moving forward, it can be 
+    asked to skip the extraction step and resume from converting the 
+    *putative_ncRNAs.gtf files to Gene Prediction format and then 
+    the categorization step with this option.
+
+=item --categorize (Optional)
+
+    Default: disabled
+
+    Providing this option skips the extraction and convertion steps and
+    continues the pipeline from categorizing  putative ncRNAs.
+
+=item -l or --length (Optional)
+
+    Default: disabled
+
+    Extract transcripts whole length is at least this much.
+
+
+=item --min-exons (Optional)
+
+    Default: disabled
+
+    Extract transcripts which contain at least this many number of exons.
+
+=item -ov or --overlap (Optional)
+
+    Default: disabled
+
+    When calculating exonic overlaps with reference exon boundaries, consider
+    it an exonic overlap if the Cufflinks assembled transcripts' exon overlaps
+    reference exon by at least this much percentage. This can be floating point
+    value.
+
+=item -clean or --clean-tmp (Optional)
+
+    Default: disabled
+
+    Remove intermediate files. Specifically, *putative_ncRNAs.gtf and
+    *putative_ncRNAs.txt are removed.
+
+=item -anti or --antisense (Optional)
+
+    Default: disabled
+    
+    When reporting exonic overlaps with reference exons, report only Antisense
+    exonic overlaps.
+
+=back
+
+=head1 AUTHOR
+
+Kranti Konganti, E<lt>konganti@tamu.eduE<gt>.
+
+=head1 COPYRIGHT
+
+This program is distributed under the Artistic License.
+
+=head1 DATE
+
+Oct-09-2013
+
+=cut
