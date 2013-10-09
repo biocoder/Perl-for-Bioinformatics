@@ -17,7 +17,7 @@ my $s_time = $io->start_timer();
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
     $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
-    $antisense_only);
+    $antisense_only, $disp_anti_option);
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 my $ncRNA_class = {};
 
@@ -91,20 +91,25 @@ for (0 .. $#ARGV) {
     unlink $p_file_names_gtf->[$_] if (-e $p_file_names_gtf->[$_] && !defined($genePred) && !defined($categorize));
 }
 
-if (defined($categorize)) {
-         $io->execute_system_command(0,
-				     "Using options:\n--------------\n" .
-				     "Minimum transcript length              : $length\n" .
-				     "Minimum exon overlap percentage        : $overlap\n" .
-				     "Minimum number of exons per transcript : $min_exons");
-	 class_ncRNAs();
+$disp_anti_option = 'True' if (defined($antisense_only));
+$disp_anti_option = 'False' if (!defined($antisense_only));
+
+if (defined($categorize)) {    
+    $io->execute_system_command(0,
+				"Using options:\n--------------\n" .
+				"Minimum transcript length              : $length\n" .
+				"Minimum exon overlap percentage        : $overlap\n" .
+				"Minimum number of exons per transcript : $min_exons\n" .
+				"Extract only Antisense exon overlaps   : $disp_anti_option");
+    class_ncRNAs();
 }
 elsif (defined($genePred)) {
     $io->execute_system_command(0,
                                 "Using options:\n--------------\n" .
                                 "Minimum transcript length              : $length\n" .
                                 "Minimum exon overlap percentage        : $overlap\n" .
-				"Minimum number of exons per transcript : $min_exons");
+				"Minimum number of exons per transcript : $min_exons\n" . 
+				"Extract only Antisense exon overlaps   : $disp_anti_option");
     get_genePred();
     class_ncRNAs();
 }
@@ -115,7 +120,8 @@ else {
 				"Coverage cutoff                        : $cov_cutoff\n".
 				"Minimum transcript length              : $length\n" .
 				"Minimum exon overlap percentage        : $overlap\n" .
-				"Minimum number of exons per transcript : $min_exons");
+				"Minimum number of exons per transcript : $min_exons\n" . 
+				"Extract only Antisense exon overlaps   : $disp_anti_option");
     get_putative_ncRNAs();
     get_genePred();
     class_ncRNAs();
