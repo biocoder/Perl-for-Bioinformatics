@@ -1,17 +1,19 @@
 Revision history for IO-Routine
 
-0.01    2012-12-21
-        First version, released on an unsuspecting world.
+0.01      2012-12-21
+	  First version, released on an unsuspecting world.
 
-0.05	2013-08-06
-	Fivth version. Many bug fixes.
+0.05      2013-08-06
+	  Fivth version. Many bug fixes.
 
-0.06    2013-08-28
-        Sixth version. Adding support to get memory information based on PID
-        for OS X.
+0.06      2013-08-28 
+	  Sixth version. Adding support to get memory information based on PID
+	  for OS X.
 
-0.07	2013-26-09
-	Adding timer functions to calculate elapsed time and a function
-	to return timestamp using localtime()
+0.07      2013-26-09
+	  Adding timer functions to calculate elapsed time and a function
+	  to return timestamp using localtime()
 
 0.27      2013-10-10 09:40:43 America/Chicago
+	  Many additions / insertions / deletetions to fix several bugs and
+	  to add many features
