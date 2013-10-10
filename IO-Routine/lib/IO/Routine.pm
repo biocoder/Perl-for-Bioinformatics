@@ -23,13 +23,13 @@ IO::Routine - An attempt to provide a solution to avoid routine IO chores.
 
 =over 3
 
-Version 0.07
+Version 0.27
 
 =back
 
 =cut
 
-our $VERSION = '0.07';
+our $VERSION = '0.27';
 
 =head1 SYNOPSIS
 
@@ -64,9 +64,6 @@ To avoid some of the repetetive stuff, this module:
     use IO::Routine;
     use Getopt::Long;
 
-    my $io = IO::Routine->new();
-    my $s_time = $io->start_timer();
-
     my $is_valid_option = $io->GetOptions('help|?' => \$help,
                                           'quiet' => \$quiet,
                                           'output=s' => \$output,
@@ -74,26 +71,53 @@ To avoid some of the repetetive stuff, this module:
                                           'file2=s' => \$file2
                                          );
 
-    $io->verify_options([$is_valid_option, $file1],
-                        $help);
+    # Get the new IO::Routine object. Passing quiet and help while instantiating the
+    # the object sets the precedent for verbosity as requested by the user during execution.
+    my $io = IO::Routine->new($help, $quiet);
+
+    # Start the timer
+    my $s_time = $io->start_timer();
+
+    # Verify options from Getopt::Long and display POD's OPTIONS section
+    # on die.
+    $io->verify_options([$is_valid_option, $file1]);
+    
+    # Verify existense of non-empty files.
     $io->verify_files([$file2, $file2], ['file1 msg', 'file2 msg'])
 
+    # Validate the output directory and make one if asked to.
     my $output = $io->validate_create_path($output, 'create', 'Output directory');
     my $output = $io->validate_create_path($output, 'do not create', 'Input directory');
 
+    # With 0 as first argument, just display log message.
     $io->execute_system_command(0,
-                                "\nChecking the version requirement for system level commands ...\n",
-                                $quiet);
+                                'Checking the version requirement for system level commands ...');
+    
+    # With a system command as first option, execute system command while displaying log message.
+    $io->execute_system_command('ls',
+                                'List of files ...');
+    
+
+    # Execute system command and get its output into a variable.
     my $unix_date = $io->execute_get_sys_cmd_output("/bin/date",
-                                                        "\nGetting system date ... \n",
-                                                        $quiet);
+                                                        "\nGetting system date ... \n");
+
+    # Check minimum version requirements of GNU Core Utils.
     $io->check_sys_level_cmds(['grep', 'ls', 'sort', 'basename'],
                               ['2.10', '8.13', '8.13', '8.13']);
 
+    # On UNIX based systems, get memory usage. Useful while processing a large data structure.
+    # You may refresh the command buffer (Ex: $|) to get up-to-date details.
     my ($v_mem, $r_mem) = $io->get_mem_usage();
-    $io->end_timer($s_time, $quiet);
-    $io->c_time("\nAnalysis Finished on ", $quiet);
+
+
+    # End timer and print time elapsed in seconds, minutes, hours or days.
+    $io->end_timer($s_time);
+
+    # Print logging message with local time stamp.
+    $io->c_time("\nAnalysis Finished on ");
     
+    # Get different parts of the file name.
     my $filename = $io->file_basename($file);
     my $filename_w_suffix = $io->file_basename($file, 'suffix');
     my ($filename, $path, $suffix) = $io->file_basename($file, 'all');
@@ -751,8 +775,8 @@ sub get_mem_usage {
         my ($curr_r_mem_usage) = $curr_r_mem =~ m/(\d+)/;
         $curr_v_mem_usage = ( ($curr_v_mem_usage / 1024) / 1024 );
         $curr_r_mem_usage = ( ($curr_r_mem_usage / 1024) / 1024 );
-        $curr_v_mem_usage = floor($curr_v_mem_usage) . 'GB';
-        $curr_r_mem_usage = floor($curr_r_mem_usage) . 'GB';
+        $curr_v_mem_usage = sprintf("%.2f", $curr_v_mem_usage) . 'GB';
+        $curr_r_mem_usage = sprintf("%.2f", $curr_r_mem_usage) . 'GB';
         return ('Unable to get vmem', 'Unable to get rmem') if (!$curr_v_mem_usage || !$curr_r_mem_usage);
         return ($curr_v_mem_usage, $curr_r_mem_usage);
     }
