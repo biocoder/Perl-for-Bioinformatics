@@ -654,8 +654,8 @@ transcripts for each sample in GTF format and produces a putative list of novel 
 them as mentioned in the paper (http://genome.cshlp.org/content/22/3/577.full). Best results can be 
 obtained when all the known annotation resources are combined. For organisms like Human and Mouse, 
 combining RefSeq, UCSC Known genes and Ensembl genes can help filter a lot of known protein-coding 
-genes and known ncRNAs. When Cufflinks' assembled transript files are supplied in GTF format, it
-is first converted to Gene Prediction format using gtfToGenePred tool from UCSC, which can be downloaded
+genes and known ncRNAs. When Cufflinks' assembled transript files are supplied in GTF format, they
+are first converted to Gene Prediction format using gtfToGenePred tool from UCSC, which can be downloaded
 from http://hgdownload.cse.ucsc.edu/admin/exe. The tool is flexible and can resume in parts as mentioned
 in the OPTIONS' section.
 
