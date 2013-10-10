@@ -659,6 +659,11 @@ is first converted to Gene Prediction format using gtfToGenePred tool from UCSC,
 from http://hgdownload.cse.ucsc.edu/admin/exe. The tool is flexible and can resume in parts as mentioned
 in the OPTIONS' section.
 
+=head3 OUTPUT:
+
+The final output is written to *.class.gtf files and depends upon number of Cufflinks assembled transcript files
+supplied.
+
 =head2 KNOWN ISSUES
 
 The annotation should be in the Gene Prediction format. When Gene Prediction format files for RefSeq
@@ -715,7 +720,7 @@ categorize_ncRNAs.pl takes the following arguments:
     Extract transript features whose coverage is at least this much. This
     can be a floating point value.
 
-=item -include or --include-novel (Optional)
+=item -inc or --include-novel (Optional)
 
     Default: disabled
 
@@ -740,7 +745,7 @@ categorize_ncRNAs.pl takes the following arguments:
     Default: disabled
 
     Providing this option skips the extraction and convertion steps and
-    continues the pipeline from categorizing  putative ncRNAs.
+    continues the pipeline from categorizing putative ncRNAs.
 
 =item -len or --length (Optional)
 
@@ -760,9 +765,9 @@ categorize_ncRNAs.pl takes the following arguments:
     Default: disabled
 
     When calculating exonic overlaps with reference exon boundaries, consider
-    it an exonic overlap if the Cufflinks assembled transcripts' exon overlaps
-    reference exon by at least this much percentage. This can be floating point
-    value.
+    it as an exonic overlap if the Cufflinks assembled transcripts' exon overlaps
+    with reference exon by at least this much percentage. This can be floating 
+    point value.
 
 =item -clean or --clean-tmp (Optional)
 
