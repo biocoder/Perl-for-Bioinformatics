@@ -196,8 +196,8 @@ sub class_ncRNAs {
     for (0 .. $#ARGV) {
         my $p_gtf = $p_file_names_gtf->[$_];
         my $p_ncRNAs = store_coords($p_file_names_txt->[$_]);
-        my $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.class.ncRNAs.gtf';
-	my $u_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.noClass.ncRNAs.gtf';
+        my $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.class.ncRNAs.gtf';
+	my $u_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.noClass.ncRNAs.gtf';
         unlink $c_ncRNAs if (-e $c_ncRNAs);
 	unlink $u_ncRNAs if (-e $u_ncRNAs);
 	
@@ -661,7 +661,7 @@ in the OPTIONS' section.
 
 =head3 OUTPUT:
 
-The final output is written to *.class.gtf files and depends upon number of Cufflinks assembled transcript files
+The final output is written to *.putative.class.gtf files and depends upon number of Cufflinks assembled transcript files
 supplied.
 
 =head2 KNOWN ISSUES
