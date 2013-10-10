@@ -6,6 +6,8 @@
 # PM Distro #
 ##############################
 *.gz
+/dzil
+/dzil/*
 /IO-Routine/blib/*
 /IO-Routine/Makefile
 /IO-Routine/pm_to_blib/*
