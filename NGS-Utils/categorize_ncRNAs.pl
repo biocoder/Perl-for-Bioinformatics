@@ -668,7 +668,7 @@ supplied.
 
 The annotation should be in the Gene Prediction format. When Gene Prediction format files for RefSeq
 are downloaded from UCSC, the first column is generally a "bin" id unique to SQL table from UCSC. This
-column *MUST* be removed prior to using it as an annotation file. This can be done but using "cut"
+column *MUST* be removed prior to using it as an annotation file. This can be done using the "cut"
 command.
 
 Ex: cut -f 2- refGene.txt > refGene.nobin.txt
