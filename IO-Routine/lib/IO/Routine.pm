@@ -23,13 +23,13 @@ IO::Routine - An attempt to provide a solution to avoid routine IO chores.
 
 =over 3
 
-Version 0.27
+Version 0.28
 
 =back
 
 =cut
 
-our $VERSION = '0.27';
+our $VERSION = '0.28';
 
 =head1 SYNOPSIS
 
@@ -74,6 +74,10 @@ To avoid some of the repetetive stuff, this module:
     # Get the new IO::Routine object. Passing quiet and help while instantiating the
     # the object sets the precedent for verbosity as requested by the user during execution.
     my $io = IO::Routine->new($help, $quiet);
+
+    # If you are maitanining POD in separate file. It will search for POD file at the
+    # current location of script file.
+    my $io = IO::Routine->new($help, $quiet, 'podfilename');
 
     # Start the timer
     my $s_time = $io->start_timer();
@@ -451,14 +455,20 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # IO::Routine Constructor
 
-my ($thisHelp, $thisQuiet) = 0;
+my ($thisHelp, $thisQuiet, $podFilename);
+$thisHelp = $thisQuiet = $podFilename = 0;
 
 sub new {
     my $class = shift;
     $thisHelp = shift;
     $thisQuiet = shift;
+    $podFilename = shift;
+
     my $self = {};
     bless $self, $class;
+
+    $podFilename = file_basename($self, $podFilename) . '.pd' if ($podFilename);
+
     return $self;
 }
 
@@ -499,19 +509,49 @@ sub verify_options {
 
     $help = $thisHelp if (!$help);
 
-    if ($help) {
-        pod2usage(-exitval => 1,
-                  -sections => "OPTIONS",
-                  -msg => "\n");
+    if (!$podFilename) {
+	if ($help) {
+	    pod2usage(-exitval => 1,
+		      -sections => "OPTIONS",
+		      -msg => "\n");
+	}
+	
+	foreach my $valid_option (@$valid_options) {
+	    if (!$valid_options || !defined($valid_option)) {
+		pod2usage(-exitval => 2,
+			  -verbose => 2,
+			  -msg => "\nSee $0 -h for options.\n");
+	    }
+	}
     }
-
-    foreach my $valid_option (@$valid_options) {
-        if (!$valid_options || !defined($valid_option)) {
-            pod2usage(-exitval => 2,
-                      -verbose => 2,
-                      -msg => "\nSee $0 -h for options.\n");
+    elsif ($podFilename &&
+	   -e $podFilename &&
+	   -s $podFilename != 0) {
+	if ($help) {
+            pod2usage(-exitval => 1,
+                      -sections => "OPTIONS",
+                      -msg => "\n",
+		      -input => $podFilename);
+        }
+	
+	foreach my $valid_option (@$valid_options) {
+            if (!$valid_options || !defined($valid_option)) {
+                pod2usage(-exitval => 2,
+                          -verbose => 2,
+                          -msg => "\nSee $0 -h for options.\n",
+			  -input => $podFilename);
+            }
         }
     }
+    elsif ($podFilename &&
+           !-e $podFilename) {
+	confess error($self,"POD file [ $podFilename ] does not exist: $!");
+    }
+    elsif ($podFilename &&
+	   -s $podFilename == 0) {
+	confess error($self,"POD file [ $podFilename ] is empty: $!");
+    }
+
     return;
 }
 
