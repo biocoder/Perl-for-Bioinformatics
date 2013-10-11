@@ -5,7 +5,7 @@ An attempt to provide a solution to avoid routine IO chores.
 
 Version
 -------
-0.27
+0.28
 
 Installation
 ------------
