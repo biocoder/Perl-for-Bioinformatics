@@ -11,9 +11,6 @@ my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-10-09 12:46:11 -0500 (Wed, 09 Oc
 my ($VERSION) = q$LastChangedRevision: 64 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
-my $io = IO::Routine->new();
-my $s_time = $io->start_timer();
-
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
     $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
@@ -38,20 +35,20 @@ my $is_valid_option = GetOptions('help|?'         => \$help,
 				 'clean-tmp'      => \$no_tmp,
 				 'antisense-only' => \$antisense_only);
 
+my $io = IO::Routine->new($help, $quiet);
+my $s_time = $io->start_timer;
 
 $io->verify_options([$is_valid_option, $sample_names, 
-		     $refGenePred, $out, $cuffcmp],
-                    $help);
+		     $refGenePred, $out, $cuffcmp]);
 
 $io->this_script_info($io->file_basename($0),
 		      $VERSION,
 		      $AUTHORFULLNAME,
 		      $LASTCHANGEDBY,
-		      $LASTCHANGEDDATE,
-		      $quiet);
+		      $LASTCHANGEDDATE);
 
-$io->c_time('Analysis started...', $quiet);
-$io->c_time('Verifying options...', $quiet);
+$io->c_time('Analysis started...');
+$io->c_time('Verifying options...');
 
 # Define Defaults
 $fpkm_cutoff = 0.0 if (!defined $fpkm_cutoff || $fpkm_cutoff eq '');
@@ -60,11 +57,11 @@ $length = 200 if (!defined $length || $length eq '');
 $overlap = 0 if (!defined $overlap || $overlap eq '');
 $min_exons = 2 if (!defined $min_exons || $min_exons eq '');
 
-$io->c_time('Validating output path...', $quiet);
+$io->c_time('Validating output path...');
 my $output = $io->validate_create_path($out, 'create', 
 				       'Output directory');
 
-$io->c_time('Checking for required GNU core utils...', $quiet);
+$io->c_time('Checking for required GNU core utils...');
 $io->check_sys_level_cmds(['grep', 'sed'], 
 			  ['2.6.3', '4.2.1']);
 
@@ -78,7 +75,7 @@ my $cuffcmp_fh = $io->open_file('<', $cuffcmp);
 $io->error('Cufflinks assembled transcript files not provided.')
     if ($#ARGV < 0);
 
-$io->c_time('Tainting sample names...', $quiet);
+$io->c_time('Tainting sample names...');
 $sample_names = $io->strip_leading_and_trailing_spaces($sample_names);
 $sample_names =~ s/\s+/\_/g;
 my @lables = split/\,/, $sample_names;
@@ -128,15 +125,15 @@ else {
 }
 
 if (defined($no_tmp)) {
-    $io->c_time('Removing intermediate files...', $quiet);
+    $io->c_time('Removing intermediate files...');
     for (0 .. $#ARGV) {
 	unlink $p_file_names_gtf->[$_];
 	unlink $p_file_names_txt->[$_];
     }
 }
 
-$io->c_time('Done!', $quiet);
-$io->end_timer($s_time, $quiet);
+$io->c_time('Done!');
+$io->end_timer($s_time);
 exit;
 
 
@@ -146,7 +143,7 @@ exit;
 # Get putative list of ncRNAs from Cuffcompare tracking file corresponding
 # to cufflinks assembled transcript fragments.
 sub get_putative_ncRNAs {
-    $io->c_time('Getting putative list of ncRNAs in GTF format...', $quiet);
+    $io->c_time('Getting putative list of ncRNAs in GTF format...');
     if (defined $novel) {
 	$extract_pat = 'j|i|o|u|x';
     }
@@ -175,7 +172,7 @@ sub get_putative_ncRNAs {
 
 # Convert GTF to gene prediction format.
 sub get_genePred {
-    $io->c_time('Converting putative ncRNAs list to Gene Prediction format using gtfToGenePred tool', $quiet);
+    $io->c_time('Converting putative ncRNAs list to Gene Prediction format using gtfToGenePred tool');
     my $check_for_gtfToGenePred = $io->execute_get_sys_cmd_output('gtfToGenePred', 0);
     
     $io->error('Cannot find gtfToGenePred tool in your path') 
@@ -204,19 +201,19 @@ sub class_ncRNAs {
 	my ($num_ex_ov, $num_incs, $num_concs, $num_poncs, $num_lincs, $noclass, $num_noSense,
 	    $discard) = 0;
 
-	$io->c_time('Categorizing ncRNAs (Exonic overlaps)...', $quiet);
+	$io->c_time('Categorizing ncRNAs (Exonic overlaps)...');
 	($num_ex_ov, $num_noSense) = calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing ncRNAs (Intronic overlaps - incs)...', $quiet);
+	$io->c_time('Categorizing ncRNAs (Intronic overlaps - incs)...');
 	($num_incs, $discard) = calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing ncRNAs (Intronic overlaps - concs)...', $quiet);
+	$io->c_time('Categorizing ncRNAs (Intronic overlaps - concs)...');
 	($num_concs, $discard) = calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing ncRNAs (Intronic overlaps - poncs)...', $quiet);
+	$io->c_time('Categorizing ncRNAs (Intronic overlaps - poncs)...');
         ($num_poncs, $discard) = calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing ncRNAs (lincRNA)...', $quiet);
+	$io->c_time('Categorizing ncRNAs (lincRNA)...');
         ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 	
 	$io->c_time("\n\nncRNA Summary:\n" . 
@@ -513,7 +510,7 @@ sub store_coords {
     my $store = {};
 
     $io->c_time('Reading information from gene prediction format file [ ' . 
-		$io->file_basename($f, 'suffix') . ' ] ...', $quiet);
+		$io->file_basename($f, 'suffix') . ' ] ...');
     while (my $line = <$fh>) {
 	chomp $line;
 	$line = $io->strip_leading_and_trailing_spaces($line);
