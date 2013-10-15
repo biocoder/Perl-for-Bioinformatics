@@ -30,7 +30,7 @@ my $is_valid_option = GetOptions('help|?'         => \$help,
 				 'categorize'     => \$categorize,
 				 'length=i'       => \$length,
 				 'min-exons=i'    => \$min_exons,
-				 'overlap=i'      => \$overlap,
+				 'overlap=f'      => \$overlap,
 				 'include-novel'  => \$novel,
 				 'clean-tmp'      => \$no_tmp,
 				 'antisense-only' => \$antisense_only);
