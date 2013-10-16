@@ -9,3 +9,6 @@ The scripts use custom IO::Routine Perl Module. Please see the installation inst
 
 Cheers,  
 BioCoder
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/biocoder/perl-for-bioinformatics/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
