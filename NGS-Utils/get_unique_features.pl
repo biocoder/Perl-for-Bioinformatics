@@ -337,6 +337,21 @@ Column number of the Source file's chromosome right coordinate (end coordinate) 
    
  Extract features that fall either within entire reference intron or in intergenic regions.
 
+=item -ck or --compare-keyword (Optional)
+
+ The script stores the feature coordinates of the "Source file" in memory so that the feature
+ coordinates of "Compare file" can be compared. If you want to compare features whose column 
+ contains only this keyword, then use this option.
+ 
+ Ex: if you want to just compare the transcript coordinates and not the exon coordinates 
+     of a GTF file, you can use this option as -ck 'transcript'.
+
+=item -kc or --keyword-col (Optional)
+
+ The column number of the --compare-keyword.
+
+ Ex: For GTF file, it is -ck 'transcript' -kc '3'
+
 =back
 
 =head1 AUTHOR
