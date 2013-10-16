@@ -1,4 +1,4 @@
-Bioinformatics tools written in Perl [![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/biocoder/perl-for-bioinformatics/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+Bioinformatics tools written in Perl 
 ====================================
 Most of the scripts here were written while I was working on different projects, which I think will be useful to others and can be extended / modified per there needs.
 
