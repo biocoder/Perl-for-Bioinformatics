@@ -19,7 +19,8 @@ my ($help, $quiet, $sc1, $sc2, $cc1, $cc2,
     %seen_coord, %store_s_coords, %seen_s,
     $unique, $pipe2stdout, $j_fh, $overlap, 
     $tr_coords, $tr_start_col,
-    $tr_end_col, $trans_bd_on_chr, $keyword, $keyword_col);
+    $tr_end_col, $trans_bd_on_chr, $keyword, $keyword_col,
+    $sff, $cff);
 
 my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'source-column-2|sc-2|s2=s'  => \$sc2,
@@ -36,8 +37,14 @@ my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'no-exon-match=s'            => \$tr_coords,
 				 'stdout'                     => \$pipe2stdout,
 				 'compare-keyword|ck=s'       => \$keyword,
-				 'keyword-col|kc=i'           => \$keyword_col
+				 'keyword-col|kc=i'           => \$keyword_col,
+				 'source-file-format|sff=s'   => \$sff,
+				 'compare-file-format|cff=s'  => \$cff,
 				);
+
+# Check if sff or cff is defined
+($chr_s, $sc1, $sc2) = gtf_or_bed($sff);
+($chr_c, $cc1, $cc2) = gtf_or_bed($cff);
 
 $io->verify_options([$is_valid_option, $sc1, $sc2, $cc1, $cc2,
                      $chr_s, $chr_c],
@@ -245,6 +252,23 @@ sub is_duplicate {
   return 1;
 }
 
+# Return GTF or BED or GFF columns
+
+sub gtf_or_bed {
+    my $format = shift;
+    if (defined($format) && $format ne '' && $format =~ m/^bed$/i) {
+	return ("1", "2", "3");
+    }
+    elsif (defined($format) && $format ne '' && $format =~ m/^gtf|gff$/i) {
+	return ("1", "4", "5");
+    }
+    elsif (defined($format) && $format ne '' && $format ~~ m/^gtf|gff|bed$/i) {
+	$io->error('Invalid file format [ ' . $format . ' ] specified!' .
+		   'Currently, only GTF, GFF or BED file format is supported.');
+    }
+    return;
+}
+
 __END__
 
 =head1 NAME
@@ -293,29 +317,45 @@ get_unique_features.pl takes the following arguments:
   Providing this option suppresses the log messages to the shell.
   Default: disabled
 
+=item -sff or --source-file-format (Optional)
+
+  You can directly specify one of the allowed file formats (gtf, gff or bed)
+  for the source file and can skip -scc, -sc1 and -sc2.
+
+=item -cff or --compare-file-format (Optional)
+
+  You can directly specify one of the allowed file formats (gtf, gff or bed)
+  for the compare file and can skip -ccc, -cc1 and -cc2.
+
 =item -scc or --source-chr-column (Required)
 
   Column number of the Source file's chromosome information.
+  This optional can be skipped if -sff is mentioned.
   
 =item -s1 or --source-column-1 (Required)
 
- Column number of the Source file's chromosome left coordinate (start coordinate) information.
+  Column number of the Source file's chromosome left coordinate (start coordinate) information.
+  This option can be skipped if -sff is mentioned.
  
 =item -s2 or --source-column-2 (Required)
 
-Column number of the Source file's chromosome right coordinate (end coordinate) information.
+  Column number of the Source file's chromosome right coordinate (end coordinate) information.
+  This option can be skipped if -sff is mentioned.
 
 =item -ccc or --compare-chr-column (Required)
 
   Column number of the Compare file's chromosome information.
+  This option can be skipped if -cff is mentioned.
 
 =item -c1 or --compare-column-1 (Required)
 
   Column number of the Source file's chromosome left coordinate (start coordinate) information.
+  This option can be skipped if -cff is mentioned.
 
 =item -c2 or --compare-column-2 (Required)
 
   Column number of the Source file's chromosome right coordinate (end coordinate) information.
+  This option can be skipped if -cff is mentioned.
 
 =item -sf or --source-file (Required)
 
