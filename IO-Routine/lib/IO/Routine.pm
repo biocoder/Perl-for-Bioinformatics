@@ -29,7 +29,7 @@ Version 0.28
 
 =cut
 
-our $VERSION = '0.28';
+our $VERSION = '0.29';
 
 =head1 SYNOPSIS
 
@@ -125,6 +125,9 @@ To avoid some of the repetetive stuff, this module:
     my $filename = $io->file_basename($file);
     my $filename_w_suffix = $io->file_basename($file, 'suffix');
     my ($filename, $path, $suffix) = $io->file_basename($file, 'all');
+
+    # Check if any system command exists
+    $io->exist_sys_cmd(['cuffcompare -v', 'cufflinks', 'bwa']);
 
 =back
 
@@ -343,6 +346,18 @@ End timer and print elapsed time in floating point seconds.
 =over 5
 
 Return ctime using localtime function.
+
+=back
+
+=over 4
+
+=item exist_sys_cmd()
+
+=back
+
+=over 5
+
+Abort if system level command does not exist.
 
 =back
 
@@ -890,6 +905,20 @@ sub file_basename {
     return $file_attrs[0] if (!defined($mode));
     return "$file_attrs[0]$file_attrs[2]" if ($mode eq 'suffix');
     return ($file_attrs[0], $file_attrs[1], $file_attrs[2]) if ($mode eq 'all');
+}
+
+# Subroutine to check the existence of a system level command
+
+sub exist_sys_cmd {
+    my $self = shift;
+    my $cmds = shift;
+
+    foreach my $cmd (@$cmds) {
+	my $cmd_out = execute_get_sys_cmd_output(0, $cmd);
+	error("Cannot find the system level command [ $cmd  ]! ... Aborting.")
+	    if ($cmd_out !~ m/$cmd$/);
+    }
+    return;
 }
 
 1; # End of IO::Routine

@@ -3,7 +3,7 @@
 use 5.14.2;
 use strict;
 use warnings FATAL => 'all';
-use Test::More tests => 28;
+use Test::More tests => 30;
 
 my ($pathTest, $errorTest, $openFileTest, $tmpLoc) = 0;
 $|=0;
@@ -110,5 +110,8 @@ ok( defined( $io ) && can_ok($io, 'c_time'), 'c_time - Is loadable, Returns ctim
 
 diag( "Testing method file_basename()" );
 ok( $io->file_basename($tmpLocFile, 'suffix') =~ m/txt$/i , 'file_basename() - Returns suffix of a file.');
+
+diag(  "Testing method exist_sys_cmd()" );
+ok( defined( $io ) && can_ok($io, 'exist_sys_cmd'), 'exist_sys_cmd - Is loadable, Returns if true.');
 
 diag("\n\nTesting Complete!\n\n");
