@@ -18,6 +18,6 @@ Revision history for IO-Routine
 	  Many additions / insertions / deletetions to fix several bugs and
 	  to add many features
 
-0.29      2013-10-17 09:27:44 America/Chicago
-	  Adding method exist_sys_cmd() to IO::Routine. Checks for existence
-	  of system level command and aborts if it is not present.
+0.30      2013-10-17 15:00:17 America/Chicago
+	  Fixed a bug with method check_sys_level_cmds() and provided an extra 
+	  level of failover.

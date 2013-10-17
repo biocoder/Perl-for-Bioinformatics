@@ -23,13 +23,13 @@ IO::Routine - An attempt to provide a solution to avoid routine IO chores.
 
 =over 3
 
-Version 0.28
+Version 0.30
 
 =back
 
 =cut
 
-our $VERSION = '0.29';
+our $VERSION = '0.30';
 
 =head1 SYNOPSIS
 
@@ -782,21 +782,40 @@ sub check_sys_level_cmds {
     my $cmds = shift;
     my $versions = shift;
     my ($curr_version_unf, $req_version);
+    my $loop_limiter = 0;
+
+    confess error($self, "Unmatched number of commands and versions list")
+	if ($#$versions != $#$cmds);
+    
+    
     for (my $i=0; $i<scalar(@$cmds); $i++) {
         my $cmd_version_out = `@$cmds[$i] --version`;
         $req_version = @$versions[$i];
-        $req_version =~ s/\.//g;
-        $req_version =~ s/0//g;
-        if ($cmd_version_out =~ m/^@$cmds[$i].*?(\d+[\.\d]*)/ ||
+	my $req_version_parts = [split(/\./, @$versions[$i])];
+                
+	if ($cmd_version_out =~ m/^@$cmds[$i].*?(\d+[\.\d]*)/ ||
             $cmd_version_out =~ m/^.*?(\d+[\.\d]*)/) {
             my $curr_version = $curr_version_unf = $1;
-            $curr_version =~ s/\.//g;
-            $curr_version =~ s/0//g;
-            if ($curr_version < $req_version) {
-                confess error($self,
-                              "At least Version @$versions[$i] required for system level command: @$cmds[$i]\nCurrent Version: $curr_version_unf\n");
-            }
-        }
+	    my $curr_version_parts = [split(/\./, $curr_version)];
+	    if ($#$curr_version_parts <= $#$req_version_parts) {
+		$loop_limiter = $#$curr_version_parts 
+	    }
+	    else {
+		$loop_limiter = $#$req_version_parts;
+	    }
+	    
+	    for (my $j=0; $j<=$loop_limiter; $j++) {
+		my $ver_diff = @$curr_version_parts[$j] - @$req_version_parts[$j];
+		if ($ver_diff < 0) {
+		    confess error($self,
+				  "At least Version @$versions[$i] required for system level command: @$cmds[$i]\nCurrent Version: $curr_version_unf\n");
+		}
+	    }
+	}
+	else {
+	    confess error($self,
+			  "Supplied command [ @$cmds[$i] ] does not seem to be a GNU core utility.\n");
+	}
     }
     return;
 }
