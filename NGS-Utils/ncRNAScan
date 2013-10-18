@@ -1,0 +1,228 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+use Getopt::Long;
+use File::Temp;
+use Term::ANSIColor qw(:constants);
+
+my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-10-09 12:46:11 -0500 (Wed, 09 Oct 2013) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 64 $ =~ m/.+?(\d+)/;
+my $AUTHORFULLNAME = 'Kranti Konganti';
+
+my ($help, $quiet, $setup, @get_unique_feature_options, 
+    @fetch_seqs_from_ucsc_options, @categorize_ncRNAs_options);
+
+
+my $is_valid_option = GetOptions('help|?'         => \$help,
+                                 'quiet'          => \$quiet,
+				 'setup'          => \$setup);
+
+my $io = IO::Routine->new($help, $quiet);
+my $s_time = $io->start_timer;
+
+setup_ncRNAScan(`pwd`) if (defined $setup);
+
+sub setup_ncRNAScan {
+    chomp(my $install_dir = shift);
+    chomp(my $dl_util = `which kranti 2>&1`);
+    chomp(my $decompr_util = `which unzip 2>&1`);
+    chomp(my $sys_make = `which make 2>&1`);
+    chomp(my $sys_echo = `which echo 2>&1`);
+
+    print "\nChecking prerequisites...\n\n";
+    
+    # Wget or Curl
+    if ($dl_util !~ m/.+?wget$/i) {
+	chomp ($dl_util = `which curl 2>&1`);
+	succ_or_fail(0, 'Curl|Wget')
+	    if ($dl_util !~ m/.+?curl$/i);
+	succ_or_fail(1, 'curl');
+        $dl_util .= ' -LkO ';
+    }
+    elsif ($dl_util =~ m/.+?(wget)$/i) {
+	succ_or_fail(1, $1);
+    }
+    else{
+	succ_or_fail(0, 'Curl|Wget');
+    }
+    
+    # Unzip
+    check_util($decompr_util, 'unzip');
+
+    # Make
+    check_util($sys_make, 'make');
+
+    # Echo
+    check_util($sys_echo, 'echo');
+    
+    
+    if (!-e '../IO-Routine/Makefile.P') {
+	print "\nWe definetely need IO::Routine.\n" .
+	    "Attempting to fetch IO::Routine from Perl-for-Bioinformatics repository on github...\n";
+	
+	if (-d "$install_dir/.build") {
+	    system("rm -rf $install_dir/.build");
+	}
+
+	system("mkdir $install_dir/.build");
+
+	succ_or_fail(0, '.build dir') if (!-d "$install_dir/.build");
+
+	system("rm $install_dir/master.zip") if (-e "$install_dir/master.zip");
+	
+	print "\n$dl_util https://github.com/biocoder/Perl-for-Bioinformatics/archive/master.zip\n\n";
+	system("$dl_util https://github.com/biocoder/Perl-for-Bioinformatics/archive/master.zip &> /dev/null");
+	system("mv $install_dir/master.zip $install_dir/.build/.");
+	
+	succ_or_fail(0, 'master.zip')
+	    if (!-e "$install_dir/.build/master.zip");
+	    
+	
+	print "\nInflating master.zip...\n";
+	print "\nunzip -d $install_dir/.build $install_dir/.build/master.zip\n";
+	system("unzip -d $install_dir/.build $install_dir/.build/master.zip &> /dev/null");
+	
+	print "\nInstalling IO::Routine...\n\n";
+	system("mkdir $install_dir/PERLLIBS") if (!-d "$install_dir/PERLLIBS");
+	system("cd $install_dir/.build/Perl-for-Bioinformatics-master/IO-Routine;perl Makefile.PL PREFIX=$install_dir/PERLLIBS LIB=$install_dir/PERLLIBS/lib && make && make test && make install;");
+
+	print "\nFinished with custom modules.\nNow, we need good grace of cpanm...\n\n";
+	system("$dl_util https://raw.github.com/miyagawa/cpanminus/master/cpanm &> /dev/null");
+	system("mv cpanm $install_dir/.build");
+	system("chmod 755 $install_dir/.build/cpanm");
+	system("$install_dir/.build/cpanm -f -l $install_dir/PERLLIBS Set::IntervalTree");
+	print "\nThank you cpanm!\n";
+	print "\nCleaning up build directory...\n\n";
+	system("rm -rf $install_dir/.build");
+    }
+    
+    my $pm_path = jit_pm("$install_dir/PERLLIBS:$install_dir/PERLLIBS/lib:$install_dir/PERLLIBS/lib/perl5");
+
+    use IO::Routine;
+
+    $io->execute_system_command(0, 'Detecting system architecture...');
+
+    my $sys_arch_info = $io->execute_get_sys_cmd_output('uname -a');
+    
+    $io->error('This is not a UNIX based machine ... Aborting installation!')
+	if (!$sys_arch_info ||
+	    $sys_arch_info !~ m/linux|darwin/i);
+
+    $io->error('It is not a 64-bit machine ... Bailing out!') 
+	if ($sys_arch_info !~ m/x86\_64/i);
+
+
+    my $sys_arch = '';
+    if ($sys_arch_info =~ m/darwin/i) {
+	$sys_arch = 'darwin';
+	$io->execute_system_command(0, 'Skipping version requirement check for system level command [ sed ].' .
+				    "\nFreeBSD's sed does not provide version number (?)");
+	$io->execute_system_command(0, 'Skipping version requirement check for system level command [ tar ].' .
+				    "\nIt is FreeBSD's tar and not GNU's");
+	succ_or_fail(2, 'sed');
+	succ_or_fail(2, 'tar');
+    }
+    else {
+	$sys_arch = 'linux';
+	 $io->check_sys_level_cmds(['sed', 'tar'],
+				   ['4.2.1', '0']);
+	succ_or_fail(1, 'sed');
+	succ_or_fail(1, 'tar');
+    }
+    
+    $io->check_sys_level_cmds(['grep'],
+			      ['2.5.1']);
+    succ_or_fail(1, 'grep');
+
+    chomp(my $user_home = $io->execute_get_sys_cmd_output('echo $HOME'));
+    my $user_profile = $user_home . '/.bash_profile';
+
+
+    if (-e $user_profile) {
+	chomp(my $is_perl5lib = $io->execute_get_sys_cmd_output("grep -Pi 'export PERL5LIB.+?' $user_profile"));
+	if ($is_perl5lib !~ m/err/i && $is_perl5lib !~ m/.*?$pm_path/) {
+	    $is_perl5lib =~ s/\//\\\//g;
+	    $pm_path =~ s/\//\\\//g;
+	    print "\nAdding paths to ~/.bash_profile...\n";
+	    print "perl -i -p -e 's/$is_perl5lib/$is_perl5lib:$pm_path/' $user_profile\n";
+	    system("echo >> $user_profile");
+	    system("echo \"# ncRNAScan PERLLIB Paths\" >> $user_profile");
+	    system("perl -i -p -e 's/$is_perl5lib/$is_perl5lib:$pm_path/' $user_profile");
+	}
+	elsif($is_perl5lib =~ m/err/i && $is_perl5lib !~ m/.*?$pm_path/) {
+	    print "\nAdding paths to ~/.bash_profile...\n";
+	    print "\necho \"export PERL5LIB=\$PERL5LIB:$pm_path\" >> $user_profile\n";
+	    system("echo >> $user_profile");
+	    system("echo \"# ncRNAScan PERLLIB Paths\" >> $user_profile");
+	    system("echo \"export PERL5LIB=\$PERL5LIB:$pm_path\" >> $user_profile");
+	}
+    }
+    elsif(!-e $user_profile) {
+	print "\nSetting up ~/.bash_profile and adding paths...\n";
+	system("touch $user_profile");
+	print "\necho \"\\nexport PERL5LIB=\$PERL5LIB:$pm_path\" >> $user_profile\n";
+	system("echo \"\\nexport PERL5LIB=\$PERL5LIB:$pm_path\" >> $user_profile");
+    }
+
+    system("sh -c \'source $user_profile\'");
+
+    $io->execute_system_command(0, 'Checking for tool dependencies...');
+    $io->exist_sys_cmd(['cuffcompare', 'blastall']);
+    succ_or_fail(1, 'cuffcompare');
+    succ_or_fail(1, 'blastall');
+    
+    #$io->verify_files(["$install_dir/.ncRNAScan.deps"],
+		      #['ncRNAScan dependency']);
+    #my $dep_fh = $io->open_file('<', "$install_dir/.ncRNAScan.deps");
+    #my $dl_urls = do {local $/; <$dep_fh>};
+
+    #if ($dl_urls =~ m/$sys_arch\.cufflinks\|(.+)\|(.+)\|(.+)/i) {
+	#$io->execute_system_command("$dl_util $1", "$dl_util $1");
+	#$io->execute_system_command("mv $2 $install_dir/.build/.");
+	#$io->execute_system_command("tar -zxf $install_dir/.build/$2 &> /dev/null",
+	#			    "Setting up $3");
+	#if (!-d "$install_dir")
+    #}
+}
+
+$io->end_timer($s_time);
+
+sub check_util {
+    my $cmd = shift;
+    my $util = shift;
+
+    if ($cmd !~ m/.+?$util/i) {
+	succ_or_fail(0, "$util");
+	print "\nAborting...\n\n";
+	exit;
+    }
+    else {
+        succ_or_fail(1, $util);
+    }
+    return;
+}
+
+sub succ_or_fail {
+    my $code = shift;
+    my $msg = shift;
+
+    print "$msg\t\t\t... ", BOLD GREEN, 'OK', RESET, "\n"
+	if ($code == 1);
+
+    if ($code == 0) {
+	print "$msg\t\t\t... ", BOLD RED, 'FAIL', RESET, "\n\n";
+	exit;
+    }
+	
+    print "$msg\t\t\t... ", BOLD YELLOW, 'SKIP', RESET, "\n"
+        if ($code == 2);
+    return;
+}
+
+sub jit_pm {
+    my $pm_path = shift;
+    push @INC, $pm_path;
+    return $pm_path
+}

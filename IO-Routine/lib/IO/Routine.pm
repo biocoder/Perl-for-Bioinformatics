@@ -23,13 +23,13 @@ IO::Routine - An attempt to provide a solution to avoid routine IO chores.
 
 =over 3
 
-Version 0.30
+Version 0.31
 
 =back
 
 =cut
 
-our $VERSION = '0.30';
+our $VERSION = '0.31';
 
 =head1 SYNOPSIS
 
@@ -934,7 +934,7 @@ sub exist_sys_cmd {
 
     foreach my $cmd (@$cmds) {
 	my $cmd_out = execute_get_sys_cmd_output(0, $cmd);
-	error("Cannot find the system level command [ $cmd  ]! ... Aborting.")
+	error($self, "Cannot find the system level command [ $cmd  ]! ... Aborting.")
 	    if ($cmd_out !~ m/$cmd$/);
     }
     return;

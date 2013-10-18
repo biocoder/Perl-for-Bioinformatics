@@ -21,3 +21,7 @@ Revision history for IO-Routine
 0.30      2013-10-17 15:00:17 America/Chicago
 	  Fixed a bug with method check_sys_level_cmds() and provided an extra 
 	  level of failover.
+
+0.31      2013-10-18 15:48:45 America/Chicago
+	  Fixed a bug with exist_sys_cmd() wherein the blessed object was not being
+	  passed to error().
