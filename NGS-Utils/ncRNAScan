@@ -184,9 +184,8 @@ sub setup_ncRNAScan {
 	#			    "Setting up $3");
 	#if (!-d "$install_dir")
     #}
+    $io->end_timer($s_time);
 }
-
-$io->end_timer($s_time);
 
 sub check_util {
     my $cmd = shift;
