@@ -28,7 +28,7 @@ sub setup_ncRNAScan {
     chomp(my $sys_make = `which make 2>&1`);
     chomp(my $sys_echo = `which echo 2>&1`);
 
-    print "\nChecking prerequisites...\n\n";
+    print "\nChecking prerequisites...\n";
     
     # Wget or Curl
     if ($dl_util !~ m/.+?wget$/i) {
@@ -56,7 +56,7 @@ sub setup_ncRNAScan {
     
     
 
-    print "\nWe definetely need IO::Routine.\n" .
+    print "\n\nWe definetely need IO::Routine.\n" .
 	"Attempting to fetch IO::Routine from Perl-for-Bioinformatics repository on github...\n";
     
     if (-d "$install_dir/.build") {
@@ -99,7 +99,7 @@ sub setup_ncRNAScan {
 	succ_or_fail(1, 'IO::Routine');
     }
     
-    print "\nFinished with custom modules.\nNow, we need good grace of cpanm...\n\n";
+    print "\n\nFinished with custom modules.\nNow, we need good grace of cpanm...\n\n";
     system("$dl_util https://raw.github.com/miyagawa/cpanminus/master/cpanm  > /dev/null 2>&1");
     system("mv cpanm $install_dir/.build");
     system("chmod 755 $install_dir/.build/cpanm");
