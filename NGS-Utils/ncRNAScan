@@ -220,7 +220,7 @@ sub succ_or_fail {
     my $code = shift;
     my $msg = shift;
 
-    print "$msg\t\t\t... ", BOLD GREEN, 'OK', RESET, "\n"
+    print "\n$msg\t\t\t... ", BOLD GREEN, 'OK', RESET
 	if ($code == 1);
 
     if ($code == 0) {
@@ -228,7 +228,7 @@ sub succ_or_fail {
 	exit;
     }
 	
-    print "$msg\t\t\t... ", BOLD YELLOW, 'SKIP', RESET, "\n"
+    print "\n$msg\t\t\t... ", BOLD YELLOW, 'SKIP', RESET
         if ($code == 2);
     return;
 }
