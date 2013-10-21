@@ -12,21 +12,24 @@ my ($VERSION) = q$LastChangedRevision: 64 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, @get_unique_feature_options, 
-    @fetch_seqs_from_ucsc_options, @categorize_ncRNAs_options);
+    @fetch_seqs_from_ucsc_options, @categorize_ncRNAs_options, $deps);
 
 
 my $is_valid_option = GetOptions('help|?'         => \$help,
                                  'quiet'          => \$quiet,
 				 'setup'          => \$setup);
 
+# Assuming user has all the dependency tools. We will try to figure out
+# the system architecture and if it is x86_64, we will manage the deps.
+$deps->{'cuffcompare'} = 'cuffcompare';
+$deps->{'RNAfold'} = 'RNAfold';
+
 setup_ncRNAScan(`pwd`) if (defined $setup);
 
 sub setup_ncRNAScan {
     chomp(my $install_dir = shift);
     chomp(my $dl_util = `which wget 2>&1`);
-    chomp(my $decompr_util = `which unzip 2>&1`);
-    chomp(my $sys_make = `which make 2>&1`);
-    chomp(my $sys_echo = `which echo 2>&1`);
+    
 
     print "\nChecking prerequisites...\n";
     
@@ -46,13 +49,13 @@ sub setup_ncRNAScan {
     }
     
     # Unzip
-    check_util($decompr_util, 'unzip');
+    my $decompr_util = check_util('unzip');
 
     # Make
-    check_util($sys_make, 'make');
+    my $sys_make = check_util('make');
 
     # Echo
-    check_util($sys_echo, 'echo');
+    my $sys_echo = check_util('echo');
     
     
 
@@ -99,12 +102,14 @@ sub setup_ncRNAScan {
 	succ_or_fail(1, 'IO::Routine');
     }
     
-    print "\n\nFinished with custom modules.\nNow, we need good grace of cpanm...\n\n";
+    print "\n\nFinished with custom modules. Now, we need good grace of cpanm...\n";
     system("$dl_util https://raw.github.com/miyagawa/cpanminus/master/cpanm  > /dev/null 2>&1");
     system("mv cpanm $install_dir/.build");
     system("chmod 755 $install_dir/.build/cpanm");
-    system("$install_dir/.build/cpanm -f -l $install_dir/PERLLIBS Set::IntervalTree");
-    print "\nThank you cpanm!\n";
+    my $cpanm_log = `$install_dir/.build/cpanm -f -l $install_dir/PERLLIBS Set::IntervalTree 2>&1`;
+    succ_or_fail(0, 'Set::IntervalTree') if ($cpanm_log !~ m/.*?success.*/i);
+    succ_or_fail(1, 'Set::IntervalTree');
+    print "\n\nThank you cpanm!\n";
     print "\nCleaning up build directory...\n\n";
     system("rm -rf $install_dir/.build");
     
@@ -113,7 +118,6 @@ sub setup_ncRNAScan {
 
     require "$install_dir/PERLLIBS/lib/IO/Routine.pm";
     my $io = IO::Routine->new($help, $quiet);
-    my $s_time = $io->start_timer;
 
     $io->execute_system_command(0, 'Detecting system architecture...');
 
@@ -123,7 +127,9 @@ sub setup_ncRNAScan {
 	if (!$sys_arch_info ||
 	    $sys_arch_info !~ m/linux|darwin/i);
 
-    $io->error('It is not a 64-bit machine ... Bailing out!') 
+    $io->error('It is not a 64-bit machine ...' . 
+	       "It is your responsibility to make sure you have the following dependencies for your system architecture in your \$PATH:\n" .
+	       "blastall, cuffcompare and RNAfold\nBailing out!") 
 	if ($sys_arch_info !~ m/x86\_64/i);
 
 
@@ -158,14 +164,14 @@ sub setup_ncRNAScan {
 	if ($is_perl5lib !~ m/err/i && $is_perl5lib !~ m/.*?$pm_path/) {
 	    $is_perl5lib =~ s/\//\\\//g;
 	    $pm_path =~ s/\//\\\//g;
-	    print "\nAdding paths to ~/.bash_profile...\n";
+	    print "\n\nAdding paths to ~/.bash_profile...\n";
 	    print "perl -i -p -e 's/$is_perl5lib/$is_perl5lib:$pm_path/' $user_profile\n";
 	    system("echo >> $user_profile");
 	    system("echo \"# ncRNAScan PERLLIB Paths\" >> $user_profile");
 	    system("perl -i -p -e 's/$is_perl5lib/$is_perl5lib$pm_path/' $user_profile");
 	}
 	elsif($is_perl5lib =~ m/err/i && $is_perl5lib !~ m/.*?$pm_path/) {
-	    print "\nAdding paths to ~/.bash_profile...\n";
+	    print "\n\nAdding paths to ~/.bash_profile...\n";
 	    print "\necho \"export PERL5LIB=\$PERL5LIB:$pm_path\" >> $user_profile\n";
 	    system("echo >> $user_profile");
 	    system("echo \"# ncRNAScan PERLLIB Paths\" >> $user_profile");
@@ -181,54 +187,69 @@ sub setup_ncRNAScan {
 
     system("bash -c \'source $user_profile\'");
 
-    $io->execute_system_command(0, 'Checking for tool dependencies...');
-    $io->exist_sys_cmd(['cuffcompare', 'blastall']);
-    succ_or_fail(1, 'cuffcompare');
-    succ_or_fail(1, 'blastall');
-    
-    #$io->verify_files(["$install_dir/.ncRNAScan.deps"],
-		      #['ncRNAScan dependency']);
-    #my $dep_fh = $io->open_file('<', "$install_dir/.ncRNAScan.deps");
-    #my $dl_urls = do {local $/; <$dep_fh>};
+    $io->execute_system_command(0, "\nChecking for tool dependencies...");
+    $deps->{'cuffcompare'} = check_bio_util('cuffcompare', $install_dir, $sys_arch);
+    $deps->{'blastall'} = check_bio_util('blastall', $install_dir, $sys_arch);
+    $deps->{'RNAfold'} = check_bio_util('RNAfold', $install_dir, $sys_arch);    
 
-    #if ($dl_urls =~ m/$sys_arch\.cufflinks\|(.+)\|(.+)\|(.+)/i) {
-	#$io->execute_system_command("$dl_util $1", "$dl_util $1");
-	#$io->execute_system_command("mv $2 $install_dir/.build/.");
-	#$io->execute_system_command("tar -zxf $install_dir/.build/$2 &> /dev/null",
-	#			    "Setting up $3");
-	#if (!-d "$install_dir")
-    #}
-    $io->end_timer($s_time);
+    
+    $io->execute_system_command(0, "\n\nSetup complete.\nSee ncRNAScan -h to run the pipeline with options.");
+}
+
+sub check_bio_util {
+    my $cmd = shift;
+    my $install_dir = shift;
+    my $sys_arch = shift;
+
+    chomp (my $biocmd4arch = `which $cmd 2>&1`);
+    my $sandboxed4arch = $sys_arch . '_' . $cmd;
+
+    if ($biocmd4arch !~ m/.*$cmd$/i &&
+        -d "$install_dir/.ncRNAScan.depbin" &&
+        -e "$install_dir/.ncRNAScan.depbin/$sandboxed4arch") {
+        succ_or_fail(1, $cmd);
+    }
+    elsif ($biocmd4arch =~ m/.*cuffcompare$/i) {
+	succ_or_fail(1, $cmd);
+    }
+    else {
+	succ_or_fail(0, $cmd);
+    }
+    return $biocmd4arch;
 }
 
 sub check_util {
     my $cmd = shift;
-    my $util = shift;
+    chomp (my $util = `which $cmd 2>&1`);
 
-    if ($cmd !~ m/.+?$util/i) {
-	succ_or_fail(0, "$util");
+    if ($util !~ m/.+?$cmd/i) {
+	succ_or_fail(0, $cmd);
 	print "\nAborting...\n\n";
 	exit;
     }
     else {
-        succ_or_fail(1, $util);
+        succ_or_fail(1, $cmd);
     }
-    return;
+    return $util;
 }
 
 sub succ_or_fail {
     my $code = shift;
     my $msg = shift;
 
-    print "\n$msg\t\t\t... ", BOLD GREEN, 'OK', RESET
+    my $char_white_space = 70 - length($msg);
+
+    print "\n";
+    printf("%s%*s%s", $msg, $char_white_space, '... ', BOLD GREEN . 'OK' . RESET)
 	if ($code == 1);
 
     if ($code == 0) {
-	print "\n$msg\t\t\t... ", BOLD RED, 'FAIL', RESET, "\n\n";
+	printf("%s%*s%s", $msg, $char_white_space, '... ',  BOLD RED . 'FAIL' . RESET);
+	print "\n\n";
 	exit;
     }
 	
-    print "\n$msg\t\t\t... ", BOLD YELLOW, 'SKIP', RESET
+    printf("%s%*s%s", $msg, $char_white_space, '... ', BOLD YELLOW . 'SKIP' . RESET)
         if ($code == 2);
     return;
 }
