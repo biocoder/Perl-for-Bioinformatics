@@ -27,7 +27,7 @@ my $is_valid_option = GetOptions('help|?'            => \$help,
 				 'get-feat=s'        => \$get_uq_sc_opts);
 
 my $CAT_SC = 'categorize_ncRNAs.pl';
-my $FETCH_SC = 'fetch_seqs_from_ucsc.pl';
+my $FETCH_SC = 'fetch_seq_from_ucsc.pl';
 my $GET_UQ_SC = 'get_unique_features.pl';
 
 setup_ncRNAScan(`pwd`) if (defined $setup);
@@ -112,15 +112,16 @@ sub setup_ncRNAScan {
     }
     
     # Unzip
-    my $decompr_util = check_util('unzip');
+    check_util('unzip');
 
     # Make
-    my $sys_make = check_util('make');
+    check_util('make');
 
     # Echo
-    my $sys_echo = check_util('echo');
-    
-    
+    check_util('echo');
+
+    # Uname
+    check_util('uname');
 
     print "\n\nWe definetely need IO::Routine.\n" .
 	"Attempting to fetch IO::Routine from Perl-for-Bioinformatics repository on github...\n";
@@ -165,7 +166,7 @@ sub setup_ncRNAScan {
 	succ_or_fail(1, 'IO::Routine');
     }
     
-    print "\n\nFinished with custom modules. Now, we need good grace of cpanm...\n";
+    print "\n\nFinished with custom modules. Now, we need good grace of cpanm to install Set::IntervalTree...\n";
     system("$dl_util https://raw.github.com/miyagawa/cpanminus/master/cpanm  > /dev/null 2>&1");
     system("mv cpanm $install_dir/.build");
     system("chmod 755 $install_dir/.build/cpanm");
@@ -173,7 +174,7 @@ sub setup_ncRNAScan {
     succ_or_fail(0, 'Set::IntervalTree') if ($cpanm_log !~ m/.*?success.*/i);
     succ_or_fail(1, 'Set::IntervalTree');
     print "\n\nThank you cpanm!\n";
-    print "\nCleaning up build directory...\n\n";
+    print "\nCleaning up build directory...\n";
     system("rm -rf $install_dir/.build");
     
     
@@ -190,28 +191,29 @@ sub setup_ncRNAScan {
 	if (!$sys_arch_info ||
 	    $sys_arch_info !~ m/linux|darwin/i);
 
-    $io->error('It is not a 64-bit machine ...' . 
-	       "It is your responsibility to make sure you have the following dependencies for your system architecture in your \$PATH:\n" .
-	       "blastall, cuffcompare and RNAfold\nBailing out!") 
+    $io->error('It is not a 64-bit machine!' . 
+	       "\nIt is your responsibility to make sure that you have the following tools" .
+	       " installed for your system architecture and also must be found in \$PATH:\n" .
+	       "\nblastall, cuffcompare and RNAfold\n\nBailing out!") 
 	if ($sys_arch_info !~ m/x86\_64/i);
 
 
     my $sys_arch = '';
     if ($sys_arch_info =~ m/darwin/i) {
 	$sys_arch = 'darwin';
-	$io->execute_system_command(0, 'Skipping version requirement check for system level command [ sed ].' .
-				    "\nFreeBSD's sed does not provide version number (?)");
-	$io->execute_system_command(0, 'Skipping version requirement check for system level command [ tar ].' .
-				    "\nIt is FreeBSD's tar and not GNU's.");
-	succ_or_fail(2, 'sed');
-	succ_or_fail(2, 'tar');
+	$io->execute_system_command(0, 'Skipping version requirement check for system level commands [ sed ], [ tar ], [ cut ].' .
+				    "\nFreeBSD's tools does not provide version numbers (?)");
+	check_util('sed');
+	check_util('tar');
+	check_util('cut');
     }
     else {
 	$sys_arch = 'linux';
-	 $io->check_sys_level_cmds(['sed', 'tar'],
-				   ['4.2.1', '0']);
+	 $io->check_sys_level_cmds(['sed', 'tar', 'cut'],
+				   ['4.2.1', '0', '8']);
 	succ_or_fail(1, 'sed');
 	succ_or_fail(1, 'tar');
+	succ_or_fail(1, 'cut');
     }
     
     $io->check_sys_level_cmds(['grep'],
@@ -223,47 +225,64 @@ sub setup_ncRNAScan {
 
 
     if (-e $user_profile) {
-	chomp(my $is_perl5lib = $io->execute_get_sys_cmd_output("grep -Pi 'export PERL5LIB.+?' $user_profile"));
-	if ($is_perl5lib !~ m/err/i && $is_perl5lib !~ m/.*?$pm_path/) {
+	chomp(my $is_perl5lib = $io->execute_get_sys_cmd_output("grep -Pi 'export PERL5LIB.+' $user_profile"));
+	if ($is_perl5lib !~ m/err/i && $is_perl5lib !~ m/$pm_path/) {
 	    $is_perl5lib =~ s/\//\\\//g;
+	    $is_perl5lib =~ s/\$/\\\$/g;
 	    $pm_path =~ s/\//\\\//g;
+	    my $sub_this_pat = $is_perl5lib;
+	    $is_perl5lib .= ':' if ($is_perl5lib !~ m/\:\n*$/);
 	    print "\n\nAdding paths to ~/.bash_profile...\n";
-	    print "perl -i -p -e 's/$is_perl5lib/$is_perl5lib:$pm_path/' $user_profile\n";
-	    system("echo >> $user_profile");
-	    system("echo \"# ncRNAScan PERLLIB Paths\" >> $user_profile");
-	    system("perl -i -p -e 's/$is_perl5lib/$is_perl5lib$pm_path/' $user_profile");
+	    print "\nperl -i -p -e 's/$sub_this_pat/# ncRNAScan PERLLIB Paths\\n$is_perl5lib$pm_path/' $user_profile\n";
+	    system("perl -i -p -e 's/$sub_this_pat/# ncRNAScan PERLLIB Paths\\n$is_perl5lib$pm_path/' $user_profile");
 	}
-	elsif($is_perl5lib =~ m/err/i && $is_perl5lib !~ m/.*?$pm_path/) {
+	elsif($is_perl5lib =~ m/err/i && $is_perl5lib !~ m/$pm_path/) {
 	    print "\n\nAdding paths to ~/.bash_profile...\n";
-	    print "\necho \"export PERL5LIB=\$PERL5LIB:$pm_path\" >> $user_profile\n";
+	    print "\necho \"export PERL5LIB=\\\$PERL5LIB:$pm_path\" >> $user_profile\n";
 	    system("echo >> $user_profile");
 	    system("echo \"# ncRNAScan PERLLIB Paths\" >> $user_profile");
-	    system("echo \"export PERL5LIB=\$PERL5LIB:$pm_path\" >> $user_profile");
+	    system("echo \"export PERL5LIB=\\\$PERL5LIB:$pm_path\" >> $user_profile");
 	}
     }
     elsif(!-e $user_profile) {
 	print "\nSetting up ~/.bash_profile and adding paths...\n";
 	system("touch $user_profile");
-	print "\necho \"\\nexport PERL5LIB=\$PERL5LIB:$pm_path\" >> $user_profile\n";
-	system("echo \"\\nexport PERL5LIB=\$PERL5LIB:$pm_path\" >> $user_profile");
+	print "\necho \"\\nexport PERL5LIB=\\\$PERL5LIB:$pm_path\" >> $user_profile\n";
+	system("echo \"\\nexport PERL5LIB=\\\$PERL5LIB:$pm_path\" >> $user_profile");
     }
 
     system("bash -c \'source $user_profile\'");
 
-    $io->execute_system_command(0, "\nChecking for tool dependencies...");
+    $io->execute_system_command(0, 
+				"\nChecking for tool dependencies...\n" .
+				"Writing tool dependency chain to $install_dir/.ncRNAScan.depconf");
 
-    $io->execute_system_command(0, "Writing dependency tool chain to $install_dir/.ncRNAScan.depconf");
     my $dep_fh = $io->open_file('>', "$install_dir/.ncRNAScan.depconf");
+
     print $dep_fh check_bio_util('cuffcompare', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('blastall', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('RNAfold', $install_dir, $sys_arch), "\n";
-    print $dep_fh "$install_dir/" . $CAT_SC, "\n";
-    print $dep_fh "$install_dir/" . $FETCH_SC, "\n";
-    print $dep_fh "$install_dir/" . $GET_UQ_SC, "\n";
+    print $dep_fh "$install_dir/" . $CAT_SC, "\n" if (check_native("$install_dir/" . $CAT_SC));
+    print $dep_fh "$install_dir/" . $FETCH_SC, "\n" if (check_native("$install_dir/" . $FETCH_SC));
+    print $dep_fh "$install_dir/" . $GET_UQ_SC, "\n" if (check_native("$install_dir/" . $GET_UQ_SC));
 
     close $dep_fh;
     
     $io->execute_system_command(0, "\n\nSetup complete.\nSee ncRNAScan -h to run the pipeline with options.");
+}
+
+sub check_native {
+    my $nat_sc = shift;
+    (my $sc) = ($nat_sc =~ m/.*\/(.+?\.pl)$/);
+
+    if (-e $nat_sc) {
+	succ_or_fail(1, $sc);
+	return 1;
+    }
+    else {
+	succ_or_fail(0, $sc);
+    }
+    return 0;
 }
 
 sub check_bio_util {
