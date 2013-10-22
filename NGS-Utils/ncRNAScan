@@ -44,11 +44,11 @@ sub run_ncRNAScan {
     
     if (!defined $outdir) {
 	$outdir = $io->validate_create_path($out, 'do not create',
-					    'ncRNAScan output directory');
+					    'Directory path to ncRNAScan pipeline output');
     }
     else {
 	$outdir = $io->validate_create_path($out, 'create',
-					    'ncRNAScan output directory')
+					    'Directory path to ncRNAScan pipeline output')
     }
 	
     my $s_time = $io->start_timer;
@@ -62,31 +62,36 @@ sub run_ncRNAScan {
     ($deps->{'cat'}) = ($dep_tools =~ m/(.+?$CAT_SC)/i);
     ($deps->{'fetch'}) = ($dep_tools =~ m/(.+?$FETCH_SC)/i);
     ($deps->{'get'}) = ($dep_tools =~ m/(.+?$GET_UQ_SC)/i);
+
+    $io->c_time('Validating options...');
+    $io->verify_options([$is_valid_option, $cuffcmp_opts, $categorize_sc_opts]);
     
-    $io->c_time('Module 1: Running Cuffcompare...');
+    $io->c_time('Module 1: Running cuffcompare...');
     my $cuffcmp_dir = $outdir . 'cuffcmp';
     $io->execute_system_command("mkdir -p $cuffcmp_dir",
 				'Making output directory for cuffcompare [ ' . $cuffcmp_dir . ' ]');
 				
     
-    $io->execute_system_command(0, 
+    $io->execute_system_command($deps->{'cuffcompare'} . ' ' .
+                                join('-', split(/\-/, $cuffcmp_opts)) .
+                                " -o $cuffcmp_dir/ncRNAScan_cuffcmp ", 
 				"Command call:\n" .
-				"-------------\n" . $deps->{'cuffcompare'} . 
-				" -o $cuffcmp_dir/ncRNAScan_cuffcmp " .
-				join('-', split(/\-/, $cuffcmp_opts))
-	                       );
+				"-------------\n" . $deps->{'cuffcompare'} . ' ' . 
+				join('-', split(/\-/, $cuffcmp_opts)) .
+				" -o $cuffcmp_dir/ncRNAScan_cuffcmp ");
 
     $io->c_time('Module 2: Running categorize_ncRNAs.pl');
     my $cat_dir = $outdir . 'categorize_ncRNAs';
     $io->execute_system_command("mkdir -p $cat_dir",
-				'Making output directory for cuffcompare [ ' . $cat_dir . ' ]');
+				'Making output directory for categorize_ncRNAs.pl [ ' . $cat_dir . ' ]');
     
-    $io->execute_system_command(0, 
+    $io->execute_system_command($deps->{'cat'} . ' ' .
+                                join('-', split(/\-|\--/, $categorize_sc_opts)) .
+                                " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir ", 
 				"Command call:\n" .
-				"-------------\n" . $deps->{'cat'} . 
-				" -out $cat_dir " .
-				join('-', split(/\-|\--/, $categorize_sc_opts))
-	                       );
+				"-------------\n" . $deps->{'cat'} . ' ' . 
+				join('-', split(/\-|\--/, $categorize_sc_opts)) . 
+				" -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir ");
 }
 
 sub setup_ncRNAScan {
