@@ -11,8 +11,8 @@ my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-10-09 12:46:11 -0500 (Wed, 09 Oc
 my ($VERSION) = q$LastChangedRevision: 64 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
-my ($help, $quiet, $setup, $get_uq_sc_opts, 
-    $fetch_sc_opts, $categorize_sc_opts, 
+my ($help, $quiet, $setup, $get_uq_sc_opts,
+    $fetch_sc_opts, $categorize_sc_opts,
     $cuffcmp_opts, $deps, $run, $out);
 
 
@@ -41,19 +41,19 @@ sub run_ncRNAScan {
     require IO::Routine;
     my $io = IO::Routine->new($help, $quiet);
     my $path =  sub {my @file_parts = $io->file_basename(shift, 'all'); return $file_parts[1]};
-    
+
     if (!defined $outdir) {
 	$outdir = $io->validate_create_path($out, 'do not create',
-					    'Directory path to ncRNAScan pipeline output');
+					    'Directory path to ncRNAScan pipeline');
     }
     else {
 	$outdir = $io->validate_create_path($out, 'create',
-					    'Directory path to ncRNAScan pipeline output')
+					    'Directory path to ncRNAScan pipeline')
     }
-	
+
     my $s_time = $io->start_timer;
     $io->c_time('Starting ncRNAScan Pipeline...');
-   
+
     my $dep_tools_fh = $io->open_file('<', $path->($0) . '.ncRNAScan.depconf');
     my $dep_tools = do {local $/; <$dep_tools_fh>};
     ($deps->{'cuffcompare'}) = ($dep_tools =~ m/(.+?cuffcompare)/i);
@@ -65,13 +65,12 @@ sub run_ncRNAScan {
 
     $io->c_time('Validating options...');
     $io->verify_options([$is_valid_option, $cuffcmp_opts, $categorize_sc_opts]);
-    
+
     $io->c_time('Module 1: Running cuffcompare...');
     my $cuffcmp_dir = $outdir . 'cuffcmp';
     $io->execute_system_command("mkdir -p $cuffcmp_dir",
 				'Making output directory for cuffcompare [ ' . $cuffcmp_dir . ' ]');
-				
-    
+
     $io->execute_system_command($deps->{'cuffcompare'} . ' ' .
                                 join('-', split(/\-/, $cuffcmp_opts)) .
                                 " -o $cuffcmp_dir/ncRNAScan_cuffcmp ", 
@@ -84,7 +83,7 @@ sub run_ncRNAScan {
     my $cat_dir = $outdir . 'categorize_ncRNAs';
     $io->execute_system_command("mkdir -p $cat_dir",
 				'Making output directory for categorize_ncRNAs.pl [ ' . $cat_dir . ' ]');
-    
+
     $io->execute_system_command($deps->{'cat'} . ' ' .
                                 join('-', split(/\-|\--/, $categorize_sc_opts)) .
                                 " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir ", 
@@ -97,10 +96,9 @@ sub run_ncRNAScan {
 sub setup_ncRNAScan {
     chomp(my $install_dir = shift);
     chomp(my $dl_util = `which wget 2>&1`);
-    
 
-    print "\nChecking prerequisites...\n";
-    
+    print "\nChecking for platform independent prerequisites for UNIX based machines...\n";
+
     # Wget or Curl
     if ($dl_util !~ m/.+?wget$/i) {
 	chomp ($dl_util = `which curl 2>&1`);
@@ -115,7 +113,7 @@ sub setup_ncRNAScan {
     else{
 	succ_or_fail(0, 'Curl|Wget');
     }
-    
+
     # Unzip
     check_util('unzip');
 
@@ -129,18 +127,18 @@ sub setup_ncRNAScan {
     check_util('uname');
 
     print "\n\nWe definetely need IO::Routine.\n" .
+      "We also need good grace of cpanm to install Set::IntervalTree.\n\n" .
 	"Attempting to fetch IO::Routine from Perl-for-Bioinformatics repository on github...\n";
-    
+
     if (-d "$install_dir/.build") {
 	system("rm -rf $install_dir/.build");
     }
-    
+
     system("mkdir $install_dir/.build");
-    
     succ_or_fail(0, '.build dir') if (!-d "$install_dir/.build");
-    
+
     system("rm $install_dir/master.zip") if (-e "$install_dir/master.zip");
-    
+
     my $dl_util_slave = '';
     if ($dl_util =~ m/.*?wget$/i) {
       $dl_util_slave = $dl_util . ' -O master.zip ';
@@ -151,15 +149,14 @@ sub setup_ncRNAScan {
     print "\n$dl_util_slave https://github.com/biocoder/Perl-for-Bioinformatics/archive/master.zip\n\n";
     system("$dl_util_slave https://github.com/biocoder/Perl-for-Bioinformatics/archive/master.zip > /dev/null 2>&1");
     system("mv $install_dir/master.zip $install_dir/.build/master.zip");
-    
+
     succ_or_fail(0, 'master.zip')
 	if (!-e "$install_dir/.build/master.zip");
-    
-    
+
     print "\nInflating master.zip...\n";
     print "\nunzip -d $install_dir/.build $install_dir/.build/master.zip\n";
     system("unzip -d $install_dir/.build $install_dir/.build/master.zip  > /dev/null 2>&1");
-    
+
     print "\nInstalling IO::Routine...\n\n";
     system("mkdir $install_dir/PERLLIBS") if (!-d "$install_dir/PERLLIBS");
     my $custom_pm_log = `cd $install_dir/.build/Perl-for-Bioinformatics-master/IO-Routine;perl Makefile.PL PREFIX=$install_dir/PERLLIBS LIB=$install_dir/PERLLIBS/lib && make && make test && make install; 2>&1`;
@@ -170,8 +167,8 @@ sub setup_ncRNAScan {
     else {
 	succ_or_fail(1, 'IO::Routine');
     }
-    
-    print "\n\nFinished with custom modules. Now, we need good grace of cpanm to install Set::IntervalTree...\n";
+
+    # Use cpanm to install Set::IntervalTree
     system("$dl_util https://raw.github.com/miyagawa/cpanminus/master/cpanm  > /dev/null 2>&1");
     system("mv cpanm $install_dir/.build");
     system("chmod 755 $install_dir/.build/cpanm");
@@ -181,9 +178,8 @@ sub setup_ncRNAScan {
     print "\n\nThank you cpanm!\n";
     print "\nCleaning up build directory...\n";
     system("rm -rf $install_dir/.build");
-    
-    
-    my $pm_path = jit_pm("$install_dir/PERLLIBS:$install_dir/PERLLIBS/lib:$install_dir/PERLLIBS/lib/perl5");
+
+    my $pm_path = "$install_dir/PERLLIBS:$install_dir/PERLLIBS/lib:$install_dir/PERLLIBS/lib/perl5";
 
     require "$install_dir/PERLLIBS/lib/IO/Routine.pm";
     my $io = IO::Routine->new($help, $quiet);
@@ -191,7 +187,7 @@ sub setup_ncRNAScan {
     $io->execute_system_command(0, 'Detecting system architecture...');
 
     my $sys_arch_info = $io->execute_get_sys_cmd_output('uname -a');
-    
+
     $io->error('This is not a UNIX based machine ... Aborting installation!')
 	if (!$sys_arch_info ||
 	    $sys_arch_info !~ m/linux|darwin/i);
@@ -206,28 +202,30 @@ sub setup_ncRNAScan {
     my $sys_arch = '';
     if ($sys_arch_info =~ m/darwin/i) {
 	$sys_arch = 'darwin';
-	$io->execute_system_command(0, 'Skipping version requirement check for system level commands [ sed ], [ tar ], [ cut ].' .
+	$io->execute_system_command(0, 'Skipping version requirement check for system level commands [ sed ], [ tar ], [ cut ] and [ wc ].' .
 				    "\nFreeBSD's tools does not provide version numbers (?)");
 	check_util('sed');
 	check_util('tar');
 	check_util('cut');
+	check_util('wc');
     }
     else {
 	$sys_arch = 'linux';
-	 $io->check_sys_level_cmds(['sed', 'tar', 'cut'],
-				   ['4.2.1', '0', '8']);
+	 $io->check_sys_level_cmds(['sed', 'tar', 'cut', 'wc'],
+				   ['4.2.1', '0', '8', '8']);
 	succ_or_fail(1, 'sed');
 	succ_or_fail(1, 'tar');
 	succ_or_fail(1, 'cut');
+	succ_or_fail(1, 'wc');
     }
-    
+
     $io->check_sys_level_cmds(['grep'],
 			      ['2.5.1']);
     succ_or_fail(1, 'grep');
 
     chomp(my $user_home = $io->execute_get_sys_cmd_output('echo $HOME'));
     my $user_profile = $user_home . '/.bash_profile';
-
+    my $user_rc = $user_home . '/.bashrc';
 
     if (-e $user_profile) {
 	chomp(my $is_perl5lib = $io->execute_get_sys_cmd_output("grep -Pi 'export PERL5LIB.+' $user_profile"));
@@ -257,10 +255,10 @@ sub setup_ncRNAScan {
     }
 
     system("bash -c \'source $user_profile\'");
+    system("bash -c \'source $user_rc\'") if (-e $user_rc);
 
-    $io->execute_system_command(0, 
-				"\nChecking for tool dependencies...\n" .
-				"Writing tool dependency chain to $install_dir/.ncRNAScan.depconf");
+    $io->execute_system_command(0,
+				"\nChecking for ncRNAScan pipeline tool dependencies...");
 
     my $dep_fh = $io->open_file('>', "$install_dir/.ncRNAScan.depconf");
 
@@ -272,8 +270,9 @@ sub setup_ncRNAScan {
     print $dep_fh "$install_dir/" . $GET_UQ_SC, "\n" if (check_native("$install_dir/" . $GET_UQ_SC));
 
     close $dep_fh;
-    
-    $io->execute_system_command(0, "\n\nSetup complete.\nSee ncRNAScan -h to run the pipeline with options.");
+    $io->execute_system_command(0,
+				"\nWriting tool dependency chain to $install_dir/.ncRNAScan.depconf" .
+				"\n\nSetup complete. See ncRNAScan -h to run the pipeline with options.");
 }
 
 sub check_native {
@@ -304,7 +303,7 @@ sub check_bio_util {
         succ_or_fail(1, $cmd);
 	$biocmd4arch = "$install_dir/.ncRNAScan.depbin/$sandboxed4arch";
     }
-    elsif ($biocmd4arch =~ m/.*cuffcompare$/i) {
+    elsif ($biocmd4arch =~ m/.*$cmd$/i) {
 	succ_or_fail(1, $cmd);
     }
     else {
@@ -343,14 +342,9 @@ sub succ_or_fail {
 	print "\n\n";
 	exit;
     }
-	
+
     printf("%s%*s%s", $msg, $char_white_space, '... ', BOLD YELLOW . 'SKIP' . RESET)
         if ($code == 2);
     return;
 }
 
-sub jit_pm {
-    my $pm_path = shift;
-    push @INC, $pm_path;
-    return $pm_path;
-}
