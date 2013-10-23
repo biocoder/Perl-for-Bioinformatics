@@ -101,7 +101,7 @@ sub setup_ncRNAScan {
     chomp(my $install_dir = shift);
     chomp(my $dl_util = `which wget 2>&1`);
 
-    print "\nChecking for platform independent prerequisites for UNIX based machines...\n";
+    print "\nChecking for platform independent prerequisites on UNIX based machines...\n";
 
     # Wget or Curl
     if ($dl_util !~ m/.+?wget$/i) {
