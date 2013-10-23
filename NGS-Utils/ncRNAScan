@@ -65,11 +65,14 @@ sub run_ncRNAScan {
 
     $io->c_time('Validating options...');
     $io->verify_options([$is_valid_option, $cuffcmp_opts, $categorize_sc_opts]);
+    $io->exist_sys_cmd(['mkdir']);
 
     $io->c_time('Module 1: Running cuffcompare...');
-    my $cuffcmp_dir = $outdir . 'cuffcmp';
+    my $cuffcmp_dir = $outdir . 'cuffcmp';    
+    
     $io->execute_system_command("mkdir -p $cuffcmp_dir",
-				'Making output directory for cuffcompare [ ' . $cuffcmp_dir . ' ]');
+				'Making output directory for cuffcompare [ ' . $cuffcmp_dir . ' ]')
+	if (!-d $cuffcmp_dir);
 
     $io->execute_system_command($deps->{'cuffcompare'} . ' ' .
                                 join('-', split(/\-/, $cuffcmp_opts)) .
@@ -82,7 +85,8 @@ sub run_ncRNAScan {
     $io->c_time('Module 2: Running categorize_ncRNAs.pl');
     my $cat_dir = $outdir . 'categorize_ncRNAs';
     $io->execute_system_command("mkdir -p $cat_dir",
-				'Making output directory for categorize_ncRNAs.pl [ ' . $cat_dir . ' ]');
+				'Making output directory for categorize_ncRNAs.pl [ ' . $cat_dir . ' ]')
+	if (!-d $cat_dir);
 
     $io->execute_system_command($deps->{'cat'} . ' ' .
                                 join('-', split(/\-|\--/, $categorize_sc_opts)) .
@@ -228,7 +232,7 @@ sub setup_ncRNAScan {
     my $user_rc = $user_home . '/.bashrc';
 
     if (-e $user_profile) {
-	chomp(my $is_perl5lib = $io->execute_get_sys_cmd_output("grep -Pi 'export PERL5LIB.+' $user_profile"));
+	chomp(my $is_perl5lib = $io->execute_get_sys_cmd_output("grep -i 'export PERL5LIB' $user_profile"));
 	if ($is_perl5lib !~ m/err/i && $is_perl5lib !~ m/$pm_path/) {
 	    $is_perl5lib =~ s/\//\\\//g;
 	    $is_perl5lib =~ s/\$/\\\$/g;
@@ -250,8 +254,8 @@ sub setup_ncRNAScan {
     elsif(!-e $user_profile) {
 	print "\nSetting up ~/.bash_profile and adding paths...\n";
 	system("touch $user_profile");
-	print "\necho \"\\nexport PERL5LIB=\\\$PERL5LIB:$pm_path\" >> $user_profile\n";
-	system("echo \"\\nexport PERL5LIB=\\\$PERL5LIB:$pm_path\" >> $user_profile");
+	print "\necho \"export PERL5LIB=\\\$PERL5LIB:$pm_path\" >> $user_profile\n";
+	system("echo \"export PERL5LIB=\\\$PERL5LIB:$pm_path\" >> $user_profile");
     }
 
     system("bash -c \'source $user_profile\'");

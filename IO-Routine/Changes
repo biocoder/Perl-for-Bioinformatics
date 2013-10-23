@@ -1,27 +1,31 @@
-Revision history for IO-Routine
+Revision history for IO-Routine:
+--------------------------------
 
-0.01      2012-12-21
-	  First version, released on an unsuspecting world.
+0.32      2013-10-23 12:45:17 America/Chicago
+	  Fixed a big with exist_sys_cmd(). It was not using which command.
 
-0.05      2013-08-06
-	  Fivth version. Many bug fixes.
+0.31      2013-10-18 15:48:45 America/Chicago
+          Fixed a bug with exist_sys_cmd() wherein the blessed object was not being
+          passed to error().
 
-0.06      2013-08-28 
-	  Sixth version. Adding support to get memory information based on PID
-	  for OS X.
-
-0.07      2013-26-09
-	  Adding timer functions to calculate elapsed time and a function
-	  to return timestamp using localtime()
+0.30      2013-10-17 15:00:17 America/Chicago
+	  Fixed a bug with method check_sys_level_cmds() and provided an extra 
+	  level of failover
 
 0.27      2013-10-10 09:40:43 America/Chicago
 	  Many additions / insertions / deletetions to fix several bugs and
 	  to add many features
 
-0.30      2013-10-17 15:00:17 America/Chicago
-	  Fixed a bug with method check_sys_level_cmds() and provided an extra 
-	  level of failover.
+0.07      2013-26-09
+	  Adding timer functions to calculate elapsed time and a function
+	  to return timestamp using localtime()
 
-0.31      2013-10-18 15:48:45 America/Chicago
-	  Fixed a bug with exist_sys_cmd() wherein the blessed object was not being
-	  passed to error().
+0.06      2013-08-28 
+	  Sixth version. Adding support to get memory information based on PID
+	  for OS X.
+
+0.05      2013-08-06
+	  Fivth version. Many bug fixes.
+
+0.01      2012-12-21
+	  First version, released on an unsuspecting world.
