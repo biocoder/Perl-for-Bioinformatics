@@ -262,7 +262,7 @@ sub gtf_or_bed {
     elsif (defined($format) && $format ne '' && $format =~ m/^gtf|gff$/i) {
 	return ("1", "4", "5");
     }
-    elsif (defined($format) && $format ne '' && $format ~~ m/^gtf|gff|bed$/i) {
+    elsif (defined($format) && $format ne '' && $format =~ m/^gtf|gff|bed$/i) {
 	$io->error('Invalid file format [ ' . $format . ' ] specified!' .
 		   'Currently, only GTF, GFF or BED file format is supported.');
     }
