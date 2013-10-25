@@ -70,26 +70,28 @@ ok( defined( $io ) && can_ok($io, 'execute_get_sys_cmd_output'), 'execute_get_sy
 
 diag( "Testing method open_file()" );
 if ( $ENV{'TMP'} ) {
-  diag( "Using user preferences and setting temporary location to $ENV{'TMP'}" );
-  $tmpLoc = $ENV{'TMP'}
+    diag( "Using user preferences and setting temporary location to $ENV{'TMP'}" );
+    $tmpLoc = $ENV{'TMP'};
 }
 elsif ( $ENV{'TEMP'} ) {
-  diag( "Using user preferences and setting temporary location to $ENV{'TEMP'}" );
-  $tmpLoc = $ENV{'TEMP'}
+    diag( "Using user preferences and setting temporary location to $ENV{'TEMP'}" );
+    $tmpLoc = $ENV{'TEMP'};
 }
 elsif ( $ENV{'TMPDIR'} ) {
-  diag( "Using user preferences and setting temporary location to $ENV{'TMPDIR'}" );
-  $tmpLoc = $ENV{'TMPDIR'}
+    diag( "Using user preferences and setting temporary location to $ENV{'TMPDIR'}" );
+    $tmpLoc = $ENV{'TMPDIR'};
 }
 else {
-  $tmpLoc = '/tmp';
+    $ENV{'TMP'} = '/tmp';
+    $tmpLoc = $ENV{'TMP'};
 }
 
 $tmpLoc .= '/' if ( $tmpLoc !~ m/\/$/ );
 my $tmpLocFile = $tmpLoc . 'IORoutineOpenFileTest.txt';
+my $tmpLocFile_fh = $io->open_file('>', $tmpLocFile);
 
-ok( $io->open_file('>', $tmpLocFile) ne '', 'open_file() - Returns non-empty filehandle for IO operations.');
-unlink($tmpLocFile) if (-e $tmpLocFile);
+ok( $tmpLocFile_fh  ne '', 'open_file() - Returns non-empty filehandle for IO operations.');
+close $tmpLocFile_fh;
 
 diag( "Testing method is_dir_empty()" );
 ok( defined( $io->is_dir_empty("$tmpLoc") ), 'is_dir_empty() Is loadable, Checks for empty directory.');
