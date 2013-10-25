@@ -202,7 +202,7 @@ sub class_ncRNAs {
 	    $discard) = 0;
 
 	$io->c_time('Categorizing ncRNAs (Exonic overlaps)...');
-	($num_ex_ov, $num_noSense) = calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	($num_ex_ov, $num_noSense) = calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 
 	$io->c_time('Categorizing ncRNAs (Intronic overlaps - incs)...');
 	($num_incs, $discard) = calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
@@ -280,12 +280,12 @@ sub calc_lincRNAs {
 		$ncRNA_length >= $length) {
 		$found++;
 		$ncRNA_class->{$unique_key} = 1;
-		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; ncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0)
+		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; ncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
 	    }
 	    elsif (!exists $ncRNA_class->{$unique_key}) {
 		$num_noClass++;
 		$ncRNA_class->{$unique_key} = 1;
-		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; ncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0)
+		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; ncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0);
 	    }
 	}
     }
@@ -299,6 +299,7 @@ sub calc_overlaps {
     my $p_ncRNAs = shift;
     my $c_ncRNAs = shift;
     my $refAnnot = shift;
+    my $u_ncRNAs = shift;
     my $found = 0;
     my $num_noSense = 0;
 
@@ -479,7 +480,9 @@ sub calc_overlaps {
 			       !exists $ncRNA_class->{$unique_key}) {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--; 
-			    $num_noSense++, last if (defined($antisense_only) && $antisense_only);
+			    $num_noSense++,
+			    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; ncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0),
+			    last if (defined($antisense_only) && $antisense_only);
 			    $found++;
 			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Sense exonic overlap with $ref_tr_id\";";
 			    last;
@@ -488,7 +491,10 @@ sub calc_overlaps {
 			       !exists $ncRNA_class->{$unique_key}) {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
-			    $num_noSense++, last if (defined($antisense_only) && $antisense_only);
+			    $num_noSense++,
+			    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; ncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0),
+			    $ncRNA_class->{$unique_key} = "ncRNA_type \"No Class \(\?\)\"\;",
+			    last if (defined($antisense_only) && $antisense_only);
 			    $found++;
 			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Exonic overlap with $ref_tr_id\";";
 			    last;
