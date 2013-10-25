@@ -89,6 +89,7 @@ $tmpLoc .= '/' if ( $tmpLoc !~ m/\/$/ );
 my $tmpLocFile = $tmpLoc . 'IORoutineOpenFileTest.txt';
 
 ok( $io->open_file('>', $tmpLocFile) ne '', 'open_file() - Returns non-empty filehandle for IO operations.');
+unlink($tmpLocFile) if (-e $tmpLocFile);
 
 diag( "Testing method is_dir_empty()" );
 ok( defined( $io->is_dir_empty("$tmpLoc") ), 'is_dir_empty() Is loadable, Checks for empty directory.');
