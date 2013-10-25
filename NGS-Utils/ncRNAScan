@@ -135,19 +135,23 @@ sub run_ncRNAScan {
 	opendir (ncRNAScan_categorize_mod, $outdir . 'categorize_ncRNAs') ||
 	    $io->error("Cannot open directory $outdir" .
 		       'categorize_ncRNAs for reading ncRNAScan class files.');
+
 	push my @ncRNAScan_class_files, grep {/putative\.class\.ncRNAs\.gtf$/} readdir ncRNAScan_categorize_mod;
 
 	foreach my $ncRNAScan_class_file (@ncRNAScan_class_files) {
 
-	    $io->execute_system_command(0,'perl' . $pl_inc_string . $deps->{'get'} . ' ' .
-					'-cf ' . $ncRNAScan_class_file . '-cff gtf '.
+	    $ncRNAScan_class_file = $outdir . 'categorize_ncRNAs/' . $ncRNAScan_class_file;
+	    my $unique_ncRNAs = $cat_dir . '/' . $io->file_basename($ncRNAScan_class_file) . '.unique.gtf';
+
+	    $io->execute_system_command('perl' . $pl_inc_string . $deps->{'get'} . ' ' .
+					'-cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
 					join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-					" -q -stdout ",
+					" -q -stdout > $unique_ncRNAs",
 					"Command call:\n" .
 					"-------------\n" . $deps->{'get'} . ' ' .
-					'-cf ' . $ncRNAScan_class_file . '-cff gtf '.
+					'-cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
 					join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-					" -q -stdout ");
+					" -q -stdout > $unique_ncRNAs");
 	}
 	    
     } if (defined($get_uq_sc_opts) && $get_uq_sc_opts ne '');
