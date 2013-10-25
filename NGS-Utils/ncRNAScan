@@ -288,7 +288,7 @@ sub setup_ncRNAScan {
 			      ['2.5.1']);
     succ_or_fail(1, 'grep');
 
-    print "\nSetting up PERL5LIB paths...\n";
+    print "\n\nSetting up PERL5LIB paths...\n";
     unlink "$install_dir/.ncRNAScan.PERLLIBS" if (-e "$install_dir/.ncRNAScan.PERLLIBS");
     my $pl_dep_fh = $io->open_file('>', "$install_dir/.ncRNAScan.PERLLIBS");
     print $pl_dep_fh $pm_path;
