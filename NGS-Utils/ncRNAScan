@@ -29,6 +29,7 @@ my $is_valid_option = GetOptions('help|?'            => \$help,
 my $CAT_SC = 'categorize_ncRNAs.pl';
 my $FETCH_SC = 'fetch_seq_from_ucsc.pl';
 my $GET_UQ_SC = 'get_unique_features.pl';
+my $USER_HOME = $ENV{'HOME'};
 
 setup_ncRNAScan(`pwd`) if (defined $setup);
 run_ncRNAScan(`pwd`) if (defined $run);
@@ -39,8 +40,8 @@ sub run_ncRNAScan {
 
     $ran_fromHere .= '/' if ($ran_fromHere !~ m/\/$/);
     
-    open(my $pl_dep_paths_fh, '<', $ran_fromHere . '.ncRNAScan.PERLLIBS') ||
-	die "\nCannot open $ran_fromHere.ncRNAScan.PERLLIBS. May be setup was unsuccessful (?): $!\n\n";
+    open(my $pl_dep_paths_fh, '<', $USER_HOME . '/.ncRNAScan.PERLLIBS') ||
+	die "\nCannot open $USER_HOME/.ncRNAScan.PERLLIBS. May be setup was unsuccessful (?): $!\n\n";
     my $pl_dep_paths = do { local $/; <$pl_dep_paths_fh> };
     my $pl_inc_string = source_env($pl_dep_paths);
 
@@ -60,7 +61,7 @@ sub run_ncRNAScan {
     my $s_time = $io->start_timer;
     $io->c_time('Starting ncRNAScan Pipeline...');
 
-    my $dep_tools_fh = $io->open_file('<', $ran_fromHere . '.ncRNAScan.depconf');
+    my $dep_tools_fh = $io->open_file('<', $USER_HOME . '/.ncRNAScan.depconf');
     my $dep_tools = do {local $/; <$dep_tools_fh>};
     ($deps->{'cuffcompare'}) = ($dep_tools =~ m/(.+?cuffcompare)/i);
     ($deps->{'blastall'}) = ($dep_tools =~ m/(.+?blastall)/i);
@@ -289,8 +290,8 @@ sub setup_ncRNAScan {
     succ_or_fail(1, 'grep');
 
     print "\n\nSetting up PERL5LIB paths...\n";
-    unlink "$install_dir/.ncRNAScan.PERLLIBS" if (-e "$install_dir/.ncRNAScan.PERLLIBS");
-    my $pl_dep_fh = $io->open_file('>', "$install_dir/.ncRNAScan.PERLLIBS");
+    unlink "$USER_HOME/.ncRNAScan.PERLLIBS" if (-e "$USER_HOME/.ncRNAScan.PERLLIBS");
+    my $pl_dep_fh = $io->open_file('>', "$USER_HOME/.ncRNAScan.PERLLIBS");
     print $pl_dep_fh $pm_path;
 
 =head1
@@ -329,9 +330,9 @@ sub setup_ncRNAScan {
     
     $io->execute_system_command(0,
 				"\nChecking for ncRNAScan pipeline tool dependencies..." .
-				"\n\nWriting tool dependency chain to $install_dir/.ncRNAScan.depconf");
+				"\n\nWriting tool dependency chain to $USER_HOME/.ncRNAScan.depconf");
 
-    my $dep_fh = $io->open_file('>', "$install_dir/.ncRNAScan.depconf");
+    my $dep_fh = $io->open_file('>', "$USER_HOME/.ncRNAScan.depconf");
 
     # We will figure out if user is installing at a different location other than
     # from the cloned repo.
