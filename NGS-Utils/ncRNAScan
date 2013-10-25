@@ -143,12 +143,10 @@ sub run_ncRNAScan {
             if (!-d $cat_dir);
 
         $io->execute_system_command('perl' . $pl_inc_string . $deps->{'fetch'} . ' ' .
-                                    join('-', split(/\-|\--/, $fetch_sc_opts)) .
-                                    " -q -stdout ",
+                                    join('-', split(/\-|\--/, $fetch_sc_opts)),
                                     "Command call:\n" .
                                     "-------------\n" . $deps->{'fetch'} . ' ' .
-                                    join('-', split(/\-|\--/, $fetch_sc_opts)) .
-                                    " -q -stdout ");
+                                    join('-', split(/\-|\--/, $fetch_sc_opts)));
 
     } if (defined($fetch_sc_opts) && $fetch_sc_opts ne '');
 
