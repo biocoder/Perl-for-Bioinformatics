@@ -101,16 +101,23 @@ sub run_ncRNAScan {
 	$io->c_time('Module 2: Running categorize_ncRNAs.pl');
 	my $cat_dir = $outdir . 'categorize_ncRNAs';
 	$io->execute_system_command("mkdir -p $cat_dir",
-				    'Making output directory for ' . $io->file_basename($deps->{'cat'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
+				    'Making output directory for ' .
+				    $io->file_basename($deps->{'cat'}, 'suffix') .
+				    ' [ ' . $cat_dir . ' ]')
 	    if (!-d $cat_dir);
 	
+	my ($tr_files, $tr_size) = get_num_tr_files($cuffcmp_opts)
+	    if (defined $cuffcmp_opts && $cuffcmp_opts ne '');
+		
 	$io->execute_system_command('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
 				    join('-', split(/\-|\--/, $categorize_sc_opts)) .
-				    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir ", 
+				    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
+				    $tr_files, 
 				    "Command call:\n" .
 				    "-------------\n" . $deps->{'cat'} . ' ' . 
 				    join('-', split(/\-|\--/, $categorize_sc_opts)) . 
-				    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir ");
+				    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
+				    $tr_files);
     
     } if (defined($categorize_sc_opts) && $categorize_sc_opts ne '');
 
@@ -120,19 +127,32 @@ sub run_ncRNAScan {
 	$io->c_time('Module 3: Running get_unique_features.pl');
         my $cat_dir = $outdir . 'get_unique_features';
         $io->execute_system_command("mkdir -p $cat_dir",
-                                    'Making output directory for ' . $io->file_basename($deps->{'get'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
+                                    'Making output directory for ' .
+				    $io->file_basename($deps->{'get'}, 'suffix') .
+				    ' [ ' . $cat_dir . ' ]')
             if (!-d $cat_dir);
+	
+	opendir (ncRNAScan_categorize_mod, $outdir . 'categorize_ncRNAs') ||
+	    $io->error("Cannot open directory $outdir" .
+		       'categorize_ncRNAs for reading ncRNAScan class files.');
+	push my @ncRNAScan_class_files, grep {/putative\.class\.ncRNAs\.gtf$/} readdir ncRNAScan_categorize_mod;
 
-        $io->execute_system_command('perl' . $pl_inc_string . $deps->{'get'} . ' ' .
-                                    join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-                                    " -q -stdout ",
-                                    "Command call:\n" .
-                                    "-------------\n" . $deps->{'get'} . ' ' .
-                                    join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-                                    " -q -stdout ");
+	foreach my $ncRNAScan_class_file (@ncRNAScan_class_files) {
 
+	    $io->execute_system_command(0,'perl' . $pl_inc_string . $deps->{'get'} . ' ' .
+					'-cf ' . $ncRNAScan_class_file . '-cff gtf '.
+					join('-', split(/\-|\--/, $get_uq_sc_opts)) .
+					" -q -stdout ",
+					"Command call:\n" .
+					"-------------\n" . $deps->{'get'} . ' ' .
+					'-cf ' . $ncRNAScan_class_file . '-cff gtf '.
+					join('-', split(/\-|\--/, $get_uq_sc_opts)) .
+					" -q -stdout ");
+	}
+	    
     } if (defined($get_uq_sc_opts) && $get_uq_sc_opts ne '');
-
+    
+	
     # Run fetch_seq_from_ucsc.pl ######################################################################
     do {
 
@@ -143,12 +163,16 @@ sub run_ncRNAScan {
             if (!-d $cat_dir);
 
         $io->execute_system_command('perl' . $pl_inc_string . $deps->{'fetch'} . ' ' .
-                                    join('-', split(/\-|\--/, $fetch_sc_opts)),
+                                    join('-', split(/\-|\--/, $fetch_sc_opts)) .
+				    "-out $cat_dir",
                                     "Command call:\n" .
                                     "-------------\n" . $deps->{'fetch'} . ' ' .
-                                    join('-', split(/\-|\--/, $fetch_sc_opts)));
+                                    join('-', split(/\-|\--/, $fetch_sc_opts)) .
+				    "-out $cat_dir -q");
 
     } if (defined($fetch_sc_opts) && $fetch_sc_opts ne '');
+
+    
 
     $io->c_time('ncRNAScan Pipeline Finished!');
     $io->end_timer($s_time);
@@ -449,4 +473,21 @@ sub cpanm_status {
     succ_or_fail(0, $pm) if ($cpanm_log !~ m/.*?success.*/i);
     succ_or_fail(1, $pm);
     return;
+}
+
+# Report transcript files and size
+sub get_num_tr_files {
+    my $cmd_args = shift;
+    my @args = split/\s+/, $cmd_args;
+   
+    my $last_opt_elem = my $tr_size = 0;
+    my $tr_files = '';
+    
+    for (0 .. $#args) {
+	$last_opt_elem = $_ + 2 if ($args[$_] =~ m/^\-/);
+    }
+    $tr_size = $#args - $last_opt_elem;
+    
+    $tr_files = join(' ', @args[$last_opt_elem .. $#args]);
+    return($tr_files, $tr_size);
 }
