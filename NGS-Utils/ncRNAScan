@@ -300,6 +300,8 @@ sub setup_ncRNAScan {
 	check_util('tar');
 	check_util('cut');
 	check_util('wc');
+	$io->warning("We need GNU grep instead of FreeBSD's.");
+	#print "Do you want me to install it using homebrew manager. It will install homebrew too"
     }
     else {
 	$sys_arch = 'linux';
@@ -312,7 +314,7 @@ sub setup_ncRNAScan {
     }
 
     $io->check_sys_level_cmds(['grep'],
-			      ['2.5.1']);
+			      ['2.6.3']);
     succ_or_fail(1, 'grep');
 
     print "\n\nSetting up PERL5LIB paths...\n";
