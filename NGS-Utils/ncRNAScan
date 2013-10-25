@@ -34,11 +34,16 @@ setup_ncRNAScan(`pwd`) if (defined $setup);
 run_ncRNAScan(`pwd`) if (defined $run);
 
 sub run_ncRNAScan {
-    my $ran_fromHere = shift;
+    chomp(my $ran_fromHere = shift);
     my $outdir;
 
-    source_env();
+    $ran_fromHere .= '/' if ($ran_fromHere !~ m/\/$/);
     
+    open(my $pl_dep_paths_fh, '<', $ran_fromHere . '.ncRNAScan.PERLLIBS') ||
+	die "\nCannot open $ran_fromHere.ncRNAScan.PERLLIBS. May be setup was unsuccessful (?): $!\n\n";
+    my $pl_dep_paths = do { local $/; <$pl_dep_paths_fh> };
+    my $pl_inc_string = source_env($pl_dep_paths);
+
     # We will quit, if the setup was unsuccessful.
     require IO::Routine;
     my $io = IO::Routine->new($help, $quiet);
@@ -98,7 +103,7 @@ sub run_ncRNAScan {
 				    'Making output directory for ' . $io->file_basename($deps->{'cat'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
 	    if (!-d $cat_dir);
 	
-	$io->execute_system_command($deps->{'cat'} . ' ' .
+	$io->execute_system_command('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
 				    join('-', split(/\-|\--/, $categorize_sc_opts)) .
 				    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir ", 
 				    "Command call:\n" .
@@ -117,7 +122,7 @@ sub run_ncRNAScan {
                                     'Making output directory for ' . $io->file_basename($deps->{'get'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
             if (!-d $cat_dir);
 
-        $io->execute_system_command($deps->{'get'} . ' ' .
+        $io->execute_system_command('perl' . $pl_inc_string . $deps->{'get'} . ' ' .
                                     join('-', split(/\-|\--/, $get_uq_sc_opts)) .
                                     " -q -stdout ",
                                     "Command call:\n" .
@@ -261,10 +266,12 @@ sub setup_ncRNAScan {
 			      ['2.5.1']);
     succ_or_fail(1, 'grep');
 
-    chomp(my $user_home = $io->execute_get_sys_cmd_output('echo $HOME'));
-    my $user_profile = $user_home . '/.bash_profile';
-    my $user_rc = $user_home . '/.bashrc';
+    print "\nSetting up PERL5LIB paths...\n";
+    unlink "$install_dir/.ncRNAScan.PERLLIBS" if (-e "$install_dir/.ncRNAScan.PERLLIBS");
+    my $pl_dep_fh = $io->open_file('>', "$install_dir/.ncRNAScan.PERLLIBS");
+    print $pl_dep_fh $pm_path;
 
+=head1
     if (-e $user_profile) {
 	chomp(my $is_perl5lib = $io->execute_get_sys_cmd_output("grep -i 'export PERL5LIB' $user_profile"));
 	if ($is_perl5lib !~ m/err/i && $is_perl5lib !~ m/$pm_path/) {
@@ -286,14 +293,17 @@ sub setup_ncRNAScan {
 	}
     }
     elsif(!-e $user_profile) {
-	print "\nSetting up ~/.bash_profile and adding paths...\n";
-	system("touch $user_profile");
-	print "\necho \"export PERL5LIB=\\\$PERL5LIB:$pm_path\" >> $user_profile\n";
-	system("echo \"# ncRNAScan PERLLIB Paths\" >> $user_profile");
-	system("echo \"export PERL5LIB=\\\$PERL5LIB:$pm_path\" >> $user_profile");
-    }
+=cut
 
-    source_env();
+
+#	system("touch $user_profile");
+	#print "\nexport PERL5LIB=\\\$PERL5LIB:$pm_path\n";
+#	system("echo \"#!/bin/bash\" > $user_profile");
+#	system("echo >> $user_profile");
+#	system("echo \"# ncRNAScan PERLLIB Paths\" >> $user_profile");
+#	system("echo \"export PERL5LIB=\\\$PERL5LIB:$pm_path\" >> $user_profile");
+	#system("export PERL5LIB=\\\$PERL5LIB:$pm_path");
+#    }
     
     $io->execute_system_command(0,
 				"\nChecking for ncRNAScan pipeline tool dependencies..." .
@@ -393,17 +403,18 @@ sub succ_or_fail {
     }
 
     printf("%s%*s%s", $msg, $char_white_space, '... ', BOLD YELLOW . 'SKIP' . RESET)
-        if ($code == 2);
+         if ($code == 2);
     return;
 }
 
 # Source the environment
 sub source_env {
-    my $user_profile = "$ENV{'HOME'}/.bash_profile";
-    my $user_rc = "$ENV{'HOME'}/.bashrc";
-
-    # Working in terminal tabs?? Let us make sure and reload user prefs.
-    system("bash -c \'source $user_profile\'") if (-e $user_profile);
-    system("bash -c \'source $user_rc\'")  if (-e $user_rc);
-    return;
+    chomp(my $pl_paths = shift);
+    my $perl_inc_string = ' ';
+    
+    foreach my $pl_path (split(/\:/, $pl_paths)) {
+	$perl_inc_string .= '-I' . $pl_path . ' ';
+	push @INC, $pl_path;
+    }
+    return $perl_inc_string;
 }
