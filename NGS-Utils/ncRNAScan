@@ -146,12 +146,12 @@ sub run_ncRNAScan {
 	    $io->execute_system_command('perl' . $pl_inc_string . $deps->{'get'} . ' ' .
 					'-cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
 					join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-					" -q -stdout > $unique_ncRNAs",
+					" -q -stdout -unique > $unique_ncRNAs",
 					"Command call:\n" .
 					"-------------\n" . $deps->{'get'} . ' ' .
 					'-cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
 					join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-					" -q -stdout > $unique_ncRNAs");
+					" -q -stdout -unique > $unique_ncRNAs");
 	}
 	    
     } if (defined($get_uq_sc_opts) && $get_uq_sc_opts ne '');
