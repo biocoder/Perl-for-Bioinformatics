@@ -132,7 +132,7 @@ if (defined($no_tmp)) {
     }
 }
 
-$io->c_time('Done!');
+$io->c_time('categorize_ncRNAs Finished!');
 $io->end_timer($s_time);
 exit;
 
