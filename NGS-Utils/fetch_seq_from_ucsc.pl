@@ -16,7 +16,7 @@ my $AUTHORFULLNAME = 'Kranti Konganti';
 
 # Declare initial global variables
 my ($quiet, $tmap, $output, $help, $dbkey, $print_seq_fh,
-    $chr_coords, $chr_info, $id_re, $skip_re);
+    $chr_coords, $chr_info, $id_re, $skip_re, $file_format);
 
 my $is_valid_option = GetOptions ('help|?'     => \$help,
                                   'quiet'      => \$quiet,
@@ -59,7 +59,7 @@ $output = $io->validate_create_path($output, 'create', 'Output');
 $io->c_time("Chromosome files will be stored at $output ...");
 $io->c_time('Fetching Sequences ...');
 
-$chr_coords = join(',', gtf_or_bed($ff));
+$chr_coords = join(',', gtf_or_bed($file_format));
 
 if (defined $chr_coords && $chr_coords ne '') {
     $chr_coords = $io->strip_leading_and_trailing_spaces($chr_coords);

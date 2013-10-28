@@ -147,16 +147,18 @@ sub run_ncRNAScan {
 					'-cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
 					join('-', split(/\-|\--/, $get_uq_sc_opts)) .
 					' -q -stdout -unique -kc 3 -ck transcript | ' .
-					"grep -oiP 'transcript_id\\\s+.+?\\\;' | grep -oiP '\\\".+?\\\"' | sed -e 's/\\\"//g' | " .
+					"grep -oiP 'transcript_id\\s+.+?\\\;' | grep -oiP '\\\".+?\\\"' | sed -e 's/\\\"//g' | " .
 					"while read line; do grep \$line $ncRNAScan_class_file; done" .
 					" > $unique_ncRNAs",
 					"Command call:\n" .
 					"-------------\n" . $deps->{'get'} . ' ' .
 					'-cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
 					join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-					" -q -stdout -unique -kc 3 -ck transcript > $unique_ncRNAs");
+					' -q -stdout -unique -kc 3 -ck transcript ' .
+                                        " > $unique_ncRNAs");
 	}
-	    
+	close ncRNAScan_categorize_mod;
+	
     } if (defined($get_uq_sc_opts) && $get_uq_sc_opts ne '');
     
 	
@@ -177,21 +179,21 @@ sub run_ncRNAScan {
 
 	foreach my $ncRNAScan_unique_file (@ncRNAScan_unique_files) {
 	    $ncRNAScan_unique_file = $outdir . 'get_unique_features/' . $ncRNAScan_unique_file;
-	    my $fetch_out = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_file) . '.fa';
 
 	    $io->execute_system_command('perl' . $pl_inc_string . $deps->{'fetch'} . ' ' .
 					join('-', split(/\-|\--/, $fetch_sc_opts)) .
-					" -out $fetch_out -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t' -q",
+					' -tmap ' . $ncRNAScan_unique_file .
+					" -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t' -q",
 					"Command call:\n" .
 					"-------------\n" . $deps->{'fetch'} . ' ' .
 					join('-', split(/\-|\--/, $fetch_sc_opts)) .
-                                        " -out $fetch_out -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t' -q");
+					' -tmap ' . $ncRNAScan_unique_file .
+                                        " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t' -q");
 	}
+	close ncRNAScan_get_unique_mod;
 
     } if (defined($fetch_sc_opts) && $fetch_sc_opts ne '');
-
     
-
     $io->c_time('ncRNAScan Pipeline Finished!');
     $io->end_timer($s_time);
 }
