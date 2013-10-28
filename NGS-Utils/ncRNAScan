@@ -529,7 +529,7 @@ Examples:
 
 =head1 DESCRIPTION
 
-This pipeline script will bind together the functionality of the tools / scripts: Cuffcompare, categorize_ncRNAs.pl, get_unique_features.pl, fetch_seq_from_ucsc.pl and / or Coding Potential Calculator (CPC). Transcriptome construction tools such as Scripture / Cufflinks produces a set of assembled transcripts in GTF format. In brief the pipeline steps are as follows:
+This pipeline script will bind together the functionality of the tools / scripts: Cuffcompare, categorize_ncRNAs.pl, get_unique_features.pl, fetch_seq_from_ucsc.pl and / or Coding Potential Calculator (CPC). Transcriptome construction tools such as Scripture / Cufflinks produces a set of assembled transcripts in GTF format. ncRNAScan uses this data in addition to known gene annotation to extract putative ncRNAs constructed by the ab initio assemblers. In brief the pipeline steps are as follows:
 
 =over 5
 
