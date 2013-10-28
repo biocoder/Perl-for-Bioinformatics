@@ -26,6 +26,7 @@ my $is_valid_option = GetOptions ('help|?'     => \$help,
 				  'chr-cols=s' => \$chr_coords,
 				  'id-re=s'    => \$id_re,
 				  'skip-re=s'  => \$skip_re,
+				  'ff=s'       => \$file_format
                                   );
 
 # Print info if not quiet
@@ -57,6 +58,8 @@ $output = $io->validate_create_path($output, 'create', 'Output');
 
 $io->c_time("Chromosome files will be stored at $output ...");
 $io->c_time('Fetching Sequences ...');
+
+$chr_coords = join(',', gtf_or_bed($ff));
 
 if (defined $chr_coords && $chr_coords ne '') {
     $chr_coords = $io->strip_leading_and_trailing_spaces($chr_coords);
@@ -158,6 +161,22 @@ sub print_seq {
     return;
 }
 
+# Return GTF or BED or GFF columns
+sub gtf_or_bed {
+    my $format = shift;
+    if (defined($format) && $format ne '' && $format =~ m/^bed$/i) {
+        return ("1", "2", "3");
+    }
+    elsif (defined($format) && $format ne '' && $format =~ m/^gtf|gff$/i) {
+        return ("1", "4", "5");
+    }
+    elsif (defined($format) && $format ne '' && $format =~ m/^gtf|gff|bed$/i) {
+        $io->error('Invalid file format [ ' . $format . ' ] specified!' .
+                   'Currently, only GTF, GFF or BED file format is supported.');
+    }
+    return;
+}
+
 __END__
 
 =head1 NAME
@@ -230,6 +249,11 @@ fetch_seq_from_ucsc.pl takes the following arguments:
 
   If you want to skip lines containing this pattern, provide regex with this option.
   For example, -skip '\texon\t'
+
+=item -ff or --ff (Optional)
+
+  You can directly specify one of the allowed file formats (gtf, gff or bed)
+  to extract chromosome coordinate information.
 
 =back
 
