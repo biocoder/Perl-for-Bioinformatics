@@ -32,7 +32,7 @@ my $GET_UQ_SC = 'get_unique_features.pl';
 my $USER_HOME = $ENV{'HOME'};
 
 setup_ncRNAScan(`pwd`) if (defined $setup);
-run_ncRNAScan(`pwd`) if (defined $run);
+run_ncRNAScan(`pwd`) if (defined $run || defined $help);
 
 sub run_ncRNAScan {
     chomp(my $ran_fromHere = shift);
@@ -505,3 +505,129 @@ sub ask_user {
  chomp(my $ans = <STDIN>);
  return $ans;
 }
+
+__END__
+
+=head1 NAME
+
+ncRNAScan
+
+=head1 SYNOPSIS
+
+ncRNAScan is a pipeline to extract putative novel ncRNAs ab initio given a list of transcripts in GTF format assembled from deep sequencing data (ex: RNA-Seq).
+
+Complete Description: 
+
+    perldoc ncRNAScan
+
+Examples:
+
+    perl ncRNAScan -h
+
+    perl ncRNAScan -cuffcmp '-r annotation.gtf ...' -categorize '-fpkm 2 -l 200 ...' -get '-unique -q -sff bed -cff gtf...' -fetch '-db mm10'
+
+
+=head1 DESCRIPTION
+
+This pipeline script will bind together the functionality of the tools / scripts: Cuffcompare, categorize_ncRNAs.pl, get_unique_features.pl, fetch_seq_from_ucsc.pl and / or Coding Potential Calculator (CPC). Transcriptome construction tools such as Scripture / Cufflinks produces a set of assembled transcripts in GTF format. In brief the pipeline steps are as follows:
+
+=over 5
+
+=item 1. Cuffcompare (ncRNAScan Option: -cuff or --cuffcompare)
+
+    The transcript assembly can be compared to known annotation of choice to classify them into different class codes (http://cufflinks.cbcb.umd.edu/manual.html#class_codes) using Cuffcompare. 
+
+=item 2. categorize_ncRNAs.pl (ncRNAScan Option: -cat or --cat-ncRNAs)
+    
+    ncRNAScan uses the tracking file (*.tracking) produced by Cuffcompare, annotation data in gene prediction format and a list of supplied transcripts in GTF format to produce and categorize ncRNAs into different classes as mentioned in the paper, http://genome.cshlp.org/content/22/3/577.full. 
+
+=item 3. get_unique_features.pl (ncRNAScan Option: -get or --get-feat)
+    
+    It then compares the putative list with supplied known ncRNAs in BED format to get features that do not overlap any known ncRNAs.
+
+=item 4. fetch_seq_from_ucsc.pl (ncRNAScan Option: -fetch or --fetch-seq)
+    
+    This list is then used to fetch DNA sequence of those transcript sequences to determine the coding potential using CPC.
+
+=item 5. run_CPC.sh (ncRNAScan Option -cpc or --run-cpc)
+    
+    In the final step, the fetched FASTA sequences are used to determine and coding potential and those that are flagged as "noncoding" are used to create the final list of high confidence ncRNAs.
+
+=back
+
+The pipeline has the ability to run each of these individual modules if any of them fail during the initial run.
+
+=head1 EXAMPLE
+
+=head2 Installation:
+
+perl ncRNAScan -setup
+
+=head2 Start the Pipeline:
+
+=over 5
+
+=item * Run complete pipeline:
+
+    perl ncRNAScan -run -out /data/ncRNAScan/ -cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 1.1 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2"' -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_ncRNAs/mm10_ncRNA.bed' -fetch '-db mm10'
+
+=item * Run categorize_ncRNAs module of the pipeline:
+    
+    perl ncRNAScan -run -out /data/ncRNAScan/ -cat '-clean -overlap 1.1 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks\
+/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_ncRNAs/mm10_ncRNA.bed' -fetch '-db mm10'
+
+=item * Run get_unique_features module of the pipeline:
+    
+    perl ncRNAScan -run -out /data/ncRNAScan -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_ncRNAs/mm10_ncRNA.bed'
+
+=item * Run fetch_unique_features module of the pipeline:
+
+    perl ncRNAScan -run -out /data/ncRNAScan -fetch '-db mm10'
+
+=back
+
+=head1 OPTIONS
+
+ncRNAScan takes the following arguments:
+
+=over 4
+
+=item -h or --help (Optional)
+
+  Displays this helpful message.
+
+=item -cuff or --cuffcompare (Optional)
+
+    Run the Cuffcompare module with the supplied options.
+
+=item -cat or --cat-ncRNAs (Optional)
+
+    Run the categorize_ncRNAs.pl module with supplied options.
+
+=item -get or --get-feat (Optional)
+
+    Run the get_unique_features.pl module  with the supplied options.
+
+=item -fetch or --fetch-seq (Optional)
+
+    Run the fetch_seq_from_ucsc.pl module with the supplied options.
+
+=item -cpc or --run-cpc (Optional)
+
+    Run the CPC module with the supplied options.
+
+=back
+
+=head1 AUTHOR
+
+Kranti Konganti, E<lt>konganti@tamu.eduE<gt>.
+
+=head1 COPYRIGHT
+
+This program is distributed under the Artistic License.
+
+=head1 DATE
+
+Oct-30-2013
+
+=cut
