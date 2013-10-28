@@ -288,7 +288,7 @@ Examples:
 
     perl get_unique_features.pl -h
 
-    perl get_unique_features.pl get_unique_features.pl -scc 1 -ccc 1 -s1 2 -s2 3 -c1 2 -c2 3 -sf refGene.bed -cf novel_ncRNA.bed
+    perl get_unique_features.pl -scc 1 -ccc 1 -s1 2 -s2 3 -c1 2 -c2 3 -sf refGene.bed -cf novel_ncRNA.bed
 
 
 =head1 DESCRIPTION
