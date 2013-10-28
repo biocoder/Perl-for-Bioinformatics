@@ -162,7 +162,7 @@ sub get_putative_ncRNAs {
 		$q_t_id =~ s/\./\\./g;
 		my $t_lines = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_]", 0);
 		if ($t_lines =~ m/.+?FPKM.+?\"(.+?)\".+?cov.+?\"(.+?)\".+/i) {
-		    $io->execute_system_command("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ Class code \"$class_code\"\;\/' >> $p_file_names_gtf->[$_]")if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff);
+		    $io->execute_system_command("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/' >> $p_file_names_gtf->[$_]")if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff);
 		}	
 	    }
 	}
