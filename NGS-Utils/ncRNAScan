@@ -561,9 +561,13 @@ The pipeline has the ability to run each of these individual modules if any of t
 
 =head2 Installation:
 
-This script will try its best to setup the pipeline on the suitable architecture.
+=over 5
+
+=item * This script will try its best to setup the pipeline on the suitable architecture.
 
 perl ncRNAScan -setup
+
+=back
 
 =head2 Start the Pipeline:
 
