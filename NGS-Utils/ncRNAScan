@@ -41,7 +41,8 @@ sub run_ncRNAScan {
     $ran_fromHere .= '/' if ($ran_fromHere !~ m/\/$/);
     
     open(my $pl_dep_paths_fh, '<', $USER_HOME . '/.ncRNAScan.PERLLIBS') ||
-	die "\nCannot open $USER_HOME/.ncRNAScan.PERLLIBS. May be setup was unsuccessful (?): $!\n\n";
+	die "\nCannot open $USER_HOME/.ncRNAScan.PERLLIBS. May be setup was unsuccessful (?): $!\!\n" .
+	"Run \"$0 -setup\" to try to setup ncRNAScan pipeline.\n\n";
     my $pl_dep_paths = do { local $/; <$pl_dep_paths_fh> };
     my $pl_inc_string = source_env($pl_dep_paths);
 
@@ -514,7 +515,7 @@ ncRNAScan
 
 =head1 SYNOPSIS
 
-ncRNAScan is a pipeline to extract putative novel ncRNAs ab initio given a list of transcripts in GTF format assembled from deep sequencing data (ex: RNA-Seq).
+ncRNAScan is a pipeline to extract putative novel ncRNAs ab initio, given a list of transcripts in GTF format assembled from deep sequencing data (ex: RNA-Seq).
 
 Complete Description: 
 
@@ -529,7 +530,7 @@ Examples:
 
 =head1 DESCRIPTION
 
-This pipeline script will bind together the functionality of the tools / scripts: Cuffcompare, categorize_ncRNAs.pl, get_unique_features.pl, fetch_seq_from_ucsc.pl and / or Coding Potential Calculator (CPC). Transcriptome construction tools such as Scripture / Cufflinks produces a set of assembled transcripts in GTF format. ncRNAScan uses this data in addition to known gene annotation to extract putative ncRNAs constructed by the ab initio assemblers. In brief the pipeline steps are as follows:
+This pipeline script will bind together the functionality of the tools / scripts: Cuffcompare, categorize_ncRNAs.pl, get_unique_features.pl, fetch_seq_from_ucsc.pl and / or Coding Potential Calculator (CPC). Transcriptome construction tools such as Scripture / Cufflinks produces a set of assembled transcripts in GTF format. ncRNAScan uses this data in addition to known gene annotation to extract putative ncRNAs constructed by the ab initio assemblers. In brief, the pipeline steps are as follows:
 
 =over 5
 
@@ -573,7 +574,7 @@ perl ncRNAScan -setup
 
 =over 5
 
-=item * Run complete pipeline:
+=item * Run the complete pipeline:
 
     perl ncRNAScan -run -out /data/ncRNAScan/ -cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 1.1 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2"' -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_ncRNAs/mm10_ncRNA.bed' -fetch '-db mm10'
 
