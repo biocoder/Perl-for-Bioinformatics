@@ -7,7 +7,5 @@ install:
  - "cd ./IO-Routine; perl Makefile.PL && make && make test"
 script:
  - "cd ../NGS-Utils; perl ncRNAScan -setup"
-after_script:
- - if [ $TRAVIS_TEST_RESULT -eq 0 ]; then exit 0; fi
 notifications:
   email: false
