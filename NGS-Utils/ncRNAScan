@@ -259,7 +259,7 @@ sub setup_ncRNAScan {
     succ_or_fail(0, 'master.zip')
 	if (!-e "$install_dir/.build/master.zip");
 
-    print "\nInflating master.zip...\n";
+    print "Inflating master.zip...\n";
     print "\nunzip -d $install_dir/.build $install_dir/.build/master.zip\n";
     system("unzip -d $install_dir/.build $install_dir/.build/master.zip  > /dev/null 2>&1");
 
@@ -316,28 +316,41 @@ sub setup_ncRNAScan {
 	check_util('tar');
 	check_util('cut');
 	check_util('wc');
-	print "\n";
 
-	$io->warning("We need GNU's grep and sed instead of FreeBSD's.");
-	chomp(my $homebrew = `which brew 2>&1`);
-	print "\nLooking to see if you have homebrew to install GNU tools [ grep and sed ] ...\n";
+	# Darwin special case...
+	chomp(my $darwin_sed = `sed --version 2>&1`);
+	chomp(my $darwin_grep = `grep --version 2>&1`);
 
-	if ($homebrew =~ m/.*brew$/i) {
-	    succ_or_fail(1, 'homebrew');
+	if ($darwin_sed !~ m/gnu/i || $darwin_grep !~ m/gnu/i) {
+	    print "\n";
+	    $io->warning("We need GNU's grep and sed instead of FreeBSD's.");
+	    chomp(my $homebrew = `which brew 2>&1`);
+	    print "Looking to see if you have homebrew to install GNU tools [ grep and sed ] ...\n";
+	    
+	    if ($homebrew =~ m/.*brew$/i) {
+		succ_or_fail(1, 'homebrew');
+	    }
+	    else {
+		$io->error('Please install homebrew. See installation instructions at http://brew.sh/');
+	    }
+	    print "\n\nPlease execute the following commands in order and" .
+		" rerun the setup procedure to successfully install ncRNAScan pipeline.\n";
+	    $io->execute_system_command(0,
+					"brew install grep\nbrew install gnu-sed\n" .
+					"ln -s /usr/local/bin/ggrep /usr/local/bin/grep\n" .
+					"ln -s /usr/local/bin/gsed /usr/local/bin/sed");
+	    print "Skipping version check for GNU grep and GNU sed...\n";
+	    succ_or_fail(2, 'sed');
+	    succ_or_fail(2, 'grep');
+	    print "\n\nAborting setup...\n\n";
+	    exit;
 	}
 	else {
-	    $io->error('Please install homebrew. See installation instructions at http://brew.sh/');
+	    $io->check_sys_level_cmds(['grep', 'sed'],
+				      ['2.6.3', '4.2.1']);
+	    succ_or_fail(1, 'grep');
+	    succ_or_fail(1, 'sed');
 	}
-	print "\n\nPlease execute following commands in order and" .
-	    ' reload your shell after ncRNAScan setup is complete to ' .
-                "successfully install GNU tools [ grep and sed]:\n";
-	$io->execute_system_command(0,
-				    "brew install grep\nbrew install gnu-sed\n" .
-				    "ln -s /usr/local/bin/ggrep /usr/local/bin/grep\n" .
-				    "ln -s /usr/local/bin/gsed /usr/local/bin/sed");
-	print "Skipping version check for GNU grep and GNU sed...\n";
-	succ_or_fail(2, 'sed');
-	succ_or_fail(2, 'grep');
     }
     else {
 	$sys_arch = 'linux';
