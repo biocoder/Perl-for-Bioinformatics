@@ -5,3 +5,7 @@ perl:
  - "5.14"
 install: 
  - "cd ./IO-Routine; perl Makefile.PL && make && make test"
+script:
+ - "cd ./NGS-Utils; perl ncRNAScan -setup"
+after_script:
+ - echo $TRAVIS_TEST_RESULT

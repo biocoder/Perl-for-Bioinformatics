@@ -67,6 +67,7 @@ sub run_ncRNAScan {
     ($deps->{'cuffcompare'}) = ($dep_tools =~ m/(.+?cuffcompare)/i);
     ($deps->{'blastall'}) = ($dep_tools =~ m/(.+?blastall)/i);
     ($deps->{'RNAfold'}) = ($dep_tools =~ m/(.+?rnafold)/i);
+    ($deps->{'bin-gtfToGenePred'}) = ($dep_tools =~ m/(.+?gtfToGenePred)/i);
     ($deps->{'cat'}) = ($dep_tools =~ m/(.+?$CAT_SC)/i);
     ($deps->{'fetch'}) = ($dep_tools =~ m/(.+?$FETCH_SC)/i);
     ($deps->{'get'}) = ($dep_tools =~ m/(.+?$GET_UQ_SC)/i);
@@ -113,11 +114,13 @@ sub run_ncRNAScan {
 	$io->execute_system_command('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
 				    join('-', split(/\-|\--/, $categorize_sc_opts)) .
 				    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
+				    "-bin $deps->{'bin-gtfToGenePred'} " .
 				    $tr_files, 
 				    "Command call:\n" .
 				    "-------------\n" . $deps->{'cat'} . ' ' . 
 				    join('-', split(/\-|\--/, $categorize_sc_opts)) . 
 				    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
+				    "-bin $deps->{'bin-gtfToGenePred'} " .
 				    $tr_files);
     
     } if (defined($categorize_sc_opts) && $categorize_sc_opts ne '');
@@ -384,6 +387,7 @@ sub setup_ncRNAScan {
     print $dep_fh check_bio_util('cuffcompare', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('blastall', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('RNAfold', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('gtfToGenePred', $install_dir, $sys_arch), "\n";
     print $dep_fh "$install_dir/" . $CAT_SC, "\n" if (check_native("$install_dir/" . $CAT_SC));
     print $dep_fh "$install_dir/" . $FETCH_SC, "\n" if (check_native("$install_dir/" . $FETCH_SC));
     print $dep_fh "$install_dir/" . $GET_UQ_SC, "\n" if (check_native("$install_dir/" . $GET_UQ_SC));
@@ -391,6 +395,8 @@ sub setup_ncRNAScan {
     close $dep_fh;
     $io->execute_system_command(0,
 				"\n\nSetup complete. See ncRNAScan -h to run the pipeline with options.");
+    # For build check
+    exit;
 }
 
 

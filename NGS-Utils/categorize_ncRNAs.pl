@@ -14,26 +14,27 @@ my $AUTHORFULLNAME = 'Kranti Konganti';
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
     $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
-    $antisense_only, $disp_anti_option);
+    $antisense_only, $disp_anti_option, $gtf_bin);
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 my $ncRNA_class = {};
 
-my $is_valid_option = GetOptions('help|?'         => \$help,
-				 'quiet'          => \$quiet,
-				 'cuffcmp=s'      => \$cuffcmp,
-				 'annotation=s'   => \$refGenePred,
-				 'out=s'          => \$out,
-				 'sample-names=s' => \$sample_names,
-				 'fpkm-cutoff=f'  => \$fpkm_cutoff,
-				 'cov-cutoff=f'   => \$cov_cutoff, 
-				 'genePred'       => \$genePred,
-				 'categorize'     => \$categorize,
-				 'length=i'       => \$length,
-				 'min-exons=i'    => \$min_exons,
-				 'overlap=f'      => \$overlap,
-				 'include-novel'  => \$novel,
-				 'clean-tmp'      => \$no_tmp,
-				 'antisense-only' => \$antisense_only);
+my $is_valid_option = GetOptions('help|?'              => \$help,
+				 'quiet'               => \$quiet,
+				 'cuffcmp=s'           => \$cuffcmp,
+				 'annotation=s'        => \$refGenePred,
+				 'out=s'               => \$out,
+				 'sample-names=s'      => \$sample_names,
+				 'fpkm-cutoff=f'       => \$fpkm_cutoff,
+				 'cov-cutoff=f'        => \$cov_cutoff, 
+				 'genePred'            => \$genePred,
+				 'categorize'          => \$categorize,
+				 'length=i'            => \$length,
+				 'min-exons=i'         => \$min_exons,
+				 'overlap=f'           => \$overlap,
+				 'include-novel'       => \$novel,
+				 'clean-tmp'           => \$no_tmp,
+				 'bin-gtfToGenePred=s' => \$gtf_bin,
+				 'antisense-only'      => \$antisense_only);
 
 my $io = IO::Routine->new($help, $quiet);
 my $s_time = $io->start_timer;
@@ -178,10 +179,13 @@ sub get_genePred {
     $io->error('Cannot find gtfToGenePred tool in your path') 
 	if ($check_for_gtfToGenePred !~ m/.*?gtfToGenePred.*?convert a GTF file to a genePred/i);
     
+    my $exe_gtfToGenePred = 'gtfToGenePred';
+    $exe_gtfToGenePred = $gtf_bin if (defined($gtf_bin) && $gtf_bin ne '');
+
     for (0 .. $#$p_file_names_gtf) {
 	$io->verify_files([$p_file_names_gtf->[$_]], ['GTF']);
-	$io->execute_system_command("gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_]",
-	    "gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_]");
+	$io->execute_system_command("$exe_gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_]",
+	    "$exe_gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_]");
     }
     return;
 }
