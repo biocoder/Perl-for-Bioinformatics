@@ -174,13 +174,14 @@ sub get_putative_ncRNAs {
 # Convert GTF to gene prediction format.
 sub get_genePred {
     $io->c_time('Converting putative ncRNAs list to Gene Prediction format using gtfToGenePred tool');
-    my $check_for_gtfToGenePred = $io->execute_get_sys_cmd_output('gtfToGenePred', 0);
+
+    my $exe_gtfToGenePred = 'gtfToGenePred';
+    $exe_gtfToGenePred = $gtf_bin if (defined($gtf_bin) && $gtf_bin ne '');
+
+    my $check_for_gtfToGenePred = $io->execute_get_sys_cmd_output($exe_gtfToGenePred, 0);
     
     $io->error('Cannot find gtfToGenePred tool in your path') 
 	if ($check_for_gtfToGenePred !~ m/.*?gtfToGenePred.*?convert a GTF file to a genePred/i);
-    
-    my $exe_gtfToGenePred = 'gtfToGenePred';
-    $exe_gtfToGenePred = $gtf_bin if (defined($gtf_bin) && $gtf_bin ne '');
 
     for (0 .. $#$p_file_names_gtf) {
 	$io->verify_files([$p_file_names_gtf->[$_]], ['GTF']);
