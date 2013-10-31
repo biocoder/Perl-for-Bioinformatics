@@ -36,8 +36,10 @@ IFS='|';
 # Construct CPC call and execute
 construct_cmd "$1";
 export PATH=$2:$PATH;
+
 cd $CPC_HOME;
 cpc_cmd_call="./bin/run_predict.sh$args";
+
 echo $cpc_cmd_call;
 eval "$cpc_cmd_call";
 
