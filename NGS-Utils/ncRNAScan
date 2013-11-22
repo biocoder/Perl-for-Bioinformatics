@@ -679,6 +679,10 @@ perl ncRNAScan -setup
 
     perl ncRNAScan -run -out /data/ncRNAScan -fetch '-db mm10'
 
+=item * Run CPC module of the pipeline:
+
+    perl ncRNAScan -cpc
+
 =back
 
 =head1 OPTIONS
@@ -697,7 +701,7 @@ ncRNAScan takes the following arguments:
 
 =item -cuff or --cuffcompare (Optional)
 
-    Run the Cuffcompare module with the supplied options.
+    Run the Cuffcompare module with supplied options.
 
 =item -cat or --cat-ncRNAs (Optional)
 
@@ -705,11 +709,11 @@ ncRNAScan takes the following arguments:
 
 =item -get or --get-feat (Optional)
 
-    Run the get_unique_features.pl module  with the supplied options.
+    Run the get_unique_features.pl module with supplied options.
 
 =item -fetch or --fetch-seq (Optional)
 
-    Run the fetch_seq_from_ucsc.pl module with the supplied options.
+    Run the fetch_seq_from_ucsc.pl module with supplied options.
 
 =item -cpc or --cpc (Optional)
 
