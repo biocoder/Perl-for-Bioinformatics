@@ -6,7 +6,7 @@ IO::Routine [![Build Status](https://travis-ci.org/biocoder/Perl-for-Bioinformat
 ----------------------------
 The scripts use custom [IO::Routine](https://github.com/biocoder/Perl-for-Bioinformatics/tree/master/IO-Routine) Perl Module. 
 
-Please see the installation instructions by browsing the **IO-Routine** directory.
+Please see the installation instructions by browsing the [IO::Routine](https://github.com/biocoder/Perl-for-Bioinformatics/tree/master/IO-Routine) directory.
 
 ncRNAScan [![Build Status](https://travis-ci.org/biocoder/Perl-for-Bioinformatics.png?branch=master)](https://travis-ci.org/biocoder/Perl-for-Bioinformatics)
 --------------------------
