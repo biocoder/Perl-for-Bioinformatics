@@ -16,3 +16,7 @@
 /IO-Routine/pm_to_blib
 /IO-Routine/MYMETA.json
 /IO-Routine/MYMETA.yml
+
+# NGS-Utils #
+##############################
+/NGS-Utils/.ncRNAScan.depconf
