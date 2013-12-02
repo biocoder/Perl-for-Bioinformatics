@@ -4,15 +4,29 @@ Most of the scripts here were written while I was working on different projects,
 
 IO::Routine [![Build Status](https://travis-ci.org/biocoder/Perl-for-Bioinformatics.png?branch=master)](https://travis-ci.org/biocoder/Perl-for-Bioinformatics)
 ----------------------------
-The scripts use custom [IO::Routine](https://github.com/biocoder/Perl-for-Bioinformatics/tree/master/IO-Routine) Perl Module. 
+* The scripts use custom [IO::Routine](https://github.com/biocoder/Perl-for-Bioinformatics/tree/master/IO-Routine) Perl Module. 
 
-Please see the installation instructions by browsing the [IO::Routine](https://github.com/biocoder/Perl-for-Bioinformatics/tree/master/IO-Routine) directory.
+* Please see the installation instructions by browsing the [IO::Routine](https://github.com/biocoder/Perl-for-Bioinformatics/tree/master/IO-Routine) directory.
+
+* If you are installing **ncRNAScan** Pipeline, `IO::Routine` module is automatically installed.
 
 ncRNAScan [![Build Status](https://travis-ci.org/biocoder/Perl-for-Bioinformatics.png?branch=master)](https://travis-ci.org/biocoder/Perl-for-Bioinformatics)
 --------------------------
-A pipeline to extract putative novel ncRNAs ab initio, given a list of transcripts in GTF format assembled from deep sequencing data (ex: RNA-Seq) and annotation data.
+* A pipeline to extract putative novel ncRNAs ab initio, given a list of transcripts in GTF format assembled from deep sequencing data (ex: RNA-Seq) and annotation data.
 
-Head on to [NGS-Utils](https://github.com/biocoder/Perl-for-Bioinformatics/tree/master/NGS-Utils) directory for script list.
+* Head on to [NGS-Utils](https://github.com/biocoder/Perl-for-Bioinformatics/tree/master/NGS-Utils) directory for script list.
+
+Install ncRNAScan:
+--------
+**Mac:**
+
+     cd /to/your/preferred/install/path
+     curl -O https://raw.github.com/biocoder/Perl-for-Bioinformatics/master/NGS-Utils/ncRNAScan; perl ncRNAScan -setup
+
+**Linux:**
+
+     cd /to/your/preferred/install/path
+     wget https://raw.github.com/biocoder/Perl-for-Bioinformatics/master/NGS-Utils/ncRNAScan; perl ncRNAScan -setup
 
 See `perl ncRNAScan -h` or `perldoc ncRNAScan` for complete description.
  
