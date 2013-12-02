@@ -356,8 +356,12 @@ sub setup_ncRNAScan {
     cpanm_status($install_dir, 'XML::XPath::XMLParser');
 
     print "\n\nThank you cpanm!\n";
-    print "\nMoving depbin to current install path...\n";
-    system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/.ncRNAScan.depbin .");
+    
+    if (!-d "$install_dir/.ncRNAScan.depbin") {
+	print "\nMoving required tools and scripts  to current install path...\n";
+	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/* .");
+    }
+    
     print "\nCleaning up build directory...\n";
     system("rm -rf $install_dir/.build");
 
