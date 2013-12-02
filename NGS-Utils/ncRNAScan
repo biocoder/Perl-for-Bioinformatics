@@ -356,9 +356,17 @@ sub setup_ncRNAScan {
     cpanm_status($install_dir, 'XML::XPath::XMLParser');
 
     print "\n\nThank you cpanm!\n";
-    
-    print "\nMoving required tools and scripts to current install path...\n";
-    if (!-d "$install_dir/.ncRNAScan.depbin") {
+
+    my $pm_path = "$install_dir/PERLLIBS:$install_dir/PERLLIBS/lib:$install_dir/PERLLIBS/lib/perl5";
+
+    require "$install_dir/PERLLIBS/lib/IO/Routine.pm";
+    my $io = IO::Routine->new($help, $quiet);
+
+    my @inst_file_parts = $io->file_basename($0, 'all');
+    chop $inst_file_parts[1] if ($inst_file_parts[1] =~ m/\/$/);
+
+    if (!-d "$inst_file_parts[1]/.ncRNAScan.depbin") {
+	print "\nMoving required tools and scripts to current install path...\n";
 	system("mkdir $install_dir/.ncRNAScan.depbin");
 	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/.ncRNAScan.depbin/* $install_dir/.ncRNAScan.depbin/.");
 	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/* $install_dir/.");
@@ -366,11 +374,6 @@ sub setup_ncRNAScan {
     
     print "\nCleaning up build directory...\n";
     system("rm -rf $install_dir/.build");
-
-    my $pm_path = "$install_dir/PERLLIBS:$install_dir/PERLLIBS/lib:$install_dir/PERLLIBS/lib/perl5";
-
-    require "$install_dir/PERLLIBS/lib/IO/Routine.pm";
-    my $io = IO::Routine->new($help, $quiet);
 
     $io->execute_system_command(0, 'Detecting system architecture...');
 
@@ -456,8 +459,6 @@ sub setup_ncRNAScan {
 
     # We will figure out if user is installing at a different location other than
     # from the cloned repo.
-    my @inst_file_parts = $io->file_basename($0, 'all');
-    chop $inst_file_parts[1] if ($inst_file_parts[1] =~ m/\/$/);
     $install_dir = $inst_file_parts[1] if (-d "$inst_file_parts[1]/.ncRNAScan.depbin" && $inst_file_parts[1] !~ m/^\./);
 
     print $dep_fh check_bio_util('cuffcompare', $install_dir, $sys_arch), "\n";
