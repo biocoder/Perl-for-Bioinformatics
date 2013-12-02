@@ -356,6 +356,8 @@ sub setup_ncRNAScan {
     cpanm_status($install_dir, 'XML::XPath::XMLParser');
 
     print "\n\nThank you cpanm!\n";
+    print "\nMoving depbin to current install path...\n";
+    system("mv $install_dir/.ncRNAScan.depbin .");
     print "\nCleaning up build directory...\n";
     system("rm -rf $install_dir/.build");
 
