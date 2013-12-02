@@ -26,7 +26,7 @@ Install ncRNAScan:
 **Linux:**
 
      cd /to/your/preferred/install/path
-     wget https://raw.github.com/biocoder/Perl-for-Bioinformatics/master/NGS-Utils/ncRNAScan; perl ncRNAScan -setup
+     wget -O ncRNAScan https://raw.github.com/biocoder/Perl-for-Bioinformatics/master/NGS-Utils/ncRNAScan; perl ncRNAScan -setup
 
 See `perl ncRNAScan -h` or `perldoc ncRNAScan` for complete description.
  
