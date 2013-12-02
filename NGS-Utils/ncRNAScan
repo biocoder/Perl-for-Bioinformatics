@@ -357,10 +357,8 @@ sub setup_ncRNAScan {
 
     print "\n\nThank you cpanm!\n";
     
-    if (!-d "$install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/.ncRNAScan.depbin") {
-	print "\nMoving required tools and scripts  to current install path...\n";
-	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/* .");
-    }
+    print "\nMoving required tools and scripts to current install path...\n";
+    system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/* $install_dir/.");
     
     print "\nCleaning up build directory...\n";
     system("rm -rf $install_dir/.build");
