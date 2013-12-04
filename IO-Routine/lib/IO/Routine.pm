@@ -23,13 +23,13 @@ IO::Routine - An attempt to provide a solution to avoid routine IO chores.
 
 =over 3
 
-Version 0.33
+Version 0.34
 
 =back
 
 =cut
 
-our $VERSION = '0.33';
+our $VERSION = '0.34';
 
 =head1 SYNOPSIS
 
@@ -542,6 +542,7 @@ sub verify_options {
     elsif ($podFilename &&
 	   -e $podFilename &&
 	   -s $podFilename != 0) {
+	
 	if ($help) {
             pod2usage(-exitval => 1,
                       -sections => "OPTIONS",
@@ -716,8 +717,17 @@ sub error {
     my $self = shift;
     my $msg = shift;
     print STDERR "\nERROR!\n------\n$msg\n\n";
-    pod2usage(-exitval => 2,
-	      -verbose => 2);
+    if ($podFilename &&
+	-e $podFilename &&
+	-s $podFilename != 0) {
+	pod2usage(-exitval => 2,
+		  -verbose => 2,
+		  -input => $podFilename);
+    }
+    else {
+	pod2usage(-exitval => 2,
+		  -verbose => 2);
+    }
     return;
 }
 

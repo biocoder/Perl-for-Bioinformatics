@@ -24,7 +24,7 @@ To install IO::Routine at custom location, run the following commands:
 	make test
 	make install
 
-and then in your script add that path to your `@INC` variable as:
+and then in your script add that path to your @INC variable as:
 
 `BEGIN{ push (@INC, '/path/to/custom/perllib/lib') };`
 

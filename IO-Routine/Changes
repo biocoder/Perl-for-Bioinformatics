@@ -1,8 +1,8 @@
 Revision history for IO-Routine:
 --------------------------------
 
-0.33      2013-10-25 11:52:46 America/Chicago
-	  After the tests are run, any temporary files are now cleaned.
+0.34      2013-12-04 09:33:40 America/Chicago
+	  The error subroutine checks for the presence of POD file.
 
 0.32      2013-10-23 12:45:17 America/Chicago
 	  Fixed a bug with exist_sys_cmd(). It was not using "which" command.
