@@ -16,7 +16,7 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $cuffcmp_opts, $deps, $run, $out, $start_cpc);
 
 
-my $is_valid_option = GetOptions('help|?'            => \$help,
+my $is_valid_option = GetOptions('help:s'            => \$help,
                                  'quiet'             => \$quiet,
 				 'setup'             => \$setup,
 				 'run'               => \$run, 
@@ -24,7 +24,7 @@ my $is_valid_option = GetOptions('help|?'            => \$help,
 				 'out=s'             => \$out,
 				 'cat-ncRNAs=s'      => \$categorize_sc_opts,
 				 'fetch-seq=s'       => \$fetch_sc_opts,
-				 'get-feat=s'        => \$get_uq_sc_opts,
+				 'get-uq-feat=s'     => \$get_uq_sc_opts,
 				 'cpc'               => \$start_cpc);
 
 my $CAT_SC = 'categorize_ncRNAs.pl';
@@ -34,7 +34,23 @@ my $CPC_SH_SC = 'CPC.sh';
 my $USER_HOME = $ENV{'HOME'};
 
 setup_ncRNAScan(`pwd`) if (defined $setup);
-run_ncRNAScan(`pwd`) if (defined $run || defined $help);
+if (defined $run || (defined $help && $help eq '')) {
+    run_ncRNAScan(`pwd`);
+}
+elsif (defined $help && $help ne '') {
+    my $depconf_fh = read_conf('/.ncRNAScan.depconf');
+    my $pl_dep_paths_fh = read_conf('/.ncRNAScan.PERLLIBS');
+    my $pl_inc_string = source_env($pl_dep_paths_fh);
+    get_deps($depconf_fh);
+    system("$deps->{'cuffcompare'} -h") if ($help =~ m/cuff|cuffcompare/i);
+    system("perl $pl_inc_string $deps->{'cat'} -h") if ($help =~ m/cat|cat-ncRNAs/i);
+    system("perl $pl_inc_string $deps->{'get'} -h") if ($help =~ m/get|get-uq-feat/i);
+    system("perl $pl_inc_string $deps->{'fetch'} -h") if ($help =~ m/fetch|fetch-seq/i);
+    print "\nSee http://cpc.cbi.pku.edu.cn/docs/install_guide.jsp for help documentation.\n\n" if ($help =~ m/cpc/i);
+    close $depconf_fh;
+    close $pl_dep_paths_fh;
+}
+		
 
 sub run_ncRNAScan {
     chomp(my $ran_fromHere = shift);
@@ -42,17 +58,14 @@ sub run_ncRNAScan {
 
     $ran_fromHere .= '/' if ($ran_fromHere !~ m/\/$/);
     
-    open(my $pl_dep_paths_fh, '<', $USER_HOME . '/.ncRNAScan.PERLLIBS') ||
-	die "\nCannot open $USER_HOME/.ncRNAScan.PERLLIBS. May be setup was unsuccessful (?): $!\!\n" .
-	"Run \"$0 -setup\" to try to setup ncRNAScan pipeline.\n\n";
-    my $pl_dep_paths = do { local $/; <$pl_dep_paths_fh> };
-    my $pl_inc_string = source_env($pl_dep_paths);
+    my $pl_dep_paths_fh = read_conf('/.ncRNAScan.PERLLIBS');
+    my $pl_inc_string = source_env($pl_dep_paths_fh);
 
     # We will quit, if the setup was unsuccessful.
     require IO::Routine;
     my $io = IO::Routine->new($help, $quiet);
 
-    if (!defined $outdir) {
+    if (!defined $out) {
 	$outdir = $io->validate_create_path($out, 'do not create',
 					    'Directory path to ncRNAScan pipeline');
     }
@@ -65,15 +78,7 @@ sub run_ncRNAScan {
     $io->c_time('Starting ncRNAScan Pipeline...');
 
     my $dep_tools_fh = $io->open_file('<', $USER_HOME . '/.ncRNAScan.depconf');
-    my $dep_tools = do {local $/; <$dep_tools_fh>};
-    ($deps->{'cuffcompare'}) = ($dep_tools =~ m/(.+?cuffcompare)/i);
-    ($deps->{'blastall'}) = ($dep_tools =~ m/(.+?blastall)/i);
-    ($deps->{'RNAfold'}) = ($dep_tools =~ m/(.+?rnafold)/i);
-    ($deps->{'bin-gtfToGenePred'}) = ($dep_tools =~ m/(.+?gtfToGenePred)/i);
-    ($deps->{'cat'}) = ($dep_tools =~ m/(.+?$CAT_SC)/i);
-    ($deps->{'fetch'}) = ($dep_tools =~ m/(.+?$FETCH_SC)/i);
-    ($deps->{'get'}) = ($dep_tools =~ m/(.+?$GET_UQ_SC)/i);
-    ($deps->{'cpc'}) = ($dep_tools =~ m/(.+?$CPC_SH_SC)/i);
+    get_deps($dep_tools_fh);
 
     $io->c_time('Validating options...');
     $io->verify_options([$is_valid_option]);
@@ -90,7 +95,7 @@ sub run_ncRNAScan {
 	    if (!-d $cuffcmp_dir);
 	
 	$io->execute_system_command($deps->{'cuffcompare'} . ' ' .
-                                join('-', split(/\-/, $cuffcmp_opts)) .
+				    join('-', split(/\-/, $cuffcmp_opts)) .
 				    " -o $cuffcmp_dir/ncRNAScan_cuffcmp ", 
 				    "Command call:\n" .
 				    "-------------\n" . $deps->{'cuffcompare'} . ' ' . 
@@ -113,17 +118,20 @@ sub run_ncRNAScan {
 	
 	my ($tr_files, $tr_size) = get_num_tr_files($cuffcmp_opts)
 	    if (defined $cuffcmp_opts && $cuffcmp_opts ne '');
-		
+
+	my $annot = get_annot($cuffcmp_opts)
+	    if (defined $cuffcmp_opts && $cuffcmp_opts ne '');
+
 	$io->execute_system_command('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
 				    join('-', split(/\-|\--/, $categorize_sc_opts)) .
 				    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
-				    "-bin $deps->{'bin-gtfToGenePred'} " .
+				    "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot . ' ' .
 				    $tr_files, 
 				    "Command call:\n" .
 				    "-------------\n" . $deps->{'cat'} . ' ' . 
 				    join('-', split(/\-|\--/, $categorize_sc_opts)) . 
 				    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
-				    "-bin $deps->{'bin-gtfToGenePred'} " .
+				    "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot . ' ' .
 				    $tr_files);
     
     } if (defined($categorize_sc_opts) && $categorize_sc_opts ne '');
@@ -265,6 +273,9 @@ sub run_ncRNAScan {
 	close ncRNAScan_fetch_seq_mod;
 
     } if (defined $start_cpc);
+
+    close $dep_tools_fh;
+    close $pl_dep_paths_fh;
     
     $io->c_time('ncRNAScan Pipeline Finished!');
     $io->end_timer($s_time);
@@ -565,7 +576,9 @@ sub succ_or_fail {
 
 # Source the environment
 sub source_env {
-    chomp(my $pl_paths = shift);
+    chomp(my $pl_dep_paths_fh = shift);
+    chomp(my $pl_paths = do { local $/; <$pl_dep_paths_fh> });
+
     my $perl_inc_string = ' ';
     
     foreach my $pl_path (split(/\:/, $pl_paths)) {
@@ -603,6 +616,13 @@ sub get_num_tr_files {
     return($tr_files, $tr_size);
 }
 
+# Get cuffcompare's annotation file
+sub get_annot {
+    my $cmd_args = shift;
+    my $annot_file = '';
+    ($annot_file) = ($cmd_args =~ m/.*?-r\s+(.+?)\s+.*/i);
+    return $annot_file;
+}
 
 # Ask for user input
 sub ask_user {
@@ -610,6 +630,30 @@ sub ask_user {
  print $msg, ': ';
  chomp(my $ans = <STDIN>);
  return $ans;
+}
+
+# Get deps
+sub get_deps {
+    my $dep_tools_fh = shift;
+    my $dep_tools = do {local $/; <$dep_tools_fh>};
+    ($deps->{'cuffcompare'}) = ($dep_tools =~ m/(.+?cuffcompare)/i);
+    ($deps->{'blastall'}) = ($dep_tools =~ m/(.+?blastall)/i);
+    ($deps->{'RNAfold'}) = ($dep_tools =~ m/(.+?rnafold)/i);
+    ($deps->{'bin-gtfToGenePred'}) = ($dep_tools =~ m/(.+?gtfToGenePred)/i);
+    ($deps->{'cat'}) = ($dep_tools =~ m/(.+?$CAT_SC)/i);
+    ($deps->{'fetch'}) = ($dep_tools =~ m/(.+?$FETCH_SC)/i);
+    ($deps->{'get'}) = ($dep_tools =~ m/(.+?$GET_UQ_SC)/i);
+    ($deps->{'cpc'}) = ($dep_tools =~ m/(.+?$CPC_SH_SC)/i);
+    return;
+}
+
+# Read ncRNAScan conf
+sub read_conf {
+    my $conf = shift;
+    open(my $conf_fh, '<', $USER_HOME . $conf) ||
+        die "\nCannot open $USER_HOME$conf May be setup was unsuccessful (?): $!\!\n" .
+        "Run \"$0 -setup\" to try to setup ncRNAScan pipeline.\n\n";
+    return $conf_fh;
 }
 
 __END__
@@ -630,7 +674,7 @@ Examples:
 
     perl ncRNAScan -h
 
-    perl ncRNAScan -cuffcmp '-r annotation.gtf ...' -categorize '-fpkm 2 -l 200 ...' -get '-unique -q -sff bed -cff gtf...' -fetch '-db mm10'
+    perl ncRNAScan -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transscripts2.gtf' -cat-ncRNAs '-fpkm 2 -l 200 -min-exons 2 -antisense' -get-uq-feat '-sf known_ncRNAs.bed' -fetch-seq '-db mm10' -cpc
 
 
 =head1 DESCRIPTION
@@ -641,25 +685,37 @@ This pipeline script will bind together the functionality of the tools / scripts
 
 =item 1. Cuffcompare (ncRNAScan Option: -cuff or --cuffcompare)
 
-    The transcript assembly can be compared to known annotation of choice to classify them into different class codes (http://cufflinks.cbcb.umd.edu/manual.html#class_codes) using Cuffcompare. 
+    The transcript assembly can be compared to known annotation of choice to classify them into different class codes (http://cufflinks.cbcb.umd.edu/manual.html#class_codes) using Cuffcompare.
+
+    To get help documentation about this module, run: perl ncRNAScan -h cuff
 
 =item 2. categorize_ncRNAs.pl (ncRNAScan Option: -cat or --cat-ncRNAs)
     
     ncRNAScan uses the tracking file (*.tracking) produced by Cuffcompare, annotation data in gene prediction format and a list of supplied transcripts in GTF format to produce and categorize ncRNAs into different classes as mentioned in the paper, http://genome.cshlp.org/content/22/3/577.full. 
 
-=item 3. get_unique_features.pl (ncRNAScan Option: -get or --get-feat)
+    To get help documentation about this module, run: perl ncRNAScan -h cat
+
+=item 3. get_unique_features.pl (ncRNAScan Option: -get or --get--uq-feat)
     
     It then compares the putative list with supplied known ncRNAs in BED format to get features that do not overlap any known ncRNAs.
+
+    To get help documentation about this module, run: perl ncRNAScan -h get
 
 =item 4. fetch_seq_from_ucsc.pl (ncRNAScan Option: -fetch or --fetch-seq)
     
     This list is then used to fetch DNA sequence of those transcript sequences to determine the coding potential using CPC.
+    
+    To get help documentation about this module, run: perl ncRNAScan -h fetch
 
-=item 5. CPC.sh (ncRNAScan Option -cpc or --run-cpc)
+=item 5. CPC.sh (ncRNAScan Option -cpc or --cpc)
     
     In the final step, the fetched FASTA sequences are used to determine and coding potential and those that are flagged as "noncoding" are used to create the final list of high confidence ncRNAs.
 
+    To get help documentation about this module, run: perl ncRNAScan -h cpc
+
 =back
+
+The final output is a putative list of ncRNAs in GTF format that can be directly uploaded as custom tracks to Genome Browsers, such as UCSC etc...
 
 The pipeline has the ability to run each of these individual modules if any of them fail during the initial run.
 
@@ -681,7 +737,7 @@ perl ncRNAScan -setup
 
 =item * Run the complete pipeline:
 
-    perl ncRNAScan -run -out /data/ncRNAScan/ -cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 1.1 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2"' -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_ncRNAs/mm10_ncRNA.bed' -fetch '-db mm10'
+    perl ncRNAScan -run -out /data/ncRNAScan/ -cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 1.1 -min-exons 1 -fpkm 2 -antisense -sample-names "M0,M1,M2"' -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_ncRNAs/mm10_ncRNA.bed' -fetch '-db mm10'
 
 =item * Run categorize_ncRNAs module of the pipeline:
     
@@ -724,7 +780,7 @@ ncRNAScan takes the following arguments:
 
     Run the categorize_ncRNAs.pl module with supplied options.
 
-=item -get or --get-feat (Optional)
+=item -get or --get-uq-feat (Optional)
 
     Run the get_unique_features.pl module with supplied options.
 

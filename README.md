@@ -28,6 +28,13 @@ ncRNAScan [![Build Status](https://travis-ci.org/biocoder/Perl-for-Bioinformatic
 or
 
           perldoc ncRNAScan
+or to get help documentation for individual modules
+
+      	  perl ncRNAScan -h cuff
+	  perl ncRNAScan -h cat
+	  perl ncRNAScan -h get
+	  perl ncRNAScan -h fetch
+	  perl ncRNAScan -h cpc
 
 =========
 Cheers,
