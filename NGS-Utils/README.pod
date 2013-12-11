@@ -29,7 +29,7 @@ The transcript assembly can be compared to known annotation of choice to classif
 
 To get help documentation about this module, run:
 
-       perl ncRNAScan -h cuff
+     perl ncRNAScan -h cuff
 
 =item 2. categorize_ncRNAs.pl (ncRNAScan Option: -cat or --cat-ncRNAs)
     
