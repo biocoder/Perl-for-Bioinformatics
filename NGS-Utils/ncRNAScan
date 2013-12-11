@@ -334,7 +334,8 @@ sub setup_ncRNAScan {
     else {
       $dl_util_slave = $dl_util;
     }
-     print "\n$dl_util_slave https://github.com/biocoder/Perl-for-Bioinformatics/archive/master.zip\n\n";
+    
+    print "\n$dl_util_slave https://github.com/biocoder/Perl-for-Bioinformatics/archive/master.zip\n\n";
     system("$dl_util_slave https://github.com/biocoder/Perl-for-Bioinformatics/archive/master.zip > /dev/null 2>&1");
     system("mv $install_dir/master.zip $install_dir/.build/master.zip");
 
