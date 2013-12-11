@@ -25,33 +25,43 @@ This pipeline script will bind together the functionality of the tools / scripts
 
 =item 1. Cuffcompare (ncRNAScan Option: -cuff or --cuffcompare)
 
-    The transcript assembly can be compared to known annotation of choice to classify them into different class codes (http://cufflinks.cbcb.umd.edu/manual.html#class_codes) using Cuffcompare.
+The transcript assembly can be compared to known annotation of choice to classify them into different class codes (http://cufflinks.cbcb.umd.edu/manual.html#class_codes) using Cuffcompare.
 
-    To get help documentation about this module, run: perl ncRNAScan -h cuff
+To get help documentation about this module, run:
+
+       perl ncRNAScan -h cuff
 
 =item 2. categorize_ncRNAs.pl (ncRNAScan Option: -cat or --cat-ncRNAs)
     
-    ncRNAScan uses the tracking file (*.tracking) produced by Cuffcompare, annotation data in gene prediction format and a list of supplied transcripts in GTF format to produce and categorize ncRNAs into different classes as mentioned in the paper, http://genome.cshlp.org/content/22/3/577.full. 
+ncRNAScan uses the tracking file (*.tracking) produced by Cuffcompare, annotation data in gene prediction format and a list of supplied transcripts in GTF format to produce and categorize ncRNAs into different classes as mentioned in the paper, http://genome.cshlp.org/content/22/3/577.full. 
 
-    To get help documentation about this module, run: perl ncRNAScan -h cat
+To get help documentation about this module, run:
+
+     perl ncRNAScan -h cat
 
 =item 3. get_unique_features.pl (ncRNAScan Option: -get or --get--uq-feat)
     
-    It then compares the putative list with supplied known ncRNAs in BED format to get features that do not overlap any known ncRNAs.
+It then compares the putative list with supplied known ncRNAs in BED format to get features that do not overlap any known ncRNAs.
 
-    To get help documentation about this module, run: perl ncRNAScan -h get
+To get help documentation about this module, run:
+
+     perl ncRNAScan -h get
 
 =item 4. fetch_seq_from_ucsc.pl (ncRNAScan Option: -fetch or --fetch-seq)
     
-    This list is then used to fetch DNA sequence of those transcript sequences to determine the coding potential using CPC.
+This list is then used to fetch DNA sequence of those transcript sequences to determine the coding potential using CPC.
     
-    To get help documentation about this module, run: perl ncRNAScan -h fetch
+To get help documentation about this module, run:
+
+     perl ncRNAScan -h fetch
 
 =item 5. CPC.sh (ncRNAScan Option -cpc or --cpc)
     
-    In the final step, the fetched FASTA sequences are used to determine the coding potential and those that are flagged as "noncoding" are used to create the final list of high confidence ncRNAs.
+In the final step, the fetched FASTA sequences are used to determine the coding potential and those that are flagged as "noncoding" are used to create the final list of high confidence ncRNAs.
 
-    To get help documentation about this module, run: perl ncRNAScan -h cpc
+To get help documentation about this module, run:
+
+     perl ncRNAScan -h cpc
 
 =back
 
@@ -67,7 +77,7 @@ The pipeline has the ability to run each of these individual modules if any of t
 
 =item * This script will try its best to setup the pipeline on the suitable architecture.
 
-perl ncRNAScan -setup
+     perl ncRNAScan -setup
 
 =back
 
