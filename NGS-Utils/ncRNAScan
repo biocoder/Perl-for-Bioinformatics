@@ -651,8 +651,8 @@ sub get_deps {
 sub read_conf {
     my $conf = shift;
     open(my $conf_fh, '<', $USER_HOME . $conf) ||
-        die "\nCannot open $USER_HOME$conf May be setup was unsuccessful (?): $!\!\n" .
-        "Run \"$0 -setup\" to try to setup ncRNAScan pipeline.\n\n";
+        die "\nCannot open $USER_HOME$conf" . ".\nMay be setup was unsuccessful (?): $!\!\n" .
+        "\nRun \"perl ncRNAScan -setup\" to try to setup ncRNAScan pipeline.\n\n";
     return $conf_fh;
 }
 
