@@ -17,20 +17,20 @@ To install this module, run the following commands:
 	make test
 	make install
 
-To install IO::Routine at custom location, run the following commands:
+To install `IO::Routine` at custom location, run the following commands:
 
 	perl Makefile.PL PREFIX=/path/to/custom/perllib LIB=/path/to/custom/perllib/lib
 	make
 	make test
 	make install
 
-and then in your script add that path to your @INC variable as:
+and then in your script add that path to your `@INC` variable as:
 
-`BEGIN{ push (@INC, '/path/to/custom/perllib/lib') };`
+     BEGIN{ push (@INC, '/path/to/custom/perllib/lib') };
 
 Or, for UNIX systems, edit your `.bash_profile` by adding custom location to PERL5LIB
 
-`export PERL5LIB=$PERL5LIB:/path/to/custom/perllib/lib`
+     export PERL5LIB=$PERL5LIB:/path/to/custom/perllib/lib
 
 Support and Documentation
 -------------------------
