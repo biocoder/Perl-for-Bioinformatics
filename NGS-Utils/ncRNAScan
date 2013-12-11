@@ -425,7 +425,7 @@ sub setup_ncRNAScan {
 	    }
 	    else {
 		$io->error('Please install homebrew. See installation instructions at http://brew.sh/' . 
-			   "\nand then do the following:\n\nbrew update\nbrew tap homebrew/dupes\n" .
+			   "\nThen do the following:\n\nbrew update\nbrew tap homebrew/dupes\n" .
 			   "brew install grep\nbrew install gnu-sed\n" .
 			   "ln -s /usr/local/bin/ggrep /usr/local/bin/grep\n" .
 			   "ln -s /usr/local/bin/gsed /usr/local/bin/sed");
