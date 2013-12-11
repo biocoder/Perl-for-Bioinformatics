@@ -709,7 +709,7 @@ This pipeline script will bind together the functionality of the tools / scripts
 
 =item 5. CPC.sh (ncRNAScan Option -cpc or --cpc)
     
-    In the final step, the fetched FASTA sequences are used to determine and coding potential and those that are flagged as "noncoding" are used to create the final list of high confidence ncRNAs.
+    In the final step, the fetched FASTA sequences are used to determine the coding potential and those that are flagged as "noncoding" are used to create the final list of high confidence ncRNAs.
 
     To get help documentation about this module, run: perl ncRNAScan -h cpc
 
