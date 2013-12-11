@@ -13,7 +13,7 @@ BEGIN {
     use_ok( 'IO::Routine' ) || print "Bail out! Cannot load IO::Routine for testing!\n";
 }
 
-diag( "Testing IO::Routine $IO::Routine::VERSION, Perl $], $^X" );
+#diag( "Testing IO::Routine $IO::Routine::VERSION, Perl $], $^X" );
 
 my $io = IO::Routine->new();
 diag( "Testing constructor new()" );
