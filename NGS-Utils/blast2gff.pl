@@ -20,15 +20,16 @@ this_script_info();
 # Declare initial global variables
 
 my ($quiet, $blast_res_file, $output, $help, $num_hits, $identity_cutoff,
-    $coverage_cutoff, $gff_feature_name, $min_hsp_length);
-my $is_valid_option = GetOptions ('help|?' => \$help,
-                                  'quiet' => \$quiet,
-                                  'output=s' => \$output,
-                                  'blast-res-file=s' => \$blast_res_file,
-                                  'num-hits=i' => \$num_hits,
-                                  'identity-cutoff=i' => \$identity_cutoff,
-                                  'coverage-cutoff=i' => \$coverage_cutoff,
-				  'min-hsp-length=i' => \$min_hsp_length
+    $coverage_cutoff, $gff_feature_name, $min_hsp_length, $is_cuff);
+my $is_valid_option = GetOptions ('help|?'              => \$help,
+                                  'quiet'               => \$quiet,
+                                  'output=s'            => \$output,
+                                  'blast-res-file=s'    => \$blast_res_file,
+                                  'num-hits=i'          => \$num_hits,
+                                  'identity-cutoff=i'   => \$identity_cutoff,
+                                  'coverage-cutoff=i'   => \$coverage_cutoff,
+				  'min-hsp-length=i'    => \$min_hsp_length,
+				  'isCuff'              => \$is_cuff
                                   );
 
 # Check for the validity of options
@@ -65,8 +66,13 @@ while (my $blast_res = $blast_res_file_obj->next_result) {
 
     my $query_name = $blast_res->query_accession;
     my ($cufflinks_class_code, $chr, $chr_start, $chr_end) = ($query_name =~ m/class\_code\:(\w).+?(chr\w+)\:(\d+)-(\d+)/);
-    $gff_feature_name = 'intron' if ($cufflinks_class_code =~ m/i/i);
-    $gff_feature_name = 'unknown_intergenic' if ($cufflinks_class_code =~ m/u/i);
+    if (defined $is_cuff) {
+	$gff_feature_name = 'intron' if ($cufflinks_class_code =~ m/i/i);
+	$gff_feature_name = 'unknown_intergenic' if ($cufflinks_class_code =~ m/u/i);
+    }
+    else {
+	$gff_feature_name = 'hsp';
+    }
 
     my $hit_count = 0;
     while (my $hit = $blast_res->next_hit) {
@@ -285,10 +291,7 @@ upload into UCSC.
 
 ****************** !!! YOU HAVE BEEN WARNED !!! ************************
 
-THIS SCRIPT, IN 99% OF THE CASES WILL ONLY WORK WITH BLAST
-DATABASES AND QUERY SEQUENCES OBTAINED FROM split_fasta_seqs.pl and
-fetch_seq_from_ucsc.pl. ONE CAN ALWAYS MODIFY THE CODE AS
-THEY SEE APPROPRIATE TO FIT THEIR NEEDS.
+THIS SCRIPT WILL ONLY WORK WITH PAIRWISE BLAST OUTPUT FORMAT.
 
 ************************************************************************
 
@@ -348,6 +351,11 @@ blast2gff.pl takes the following arguments:
 
   Path to output directory. If it is not mentioned, the GFF file will be created
   in current working directory.
+
+=item --isCuff (Optional)
+
+  A special case scenario.
+  This option can be used if your query ids contains cuffcompare class codes "u" and "i"
 
 =back
 
