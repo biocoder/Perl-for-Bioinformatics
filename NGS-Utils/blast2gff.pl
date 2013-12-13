@@ -326,7 +326,7 @@ blast2gff.pl takes the following arguments:
 
   The BLAST result file in text format (i.e. default BLAST output).
 
-=item -i or --identity-cutoff (Optional)
+=item -iden or --identity-cutoff (Optional)
 
   Integer value to filter hits based on percent identity.
   Default: Disabled
