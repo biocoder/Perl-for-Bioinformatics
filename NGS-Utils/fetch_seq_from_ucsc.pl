@@ -16,7 +16,8 @@ my $AUTHORFULLNAME = 'Kranti Konganti';
 
 # Declare initial global variables
 my ($quiet, $tmap, $output, $help, $dbkey, $print_seq_fh,
-    $chr_coords, $chr_info, $id_re, $skip_re, $file_format);
+    $chr_coords, $chr_info, $id_re, $skip_re, $file_format,
+    $seq_desc, $seq_descs, $match_re);
 
 my $is_valid_option = GetOptions ('help|?'     => \$help,
                                   'quiet'      => \$quiet,
@@ -26,7 +27,9 @@ my $is_valid_option = GetOptions ('help|?'     => \$help,
 				  'chr-cols=s' => \$chr_coords,
 				  'id-re=s'    => \$id_re,
 				  'skip-re=s'  => \$skip_re,
-				  'ff=s'       => \$file_format
+				  'match-re=s' => \$match_re,
+				  'ff=s'       => \$file_format,
+				  'seq-desc=s' => \$seq_desc
                                   );
 
 # Print info if not quiet
@@ -59,6 +62,13 @@ $output = $io->validate_create_path($output, 'create', 'Output');
 $io->c_time("Chromosome files will be stored at $output ...");
 $io->c_time('Fetching Sequences ...');
 
+if (defined $seq_desc) {
+    $seq_descs = [split/\,/, $seq_desc]; 
+    for (0 .. $#$seq_descs) {
+	$seq_descs->[$_]--;
+    }
+}
+
 $chr_coords = join(',', gtf_or_bed($file_format));
 
 if (defined $chr_coords && $chr_coords ne '') {
@@ -86,15 +96,19 @@ $io->check_sys_level_cmds(['grep'],
                           ['2.6.3']);
 
 while (my $line = <$tmap_fh>) {
-    chomp $line;
     my ($u_seq_id, $unique_seq_id) = '';
 
     next if ($line =~ m/^ref\_gene\_id/);
     next if (defined $skip_re &&
 	     $skip_re ne '' &&
-	     $line =~ m/$skip_re/i);
+	     $line =~ qr/$skip_re/);
+    next if (defined $match_re &&
+	     $match_re ne '' &&
+	     $line !~ qr/$match_re/);
+
     ($u_seq_id) = ($line =~ qr/$id_re/) if (defined $id_re && $id_re ne '');
-   
+      
+    chomp $line;
     my @cols = split/\t/, $line;
     
     if (ref($chr_info) eq 'ARRAY') {
@@ -102,6 +116,7 @@ while (my $line = <$tmap_fh>) {
 	$cols[14] = $cols[$chr_info->[1]];
 	$cols[15] = $cols[$chr_info->[2]];
 	if ($u_seq_id) {
+	    $u_seq_id = $io->strip_leading_and_trailing_spaces($u_seq_id);
 	    $unique_seq_id = $u_seq_id . '|' . $cols[13] . ':' . $cols[14] . '-' . $cols[15]; 
 	}
 	else {
@@ -111,6 +126,15 @@ while (my $line = <$tmap_fh>) {
     else {
 	$unique_seq_id = $cols[4] . '|' . "class_code:$cols[2]" . '_' . lc($cols[13]) . ':' . $cols[14] . '-' . $cols[15];
     }
+
+    my $u_seq_desc = '';
+    if (defined $seq_desc) {
+	for (0 .. $#$seq_descs) {
+	    $u_seq_desc .= "$cols[$seq_descs->[$_]]|";
+	}
+	chop $u_seq_desc if ($u_seq_desc =~ m/\|$/);
+    }
+    $unique_seq_id .= " $u_seq_desc";
 
     if ($cols[13] !~ m/^chr/i &&
 	$cols[14] !~ m/^\d+$/ &&
@@ -174,7 +198,7 @@ sub gtf_or_bed {
         $io->error('Invalid file format [ ' . $format . ' ] specified!' .
                    'Currently, only GTF, GFF or BED file format is supported.');
     }
-    return;
+    return $chr_coords;
 }
 
 __END__
@@ -243,17 +267,30 @@ fetch_seq_from_ucsc.pl takes the following arguments:
 =item -id or --id-re (Optional)
     
   If you want to extract an ID based on pattern matched from the provided input file, 
-  provide the regex with this option. For example, -id 'transcript_id.+?\"(.+?)\"'.
+  provide the regex with this option. For example, -id 'transcript_id.+?\"(.+?)\"' will
+  extract the pattern within () and use it as FASTA sequence id.
 
 =item -skip or --skip-re (Optional)
 
   If you want to skip lines containing this pattern, provide regex with this option.
-  For example, -skip '\texon\t'
+  For example, -skip 'exon' will skip lines containing the word 'exon'.
+  Regex is case sensitive.
+
+=item -match or --match-re (Optional)
+
+  If you want to match lines containing this pattern, provide regex with this option.
+  For example, -match 'chr23' will parse lines containing the word 'chr23'.
+  Regex is case sensitive.
 
 =item -ff or --ff (Optional)
 
   You can directly specify one of the allowed file formats (gtf, gff or bed)
   to extract chromosome coordinate information.
+
+=item --seq-desc
+
+  You can describe which column values should be concatenated together to form 
+  fasta sequence description id.
 
 =back
 
