@@ -94,13 +94,14 @@ sub run_ncRNAScan {
 				    'Making output directory for cuffcompare [ ' . $cuffcmp_dir . ' ]')
 	    if (!-d $cuffcmp_dir);
 	
-	$io->execute_system_command($deps->{'cuffcompare'} . ' ' .
-				    join('-', split(/\-/, $cuffcmp_opts)) .
-				    " -o $cuffcmp_dir/ncRNAScan_cuffcmp ", 
+	$io->execute_system_command($deps->{'cuffcompare'} .
+				    " -o $cuffcmp_dir/ncRNAScan_cuffcmp " .
+				    join('-', split(/\-/, $cuffcmp_opts)),
 				    "Command call:\n" .
-				    "-------------\n" . $deps->{'cuffcompare'} . ' ' . 
-				    join('-', split(/\-/, $cuffcmp_opts)) .
-				    " -o $cuffcmp_dir/ncRNAScan_cuffcmp ");
+				    "-------------\n" . $deps->{'cuffcompare'} .
+				    " -o $cuffcmp_dir/ncRNAScan_cuffcmp " .
+				    join('-', split(/\-/, $cuffcmp_opts)));
+
     
     } if (defined($cuffcmp_opts) && $cuffcmp_opts ne '');
     
@@ -116,23 +117,44 @@ sub run_ncRNAScan {
 				    ' [ ' . $cat_dir . ' ]')
 	    if (!-d $cat_dir);
 	
-	my ($tr_files, $tr_size) = get_num_tr_files($cuffcmp_opts)
-	    if (defined $cuffcmp_opts && $cuffcmp_opts ne '');
+	if (defined $cuffcmp_opts && $cuffcmp_opts ne '') {
+	
+	    my ($tr_files, $tr_size) = get_num_tr_files($cuffcmp_opts);
+	    my $annot = get_annot($cuffcmp_opts);
 
-	my $annot = get_annot($cuffcmp_opts)
-	    if (defined $cuffcmp_opts && $cuffcmp_opts ne '');
+	    $io->c_time('Converting annotation file supplied with cuffcompare to gene predction format [ GTF -> genePred ]');
+	    my $annot_for_cat = $cat_dir . '/' . $io->file_basename($annot) . '.txt';
+	    $io->execute_system_command($deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
+				       $annot . ' ' . $annot_for_cat,
+				       "Command call:\n" .
+				       "-------------\n" .
+				       $deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
+                                       $annot . ' ' . $annot_for_cat);
 
-	$io->execute_system_command('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
-				    join('-', split(/\-|\--/, $categorize_sc_opts)) .
-				    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
-				    "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot . ' ' .
-				    $tr_files, 
-				    "Command call:\n" .
-				    "-------------\n" . $deps->{'cat'} . ' ' . 
-				    join('-', split(/\-|\--/, $categorize_sc_opts)) . 
-				    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
-				    "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot . ' ' .
-				    $tr_files);
+	    $io->execute_system_command('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
+					join('-', split(/\-|\--/, $categorize_sc_opts)) .
+					" -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
+					"-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot_for_cat . ' ' .
+					$tr_files, 
+					"Command call:\n" .
+					"-------------\n" . $deps->{'cat'} . ' ' . 
+					join('-', split(/\-|\--/, $categorize_sc_opts)) . 
+					" -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
+					"-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot_for_cat . ' ' .
+					$tr_files);
+	}
+	else {
+
+	    $io->execute_system_command('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
+					" -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
+					"-bin $deps->{'bin-gtfToGenePred'} " .
+					join('-', split(/\-|\--/, $categorize_sc_opts)),
+					"Command call:\n" .
+					"-------------\n" . $deps->{'cat'} . ' ' . 
+					" -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
+                                        "-bin $deps->{'bin-gtfToGenePred'} " .
+					join('-', split(/\-|\--/, $categorize_sc_opts)));
+	}
     
     } if (defined($categorize_sc_opts) && $categorize_sc_opts ne '');
 
