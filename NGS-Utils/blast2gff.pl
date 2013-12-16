@@ -64,11 +64,14 @@ my $blast_res_file_obj = new Bio::SearchIO->new(-file => $blast_res_file,
 while (my $blast_res = $blast_res_file_obj->next_result) {
     next if ($blast_res->num_hits == 0);
 
-    my $query_name = $blast_res->query_accession;
-    my ($cufflinks_class_code, $chr, $chr_start, $chr_end) = ($query_name =~ m/class\_code\:(\w).+?(chr\w+)\:(\d+)-(\d+)/);
+    my $query_name = $blast_res->query_accession . ' ' . $blast_res->query_description;
+    my ($cufflinks_class_code, $chr, $chr_start, $chr_end);
+
     if (defined $is_cuff) {
+	($cufflinks_class_code, $chr, $chr_start, $chr_end) = ($query_name =~ m/class\_code\:(\w).+?(chr\w+)\:(\d+)-(\d+)/);
 	$gff_feature_name = 'intron' if ($cufflinks_class_code =~ m/i/i);
 	$gff_feature_name = 'unknown_intergenic' if ($cufflinks_class_code =~ m/u/i);
+	
     }
     else {
 	$gff_feature_name = 'hsp';
@@ -79,7 +82,7 @@ while (my $blast_res = $blast_res_file_obj->next_result) {
         next if ($hit->num_hsps == 0);
 
         my $query_coverage = $hit->frac_aligned_query;
-        my $percent_identity = $hit->frac_identical('hit');
+        my $percent_identity = $hit->frac_identical('query');
         my $evalue = $hit->significance;
 
         #print "$query_name\t$hit_name\tQL:$query_length\tHitCov:$hit_coverage\nQCOV:$query_coverage\tHI:$percent_identity\n\n";
@@ -93,9 +96,16 @@ while (my $blast_res = $blast_res_file_obj->next_result) {
             while (my $hsp = $hit->next_hsp) {
 		next if ($hsp->length('hit') <= $min_hsp_length);
 		
-                
-		my $corresponding_chr_start = ( $chr_start + $hsp->start ) - 1;
-                my $corresponding_chr_end = ( $chr_start + $hsp->end ) - 1;
+		my ($corresponding_chr_start, $corresponding_chr_end);
+		if (defined $is_cuff) {
+		    $corresponding_chr_start = $hsp->start('query');
+		    $corresponding_chr_end = $hsp->end('query');
+		}
+		else {
+		    $chr = $hit->accession;
+		    $corresponding_chr_start = $hsp->start('hit');
+                    $corresponding_chr_end = $hsp->end('hit');
+		}
                 
 		my $gff_feature = new Bio::SeqFeature::Generic(-seq_id => $chr,
                                                                -source_tag => 'BLAST',
