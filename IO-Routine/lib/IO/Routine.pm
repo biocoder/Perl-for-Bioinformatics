@@ -23,13 +23,13 @@ IO::Routine - An attempt to provide a solution to avoid routine IO chores.
 
 =over 3
 
-Version 0.34
+Version 0.35
 
 =back
 
 =cut
 
-our $VERSION = '0.34';
+our $VERSION = '0.35';
 
 =head1 SYNOPSIS
 
@@ -717,18 +717,18 @@ sub error {
     my $self = shift;
     my $msg = shift;
     print STDERR "\nERROR!\n------\n$msg\n\n";
-    if ($podFilename &&
-	-e $podFilename &&
-	-s $podFilename != 0) {
-	pod2usage(-exitval => 2,
-		  -verbose => 2,
-		  -input => $podFilename);
-    }
-    else {
-	pod2usage(-exitval => 2,
-		  -verbose => 2);
-    }
-    return;
+    #if ($podFilename &&
+	#-e $podFilename &&
+	#-s $podFilename != 0) {
+	#pod2usage(-exitval => 2,
+		  #-verbose => 2,
+		  #-input => $podFilename);
+    #}
+    #else {
+	#pod2usage(-exitval => 2,
+		  #-verbose => 2);
+    #}
+    return 0;
 }
 
 
@@ -738,7 +738,7 @@ sub warning {
     my $self = shift;
     my $msg = shift;
     print STDOUT "\nWARNING!\n--------\n$msg\n\n";
-    return;
+    return 1;
 }
 
 # Subroutine to open files and return file handle

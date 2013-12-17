@@ -1,6 +1,13 @@
 Revision history for IO-Routine:
 --------------------------------
 
+0.35      2013-12-17 15:19:14 America/Chicago
+
+0.35      2013-12-17 15:15:36 America/Chicago
+	  Error quits without displaying POD. User
+	  can always use '-h|--help'. Avoids displaying
+	  long POD when program quits with error message.
+
 0.34      2013-12-04 09:33:40 America/Chicago
 	  The error subroutine checks for the presence of POD file.
 
