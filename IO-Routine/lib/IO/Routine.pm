@@ -728,7 +728,7 @@ sub error {
 	#pod2usage(-exitval => 2,
 		  #-verbose => 2);
     #}
-    die;
+    die "DIED!\n-----\nGave up because: $!\n\n";
 }
 
 
