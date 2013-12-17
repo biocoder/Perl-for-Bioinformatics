@@ -96,17 +96,17 @@ while (my $blast_res = $blast_res_file_obj->next_result) {
             while (my $hsp = $hit->next_hsp) {
 		next if ($hsp->length('hit') <= $min_hsp_length);
 		
-		my ($corresponding_chr_start, $corresponding_chr_end);
+		my $corresponding_chr_start = my $corresponding_chr_end = '';
 		if (defined $is_cuff) {
-		    $corresponding_chr_start = $hsp->start('query');
-		    $corresponding_chr_end = $hsp->end('query');
+		     $corresponding_chr_start = ( $chr_start + $hsp->start ) - 1;
+		     $corresponding_chr_end = ( $chr_start + $hsp->end ) - 1;
 		}
-		else {
+		else  {
 		    $chr = $hit->accession;
 		    $corresponding_chr_start = $hsp->start('hit');
-                    $corresponding_chr_end = $hsp->end('hit');
+		    $corresponding_chr_end = $hsp->end('hit');
 		}
-                
+
 		my $gff_feature = new Bio::SeqFeature::Generic(-seq_id => $chr,
                                                                -source_tag => 'BLAST',
                                                                -strand => $hsp->strand('hit'),
@@ -115,7 +115,6 @@ while (my $blast_res = $blast_res_file_obj->next_result) {
                                                                -display_id => $hit->name,
                                                                -seq_name => $hit->name,
                                                                -tag => {query_id => $query_name,
-									hit_id => $hit->name . $hit->description,
 							                hit_ident => $percent_identity,
 							                hsp_match_len => $hsp->length('total')},
                                                                -score => $hsp->score,
