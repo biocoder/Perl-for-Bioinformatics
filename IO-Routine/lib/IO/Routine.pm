@@ -728,7 +728,7 @@ sub error {
 	#pod2usage(-exitval => 2,
 		  #-verbose => 2);
     #}
-    return 0;
+    die;
 }
 
 
@@ -738,7 +738,7 @@ sub warning {
     my $self = shift;
     my $msg = shift;
     print STDOUT "\nWARNING!\n--------\n$msg\n\n";
-    return 1;
+    return;
 }
 
 # Subroutine to open files and return file handle
