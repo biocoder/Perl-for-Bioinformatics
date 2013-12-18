@@ -15,8 +15,6 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $fetch_sc_opts, $categorize_sc_opts,
     $cuffcmp_opts, $deps, $run, $out, $start_cpc);
 
-our $IO_ROUTINE_ERROR_HOOK;
-
 my $is_valid_option = GetOptions('help:s'            => \$help,
                                  'quiet'             => \$quiet,
 				 'setup'             => \$setup,
@@ -732,7 +730,7 @@ Examples:
 
     perl ncRNAScan -h
 
-    perl ncRNAScan -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transscripts2.gtf' -cat-ncRNAs '-fpkm 2 -l 200 -min-exons 2 -antisense' -get-uq-feat '-sf known_ncRNAs.bed' -fetch-seq '-db mm10' -cpc
+    perl ncRNAScan -run -out /data/ncRNAScan/ -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transscripts2.gtf' -cat-ncRNAs '-fpkm 2 -l 200 -min-exons 2 -antisense' -get-uq-feat '-sf known_ncRNAs.bed' -fetch-seq '-db mm10' -cpc
 
 
 =head1 DESCRIPTION
