@@ -15,6 +15,7 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $fetch_sc_opts, $categorize_sc_opts,
     $cuffcmp_opts, $deps, $run, $out, $start_cpc);
 
+our $IO_ROUTINE_ERROR_HOOK;
 
 my $is_valid_option = GetOptions('help:s'            => \$help,
                                  'quiet'             => \$quiet,
@@ -63,6 +64,8 @@ sub run_ncRNAScan {
 
     # We will quit, if the setup was unsuccessful.
     require IO::Routine;
+    IO::Routine->import();
+
     my $io = IO::Routine->new($help, $quiet);
 
     if (!defined $out) {
@@ -90,21 +93,18 @@ sub run_ncRNAScan {
     do {
 
 	$io->c_time('Module 1: Running cuffcompare...');
+	
 	$io->execute_system_command("mkdir -p $cuffcmp_dir",
 				    'Making output directory for cuffcompare [ ' . $cuffcmp_dir . ' ]')
 	    if (!-d $cuffcmp_dir);
 	
-	eval {
-	    use autodie;
-	    
-	    $io->execute_system_command($deps->{'cuffcompare'} .
-					" -o $cuffcmp_dir/ncRNAScan_cuffcmp " .
-					join('-', split(/\-/, $cuffcmp_opts)),
-					"Command call:\n" .
-					"-------------\n" . $deps->{'cuffcompare'} .
-					" -o $cuffcmp_dir/ncRNAScan_cuffcmp " .
+	$io->execute_system_command($deps->{'cuffcompare'} .
+				    " -o $cuffcmp_dir/ncRNAScan_cuffcmp " .
+				    join('-', split(/\-/, $cuffcmp_opts)),
+				    "Command call:\n" .
+				    "-------------\n" . $deps->{'cuffcompare'} .
+				    " -o $cuffcmp_dir/ncRNAScan_cuffcmp " .
 					join('-', split(/\-/, $cuffcmp_opts)));
-	};
 
     } if (defined($cuffcmp_opts) && $cuffcmp_opts ne '');
     
@@ -113,100 +113,102 @@ sub run_ncRNAScan {
     do {
 
 	$io->c_time('Module 2: Running categorize_ncRNAs.pl');
+	
+	my $is_failed = '';
 	my $cat_dir = $outdir . 'categorize_ncRNAs';
+	
 	$io->execute_system_command("mkdir -p $cat_dir",
 				    'Making output directory for ' .
 				    $io->file_basename($deps->{'cat'}, 'suffix') .
 				    ' [ ' . $cat_dir . ' ]')
 	    if (!-d $cat_dir);
-
-	eval {
-	    use autodie;
+	
+	if (defined $cuffcmp_opts && $cuffcmp_opts ne '') {
 	    
-	    if (defined $cuffcmp_opts && $cuffcmp_opts ne '') {
-		
-		my ($tr_files, $tr_size) = get_num_tr_files($cuffcmp_opts);
-		my $annot = get_annot($cuffcmp_opts);
-		
-		$io->c_time('Converting annotation file supplied with cuffcompare to gene predction format [ GTF -> genePred ]');
-		my $annot_for_cat = $cat_dir . '/' . $io->file_basename($annot) . '.txt';
-		$io->execute_system_command($deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
-					    $annot . ' ' . $annot_for_cat,
-					    "Command call:\n" .
-					    "-------------\n" .
-					    $deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
-					    $annot . ' ' . $annot_for_cat);
-		
-		$io->execute_system_command('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
-					    join('-', split(/\-|\--/, $categorize_sc_opts)) .
-					    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
-					    "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot_for_cat . ' ' .
-					    $tr_files, 
-					    "Command call:\n" .
-					    "-------------\n" . $deps->{'cat'} . ' ' . 
-					    join('-', split(/\-|\--/, $categorize_sc_opts)) . 
-					    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
-					    "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot_for_cat . ' ' .
-						  $tr_files);
-	    }
-	    else {
-		
-		$io->execute_system_command('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
-					    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
-					    "-bin $deps->{'bin-gtfToGenePred'} " .
-					    join('-', split(/\-|\--/, $categorize_sc_opts)),
-					    "Command call:\n" .
-					    "-------------\n" . $deps->{'cat'} . ' ' . 
-					    " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
-					    "-bin $deps->{'bin-gtfToGenePred'} " .
-					    join('-', split(/\-|\--/, $categorize_sc_opts)));
-	    }
-	};
-
+	    my ($tr_files, $tr_size) = get_num_tr_files($cuffcmp_opts);
+	    my $annot = get_annot($cuffcmp_opts);
+	    
+	    $io->c_time('Converting annotation file supplied with cuffcompare to gene predction format [ GTF -> genePred ]');
+	    my $annot_for_cat = $cat_dir . '/' . $io->file_basename($annot) . '.txt';
+	    
+	    $is_failed = $io->execute_get_sys_cmd_output($deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
+							 $annot . ' ' . $annot_for_cat,
+							 "Command call:\n" .
+							 "-------------\n" .
+							 $deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
+							 $annot . ' ' . $annot_for_cat);
+	    
+	     $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
+							  join('-', split(/\-|\--/, $categorize_sc_opts)) .
+							  " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
+							  "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot_for_cat . ' ' .
+							  $tr_files, 
+							  "Command call:\n" .
+							  "-------------\n" . $deps->{'cat'} . ' ' . 
+							  join('-', split(/\-|\--/, $categorize_sc_opts)) . 
+							  " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
+							  "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot_for_cat . ' ' .
+							  $tr_files);
+	}
+	else {
+	    
+	     $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
+							  " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
+							  "-bin $deps->{'bin-gtfToGenePred'} " .
+							  join('-', split(/\-|\--/, $categorize_sc_opts)),
+							  "Command call:\n" .
+							  "-------------\n" . $deps->{'cat'} . ' ' . 
+							  " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
+							  "-bin $deps->{'bin-gtfToGenePred'} " .
+							  join('-', split(/\-|\--/, $categorize_sc_opts)));
+	}	
+	pipeline_status($io, $is_failed);
+	
     } if (defined($categorize_sc_opts) && $categorize_sc_opts ne '');
 
     # Run get_unique_features.pl ######################################################################
     do {
 
 	$io->c_time('Module 3: Running get_unique_features.pl');
+	
+	my $is_failed = '';
         my $cat_dir = $outdir . 'get_unique_features';
-        $io->execute_system_command("mkdir -p $cat_dir",
+        
+	$io->execute_system_command("mkdir -p $cat_dir",
                                     'Making output directory for ' .
 				    $io->file_basename($deps->{'get'}, 'suffix') .
 				    ' [ ' . $cat_dir . ' ]')
             if (!-d $cat_dir);
 	
-	eval {
-	    use autodie;
-	
-	    opendir (ncRNAScan_categorize_mod, $outdir . 'categorize_ncRNAs') ||
-		$io->error("Cannot open directory $outdir" .
-			   'categorize_ncRNAs to read ncRNAScan class files.');
+	opendir (ncRNAScan_categorize_mod, $outdir . 'categorize_ncRNAs') ||
+	    $io->error("Cannot open directory $outdir" .
+		       'categorize_ncRNAs to read ncRNAScan class files.');
 	    
-	    push my @ncRNAScan_class_files, grep {/putative\.class\.ncRNAs\.gtf$/} readdir ncRNAScan_categorize_mod;
-	    
-	    foreach my $ncRNAScan_class_file (@ncRNAScan_class_files) {
-		
-		$ncRNAScan_class_file = $outdir . 'categorize_ncRNAs/' . $ncRNAScan_class_file;
-		my $unique_ncRNAs = $cat_dir . '/' . $io->file_basename($ncRNAScan_class_file) . '.unique.gtf';
-		
-		$io->execute_system_command('perl' . $pl_inc_string . $deps->{'get'} . ' ' .
-					    '-cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
-					    join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-					    ' -q -stdout -unique -kc 3 -ck transcript | ' .
-					    "grep -oiP 'transcript_id\\s+.+?\\\;' | grep -oiP '\\\".+?\\\"' | sed -e 's/\\\"//g' | " .
-					    "while read line; do grep \$line $ncRNAScan_class_file; done" .
-					    " > $unique_ncRNAs",
-					    "Command call:\n" .
-					    "-------------\n" . $deps->{'get'} . ' ' .
-					    '-cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
-					    join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-					    ' -q -stdout -unique -kc 3 -ck transcript ' .
-					    " > $unique_ncRNAs");
-	    }
-	    close ncRNAScan_categorize_mod;
-	};
+	push my @ncRNAScan_class_files, grep {/putative\.class\.ncRNAs\.gtf$/} readdir ncRNAScan_categorize_mod;
 	
+	foreach my $ncRNAScan_class_file (@ncRNAScan_class_files) {
+	    
+	    $ncRNAScan_class_file = $outdir . 'categorize_ncRNAs/' . $ncRNAScan_class_file;
+	    my $unique_ncRNAs = $cat_dir . '/' . $io->file_basename($ncRNAScan_class_file) . '.unique.gtf';
+		
+		 $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'get'} . ' ' .
+							      '-cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
+							      join('-', split(/\-|\--/, $get_uq_sc_opts)) .
+							      ' -q -stdout -unique -kc 3 -ck transcript | ' .
+							      "grep -oiP 'transcript_id\\s+.+?\\\;' | grep -oiP '\\\".+?\\\"' | sed -e 's/\\\"//g' | " .
+							      "while read line; do grep \$line $ncRNAScan_class_file; done" .
+							      " > $unique_ncRNAs",
+							      "Command call:\n" .
+							      "-------------\n" . $deps->{'get'} . ' ' .
+							      '-cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
+							      join('-', split(/\-|\--/, $get_uq_sc_opts)) .
+							      ' -q -stdout -unique -kc 3 -ck transcript ' .
+							      " > $unique_ncRNAs");
+	}
+	pipeline_status($io, $is_failed);
+	
+	close ncRNAScan_categorize_mod;
+		
     } if (defined($get_uq_sc_opts) && $get_uq_sc_opts ne '');
     
 	
@@ -214,42 +216,44 @@ sub run_ncRNAScan {
     do {
 
 	$io->c_time('Module 4: Running fetch_seq_from_ucsc.pl');
+	
+	my $is_failed = '';
         my $cat_dir = $outdir . 'fetch_seq_from_ucsc';
-        $io->execute_system_command("mkdir -p $cat_dir",
+        
+	$io->execute_system_command("mkdir -p $cat_dir",
                                     'Making output directory for ' . $io->file_basename($deps->{'get'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
             if (!-d $cat_dir);
-
-	eval {
-	    use autodie;
+	
+	opendir (ncRNAScan_get_unique_mod, $outdir . 'get_unique_features') ||
+	    $io->error("Cannot open directory $outdir" .
+		       'get_unique_features to read unique ncRNA features.');
+	
+	push my @ncRNAScan_unique_files, grep {/putative\.class\.ncRNAs\.unique\.gtf$/} readdir ncRNAScan_get_unique_mod;
+	
+	foreach my $ncRNAScan_unique_file (@ncRNAScan_unique_files) {
+	    $ncRNAScan_unique_file = $outdir . 'get_unique_features/' . $ncRNAScan_unique_file;
 	    
-	    opendir (ncRNAScan_get_unique_mod, $outdir . 'get_unique_features') ||
-		$io->error("Cannot open directory $outdir" .
-			   'get_unique_features to read unique ncRNA features.');
-	    
-	    push my @ncRNAScan_unique_files, grep {/putative\.class\.ncRNAs\.unique\.gtf$/} readdir ncRNAScan_get_unique_mod;
-	    
-	    foreach my $ncRNAScan_unique_file (@ncRNAScan_unique_files) {
-		$ncRNAScan_unique_file = $outdir . 'get_unique_features/' . $ncRNAScan_unique_file;
-		
-		$io->execute_system_command('perl' . $pl_inc_string . $deps->{'fetch'} . ' ' .
-					    join('-', split(/\-|\--/, $fetch_sc_opts)) .
-					    ' -tmap ' . $ncRNAScan_unique_file .
-					    " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t' -q",
-					    "Command call:\n" .
-					    "-------------\n" . $deps->{'fetch'} . ' ' .
-					    join('-', split(/\-|\--/, $fetch_sc_opts)) .
-					    ' -tmap ' . $ncRNAScan_unique_file .
-					    " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t' -q");
-	    }
-	    close ncRNAScan_get_unique_mod;
-	};
-
+	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'fetch'} . ' ' .
+							 join('-', split(/\-|\--/, $fetch_sc_opts)) .
+							 ' -tmap ' . $ncRNAScan_unique_file .
+							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t' -q",
+							 "Command call:\n" .
+							 "-------------\n" . $deps->{'fetch'} . ' ' .
+							 join('-', split(/\-|\--/, $fetch_sc_opts)) .
+							 ' -tmap ' . $ncRNAScan_unique_file .
+							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t' -q");
+	}
+	pipeline_status($io, $is_failed);
+	
+	close ncRNAScan_get_unique_mod;
+	
     } if (defined($fetch_sc_opts) && $fetch_sc_opts ne '');
     
     # Run CPC ########################################################################################
     do {
 
 	$io->c_time('Module 5: Running CPC.sh');
+	
 	my $ncRNAScan_final = $outdir . 'ncRNAScan.final';
         my $cat_dir = $outdir . 'CPC';
 
@@ -260,59 +264,55 @@ sub run_ncRNAScan {
         $io->execute_system_command("mkdir -p $cat_dir",
                                     'Making output directory for ' . $io->file_basename($deps->{'cpc'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
             if (!-d $cat_dir);
-
-	eval {
-
-	    use autodie;
-	    opendir (ncRNAScan_fetch_seq_mod, $outdir . 'fetch_seq_from_ucsc') ||
-            $io->error("Cannot open directory $outdir" .
-                       'fetch_seq_from_ucsc to read unique ncRNA features.');
-	    
-	    push my @ncRNAScan_unique_seq_files, grep {/putative\.class\.ncRNAs\.unique\.fa$/} readdir ncRNAScan_fetch_seq_mod;
-	    my $blastall_path = sub {
-		my @file_parts = $io->file_basename(shift, 'all');
-		chop $file_parts[1] if ($file_parts[1] =~ m/\/$/);
-		return $file_parts[1]
-	    };
-	    
-	    $io->exist_sys_cmd(['cut']);
-	    
-	    if (!exists $ENV{'CPC_HOME'}) {
-		$io->error("Environment variable CPC_HOME must be set pointing to CPC directory before running CPC.\n" .
-			   'See CPC installation instructions (http://cpc.cbi.pku.edu.cn/docs/install_guide.jsp)');
-	    }
-	    
-	    foreach my $ncRNAScan_unique_seq_file (@ncRNAScan_unique_seq_files) {
-		$ncRNAScan_unique_seq_file = $outdir . 'fetch_seq_from_ucsc/' . $ncRNAScan_unique_seq_file;
-		my $CPC_out_file = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.CPC.predict.txt';
-		my $cpc_work_dir = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.CPC.out' ;
-		my $ncRNAScan_final_trs = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.final.gtf';
-		my $unique_gtf = $outdir . 'get_unique_features/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.gtf';
-		
-		$io->execute_system_command("mkdir -p $cpc_work_dir");
-		
-		$io->execute_system_command($deps->{'cpc'} . 
-					    ' "' . $ncRNAScan_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . '" ' .
-					    $blastall_path->($deps->{'blastall'}),
-					    "Command call:\n" .
-					    "-------------\n" . $deps->{'cpc'} .
-					    ' "' . $ncRNAScan_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . '" ' .
-					    $blastall_path->($deps->{'blastall'}));
-		
-		if (-e $CPC_out_file && -s $CPC_out_file) {
-		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | ".
-						"while read line; do grep \$line $unique_gtf; done > $ncRNAScan_final_trs",
-						'Getting noncoding "only" transcripts [ ' .
-						$io->file_basename($unique_gtf, 'suffix') .
-						" ] ...\n");
-		}
-		else {
-		    $io->error('CPC prediction step seems to have failed... Bailing out!');
-		}
-	    }
-	    close ncRNAScan_fetch_seq_mod;
+	
+	opendir (ncRNAScan_fetch_seq_mod, $outdir . 'fetch_seq_from_ucsc') ||
+	    $io->error("Cannot open directory $outdir" .
+		       'fetch_seq_from_ucsc to read unique ncRNA features.');
+	
+	push my @ncRNAScan_unique_seq_files, grep {/putative\.class\.ncRNAs\.unique\.fa$/} readdir ncRNAScan_fetch_seq_mod;
+	my $blastall_path = sub {
+	    my @file_parts = $io->file_basename(shift, 'all');
+	    chop $file_parts[1] if ($file_parts[1] =~ m/\/$/);
+	    return $file_parts[1]
 	};
 	
+	$io->exist_sys_cmd(['cut']);
+	
+	if (!exists $ENV{'CPC_HOME'}) {
+	    $io->error("Environment variable CPC_HOME must be set pointing to CPC directory before running CPC.\n" .
+		       'See CPC installation instructions (http://cpc.cbi.pku.edu.cn/docs/install_guide.jsp)');
+	}
+	
+	foreach my $ncRNAScan_unique_seq_file (@ncRNAScan_unique_seq_files) {
+	    $ncRNAScan_unique_seq_file = $outdir . 'fetch_seq_from_ucsc/' . $ncRNAScan_unique_seq_file;
+	    my $CPC_out_file = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.CPC.predict.txt';
+	    my $cpc_work_dir = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.CPC.out' ;
+	    my $ncRNAScan_final_trs = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.final.gtf';
+	    my $unique_gtf = $outdir . 'get_unique_features/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.gtf';
+	    
+	    $io->execute_system_command("mkdir -p $cpc_work_dir");
+	    
+	    $io->execute_system_command($deps->{'cpc'} . 
+					' "' . $ncRNAScan_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . '" ' .
+					$blastall_path->($deps->{'blastall'}),
+					"Command call:\n" .
+					"-------------\n" . $deps->{'cpc'} .
+					' "' . $ncRNAScan_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . '" ' .
+					$blastall_path->($deps->{'blastall'}));
+	    
+	    if (-e $CPC_out_file && -s $CPC_out_file) {
+		$io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | ".
+					    "while read line; do grep \$line $unique_gtf; done > $ncRNAScan_final_trs",
+					    'Getting noncoding "only" transcripts [ ' .
+					    $io->file_basename($unique_gtf, 'suffix') .
+					    " ] ...\n");
+	    }
+	    else {
+		$io->error('CPC prediction step seems to have failed... Bailing out!');
+	    }
+	}
+	close ncRNAScan_fetch_seq_mod;
+    	
     } if (defined $start_cpc);
 
     close $dep_tools_fh;
@@ -407,6 +407,7 @@ sub setup_ncRNAScan {
     cpanm_status($install_dir, 'LWP::Simple');
     cpanm_status($install_dir, 'XML::XPath');
     cpanm_status($install_dir, 'XML::XPath::XMLParser');
+    cpanm_status($install_dir, 'IPC::System::Simple');
 
     print "\n\nThank you cpanm!\n";
 
@@ -594,6 +595,16 @@ sub check_util {
         succ_or_fail(1, $cmd);
     }
     return $util;
+}
+
+# print success or failure of ncRNAScan pipeline modules
+sub pipeline_status {
+    my $self = shift;
+    my $status = shift;
+    print $status;
+    $self->c_time('ncRNAScan pipeline aborted!');
+    die "\n" if ($status =~ m/ERROR!/);
+    return;
 }
 
 # Print success or failure
