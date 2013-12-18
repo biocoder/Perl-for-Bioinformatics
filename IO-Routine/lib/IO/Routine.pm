@@ -716,7 +716,7 @@ sub execute_get_sys_cmd_output {
 sub error {
     my $self = shift;
     my $msg = shift;
-    print STDERR "\nERROR!\n------\n$msg\n\n";
+    print STDOUT "\nERROR!\n------\n$msg\n\n";
     #if ($podFilename &&
 	#-e $podFilename &&
 	#-s $podFilename != 0) {
@@ -728,7 +728,7 @@ sub error {
 	#pod2usage(-exitval => 2,
 		  #-verbose => 2);
     #}
-    die "DIED!\n-----\nGave up because: $!\n\n";
+    exit 0;
 }
 
 
