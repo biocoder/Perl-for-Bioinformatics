@@ -407,7 +407,6 @@ sub setup_ncRNAScan {
     cpanm_status($install_dir, 'LWP::Simple');
     cpanm_status($install_dir, 'XML::XPath');
     cpanm_status($install_dir, 'XML::XPath::XMLParser');
-    cpanm_status($install_dir, 'IPC::System::Simple');
 
     print "\n\nThank you cpanm!\n";
 
