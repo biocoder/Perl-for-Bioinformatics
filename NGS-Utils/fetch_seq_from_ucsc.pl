@@ -95,6 +95,7 @@ $io->c_time('Checking for required GNU core utils...', $quiet);
 $io->check_sys_level_cmds(['grep'],
                           ['2.6.3']);
 
+my $seqs_fetched =  0;
 while (my $line = <$tmap_fh>) {
     my ($u_seq_id, $unique_seq_id) = '';
 
@@ -163,7 +164,10 @@ while (my $line = <$tmap_fh>) {
     my $xpath = XML::XPath->new(xml=>$xml);
     my $xml_nodes = $xpath->find('/DASDNA/SEQUENCE/DNA/text()');
     print_seq(\$xml_nodes, $unique_seq_id);
+    $seqs_fetched++;
 }
+
+$io->c_time("$seqs_feteched sequences feteched...");
 
 $io->end_timer($s_time);
 close $tmap_fh;
