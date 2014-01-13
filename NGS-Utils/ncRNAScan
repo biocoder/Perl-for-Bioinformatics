@@ -192,7 +192,7 @@ sub run_ncRNAScan {
 		 $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'get'} . ' ' .
 							      '-cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
 							      join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-							      ' -q -stdout -unique -kc 3 -ck transcript | ' .
+							      ' -stdout -unique -kc 3 -ck transcript | ' .
 							      "grep -oiP 'transcript_id\\s+.+?\\\;' | grep -oiP '\\\".+?\\\"' | sed -e 's/\\\"//g' | " .
 							      "while read line; do grep \$line $ncRNAScan_class_file; done" .
 							      " > $unique_ncRNAs",
@@ -200,7 +200,7 @@ sub run_ncRNAScan {
 							      "-------------\n" . $deps->{'get'} . ' ' .
 							      '-cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
 							      join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-							      ' -q -stdout -unique -kc 3 -ck transcript ' .
+							      ' -stdout -unique -kc 3 -ck transcript ' .
 							      " > $unique_ncRNAs");
 	}
 	pipeline_status($io, $is_failed);
@@ -234,12 +234,12 @@ sub run_ncRNAScan {
 	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'fetch'} . ' ' .
 							 join('-', split(/\-|\--/, $fetch_sc_opts)) .
 							 ' -tmap ' . $ncRNAScan_unique_file .
-							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t' -q",
+							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t'",
 							 "Command call:\n" .
 							 "-------------\n" . $deps->{'fetch'} . ' ' .
 							 join('-', split(/\-|\--/, $fetch_sc_opts)) .
 							 ' -tmap ' . $ncRNAScan_unique_file .
-							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t' -q");
+							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t'");
 	}
 	pipeline_status($io, $is_failed);
 	
