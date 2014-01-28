@@ -385,22 +385,12 @@ sub setup_ncRNAScan {
     print "\nunzip -d $install_dir/.build $install_dir/.build/master.zip\n";
     system("unzip -d $install_dir/.build $install_dir/.build/master.zip  > /dev/null 2>&1");
 
-    print "\nInstalling IO::Routine...\n\n";
-    system("mkdir $install_dir/PERLLIBS") if (!-d "$install_dir/PERLLIBS");
-    my $custom_pm_log = `cd $install_dir/.build/Perl-for-Bioinformatics-master/IO-Routine;perl Makefile.PL PREFIX=$install_dir/PERLLIBS LIB=$install_dir/PERLLIBS/lib && make && make test && make install; 2>&1`;
-
-    if ($custom_pm_log =~ m/fail|error/i) {
-	succ_or_fail(0, 'IO::Routine');
-    }
-    else {
-	succ_or_fail(1, 'IO::Routine');
-    }
-
     # Use cpanm to install Set::IntervalTree
     system("$dl_util https://raw.github.com/miyagawa/cpanminus/master/cpanm  > /dev/null 2>&1");
     system("mv cpanm $install_dir/.build");
     system("chmod 755 $install_dir/.build/cpanm");
 
+    cpanm_status($install_dir, 'Module::Load');
     cpanm_status($install_dir, 'Set::IntervalTree');
     cpanm_status($install_dir, 'LWP::Simple');
     cpanm_status($install_dir, 'XML::XPath');
