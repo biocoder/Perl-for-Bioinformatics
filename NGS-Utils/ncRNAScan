@@ -30,6 +30,7 @@ my $CAT_SC = 'categorize_ncRNAs.pl';
 my $FETCH_SC = 'fetch_seq_from_ucsc.pl';
 my $GET_UQ_SC = 'get_unique_features.pl';
 my $CPC_SH_SC = 'CPC.sh';
+my $RELPLOT_MOD_SC = 'relplot_mod.pl';
 my $USER_HOME = $ENV{'HOME'};
 
 setup_ncRNAScan(`pwd`) if (defined $setup);
@@ -526,6 +527,7 @@ sub setup_ncRNAScan {
     print $dep_fh "$install_dir/" . $CAT_SC, "\n" if (check_native("$install_dir/" . $CAT_SC));
     print $dep_fh "$install_dir/" . $FETCH_SC, "\n" if (check_native("$install_dir/" . $FETCH_SC));
     print $dep_fh "$install_dir/" . $GET_UQ_SC, "\n" if (check_native("$install_dir/" . $GET_UQ_SC));
+    print $dep_fh "$install_dir/" . $RELPLOT_MOD_SC, "\n" if (check_native("$install_dir/" . $RELPLOT_MOD_SC));
     print $dep_fh "$install_dir/" . $CPC_SH_SC, "\n" if (check_native("$install_dir/" . $CPC_SH_SC));
     if (!exists $ENV{'CPC_HOME'}) {
 	succ_or_fail(3, 'CPC');
