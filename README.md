@@ -41,7 +41,7 @@ or to get help documentation for individual modules, do:
      * If pipeline setup fails due to `XML::Parser` module, you need to install XML parser C libraries.
      * On Ubuntu / Debian based Linux distributions, as `root` user, do:
      
-            apt-get install libexpat1 libexpat-dev
+            apt-get install libexpat1 libexpat1-dev
                     
      * On RedHat / Fedora / CentOS based Linux distributions, as `root` user do:
      
