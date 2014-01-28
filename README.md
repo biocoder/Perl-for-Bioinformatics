@@ -2,7 +2,7 @@ Bioinformatics tools written in Perl [![Bitdeli Badge](https://d2weczhvl823v0.cl
 ====================================
 Most of the scripts here were written while I was working on different projects, which I think will be useful to others and can be extended / modified per there needs.
 
-IO::Routine [![Build Status](https://travis-ci.org/biocoder/Perl-for-Bioinformatics.png?branch=master)](https://travis-ci.org/biocoder/Perl-for-Bioinformatics)
+IO::Routine [![Build Status](https://api.travis-ci.org/biocoder/Perl-for-Bioinformatics.png?branch=master)](https://travis-ci.org/biocoder/Perl-for-Bioinformatics)
 ----------------------------
 * The scripts use custom [IO::Routine](https://github.com/biocoder/Perl-for-Bioinformatics/tree/master/IO-Routine) Perl Module.
 
@@ -10,7 +10,7 @@ IO::Routine [![Build Status](https://travis-ci.org/biocoder/Perl-for-Bioinformat
 
 * If you are installing **ncRNAScan** Pipeline, `IO::Routine` module is automatically installed.
 
-ncRNAScan [![Build Status](https://travis-ci.org/biocoder/Perl-for-Bioinformatics.png?branch=master)](https://travis-ci.org/biocoder/Perl-for-Bioinformatics)
+ncRNAScan [![Build Status](https://api.travis-ci.org/biocoder/Perl-for-Bioinformatics.png?branch=master)](https://travis-ci.org/biocoder/Perl-for-Bioinformatics)
 --------------------------
 * A pipeline to extract putative novel ncRNAs ab initio, given a list of transcripts in GTF format assembled from deep sequencing data (ex: RNA-Seq) and annotation data.
 
