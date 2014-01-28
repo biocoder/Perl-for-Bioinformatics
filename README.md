@@ -35,6 +35,18 @@ or to get help documentation for individual modules, do:
       	  perl ncRNAScan -h get
       	  perl ncRNAScan -h fetch
       	  perl ncRNAScan -h cpc
+      	  
+* Known issues:
+
+     * If pipeline setup fails due to `XML::Parser` module, you need to install XML parser C libraries.
+     * On Ubuntu / Debian based Linux distributions, as `root` user, do:
+     
+          apt-get install libexpat1 libexpat-dev
+                    
+     * On RedHat / Fedora / CentOS based Linux distributions, as `root` user do:
+     
+          yum install expat expat-devel
+
 
 =========
 Cheers,
