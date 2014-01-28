@@ -404,7 +404,7 @@ sub setup_ncRNAScan {
     system("mkdir $install_dir/PERLLIBS") if (!-d "$install_dir/PERLLIBS");
     my $custom_pm_log = `cd $install_dir/.build/Perl-for-Bioinformatics-master/IO-Routine;perl Makefile.PL PREFIX=$install_dir/PERLLIBS LIB=$install_dir/PERLLIBS/lib && make && make test && make install; 2>&1`;
 
-    if ($custom_pm_log =~ m/fail|error/i) {
+    if ($custom_pm_log =~ m/fail|error|cannot/i) {
 	succ_or_fail(0, 'IO::Routine');
     }
     else {
