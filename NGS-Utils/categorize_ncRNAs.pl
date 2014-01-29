@@ -534,7 +534,7 @@ sub store_coords {
 	$exon_ends =~ s/\,$//;
 	$io->error('Supplied file [ ' . $io->file_basename($f, 'suffix') . ' ] does not seem to be in gene prediction format...' .
 		   "\n\nError occured on line:\n\n$line\n")
-	    if ($chr !~ m/^chr/i || $strand !~ m/^\+|\-|\.$/ || $num_exons !~ m/\d+/);
+	    if ($chr !~ m/^(chr|ens|uc)/i || $strand !~ m/^\+|\-|\.$/ || $num_exons !~ m/\d+/);
 	
 	push @{$store->{lc($chr)}}, "$strand|$tr_start|$tr_end|$cds_start|$cds_end|$num_exons|$exon_starts|$exon_ends|$t_id";
     }
