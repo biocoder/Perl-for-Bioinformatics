@@ -13,7 +13,8 @@ my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
     $fetch_sc_opts, $categorize_sc_opts,
-    $cuffcmp_opts, $deps, $run, $out, $start_cpc);
+    $cuffcmp_opts, $deps, $run, $out, $start_cpc, 
+    $start_rnafold);
 
 my $is_valid_option = GetOptions('help:s'            => \$help,
                                  'quiet'             => \$quiet,
@@ -24,7 +25,8 @@ my $is_valid_option = GetOptions('help:s'            => \$help,
 				 'cat-ncRNAs=s'      => \$categorize_sc_opts,
 				 'fetch-seq=s'       => \$fetch_sc_opts,
 				 'get-uq-feat=s'     => \$get_uq_sc_opts,
-				 'cpc'               => \$start_cpc);
+				 'cpc'               => \$start_cpc,
+				 'rnafold'           => \$start_rnafold);
 
 my $CAT_SC = 'categorize_ncRNAs.pl';
 my $FETCH_SC = 'fetch_seq_from_ucsc.pl';
@@ -46,12 +48,13 @@ elsif (defined $help && $help ne '') {
     system("perl $pl_inc_string $deps->{'cat'} -h") if ($help =~ m/cat|cat-ncRNAs/i);
     system("perl $pl_inc_string $deps->{'get'} -h") if ($help =~ m/get|get-uq-feat/i);
     system("perl $pl_inc_string $deps->{'fetch'} -h") if ($help =~ m/fetch|fetch-seq/i);
+    system("$deps->{'RNAfold'} --detailed-help") if ($help =~ m/rnafold|rna|fold/i);
     print "\nSee http://cpc.cbi.pku.edu.cn/docs/install_guide.jsp for help documentation.\n\n" if ($help =~ m/cpc/i);
     close $depconf_fh;
     close $pl_dep_paths_fh;
 }
 else {
-    die "\nInvalid Option:$! See $0 -help for valid options.\n\n";
+    die "\nInvalid / No Option(s) Provided:$! See $0 -help for valid options.\n\n";
 }
 		
 
@@ -310,10 +313,11 @@ sub run_ncRNAScan {
 	    
 	    if (-e $CPC_out_file && -s $CPC_out_file) {
 		$io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | ".
-					    "while read trid; do grep \$trid $unique_gtf; done > $ncRNAScan_final_trs",
-					    'Getting noncoding "only" transcripts [ ' .
-					    $io->file_basename($unique_gtf, 'suffix') .
-					    " ] ...\n");
+					    "while read trid; do grep \$trid $unique_gtf; done > $ncRNAScan_final_trs");
+
+		$io->c_time('Getting noncoding "only" transcripts [ ' .
+			    $io->file_basename($unique_gtf, 'suffix') .
+			    " ] ...\n");
 	    }
 	    else {
 		$io->error('CPC prediction step seems to have failed... Bailing out!');
@@ -322,38 +326,42 @@ sub run_ncRNAScan {
 
 	    #### Do RNAfold and draw entropy plot #####################################################################
 
-	    $io->c_time('Running RNAfold predictions on ' . $io->file_basename($ncRNAScan_unique_seq_file, 'suffix'));
+	    do {
 
-	    $io->execute_system_command($deps->{'RNAfold'} . 
-					' -p < ' . $ncRNAScan_unique_seq_file . ' > ' . $RNAfold_mfe,
-					"Command call:\n" .
-					"-------------\n" . $deps->{'RNAfold'} .
-                                        ' -p < ' . $ncRNAScan_unique_seq_file . ' > ' . $RNAfold_mfe);
-
-	    $io->c_time('Generating RNAfold plots');
-
-	    opendir (RNAfold_pl, $RNAfold_dir) || 
-		$io->error("Cannot open directory $RNAfold_dir to generate plots");
-
-	    push my @RNA_relPlots, grep {/\_dp\.ps$/} readdir RNAfold_pl;
-	    
-	    foreach my $dp_ (@RNA_relPlots) {
-		$dp_ = $RNAfold_dir . '/' . $dp_;
-		my $sp_ = $RNAfold_dir . '/' . $io->file_basename($dp_, 'suffix');
-		$sp_ =~ s/\_dp\.ps$/\_sp\.ps/i;
-		my $ps = $sp_;
-		$ps =~ s/\_sp\.ps$/\.ps/;
+		$io->c_time('Module 6: Running RNAfold predictions on ' . $io->file_basename($ncRNAScan_unique_seq_file, 'suffix'));
 		
-		$io->execute_system_command($deps->{'relplot'} . ' ' . $dp_ . ' ' . $sp_ . ' > ' . $ps,
+		$io->execute_system_command($deps->{'RNAfold'} . 
+					    ' -p < ' . $ncRNAScan_unique_seq_file . ' 2>&1 ' . $RNAfold_mfe,
 					    "Command call:\n" .
+					"-------------\n" . $deps->{'RNAfold'} .
+					    ' -p < ' . $ncRNAScan_unique_seq_file . ' 2>&1 ' . $RNAfold_mfe);
+		
+		$io->c_time('Generating RNAfold plots');
+		
+		opendir (RNAfold_pl, $RNAfold_dir) || 
+		    $io->error("Cannot open directory $RNAfold_dir to generate plots");
+		
+	    push my @RNA_relPlots, grep {/\_dp\.ps$/} readdir RNAfold_pl;
+		
+		foreach my $dp_ (@RNA_relPlots) {
+		    $dp_ = $RNAfold_dir . '/' . $dp_;
+		    my $sp_ = $RNAfold_dir . '/' . $io->file_basename($dp_, 'suffix');
+		    $sp_ =~ s/\_dp\.ps$/\_sp\.ps/i;
+		my $ps = $sp_;
+		    $ps =~ s/\_sp\.ps$/\.ps/;
+		    
+		    $io->execute_system_command($deps->{'relplot'} . ' ' . $dp_ . ' ' . $sp_ . ' > ' . $ps,
+						"Command call:\n" .
 					    "-------------\n" .
-					    $deps->{'relplot'} . ' ' . $dp_ . ' ' . $sp_ . ' > ' . $ps);
-		unlink $dp_;
-		unlink $sp_;
-
-		$io->error('RNAfold prediction step failed. Bailing out!') if (!-e $ps || !-s $ps);
-	    }
-
+						$deps->{'relplot'} . ' ' . $dp_ . ' ' . $sp_ . ' > ' . $ps);
+		    unlink $dp_;
+		    unlink $sp_;
+		    
+		    $io->error('RNAfold prediction step failed. Bailing out!') if (!-e $ps || !-s $ps);
+		}
+		close RNAfold_pl;    
+	    } if (defined $start_rnafold);
+		
 	    $io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | ".
 					"while read trid; do find $RNAfold_dir '\$trid\*' exec mv -t $RNAfold_dir_final {} \\;; done",
 					"Command call:\n" .
@@ -364,7 +372,7 @@ sub run_ncRNAScan {
 					$io->file_basename($unique_gtf, 'suffix') .
 					" ] ...\n");
   
-	    close RNAfold_pl;    
+	    
 	}
 
 	close ncRNAScan_fetch_seq_mod;
@@ -797,7 +805,7 @@ Examples:
 
     perl ncRNAScan -h
 
-    perl ncRNAScan -run -out /data/ncRNAScan/ -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transscripts2.gtf' -cat-ncRNAs '-fpkm 2 -l 200 -min-exons 2 -antisense' -get-uq-feat '-sf known_ncRNAs.bed' -fetch-seq '-db mm10' -cpc
+    perl ncRNAScan -run -out /data/ncRNAScan/ -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transscripts2.gtf' -cat-ncRNAs '-fpkm 2 -l 200 -min-exons 2 -antisense' -get-uq-feat '-sf known_ncRNAs.bed' -fetch-seq '-db mm10' -cpc -rna
 
 
 =head1 DESCRIPTION
@@ -810,35 +818,53 @@ This pipeline script will bind together the functionality of the tools / scripts
 
     The transcript assembly can be compared to known annotation of choice to classify them into different class codes (http://cufflinks.cbcb.umd.edu/manual.html#class_codes) using Cuffcompare.
 
-    To get help documentation about this module, run: perl ncRNAScan -h cuff
+    To get help documentation about this module, run:
+
+     perl ncRNAScan -h cuff
 
 =item 2. categorize_ncRNAs.pl (ncRNAScan Option: -cat or --cat-ncRNAs)
     
     ncRNAScan uses the tracking file (*.tracking) produced by Cuffcompare, annotation data in gene prediction format and a list of supplied transcripts in GTF format to produce and categorize ncRNAs into different classes as mentioned in the paper, http://genome.cshlp.org/content/22/3/577.full. 
 
-    To get help documentation about this module, run: perl ncRNAScan -h cat
+    To get help documentation about this module, run:
+
+     perl ncRNAScan -h cat
 
 =item 3. get_unique_features.pl (ncRNAScan Option: -get or --get--uq-feat)
     
     It then compares the putative list with supplied known ncRNAs in BED format to get features that do not overlap any known ncRNAs.
 
-    To get help documentation about this module, run: perl ncRNAScan -h get
+    To get help documentation about this module, run:
+
+     perl ncRNAScan -h get
 
 =item 4. fetch_seq_from_ucsc.pl (ncRNAScan Option: -fetch or --fetch-seq)
     
     This list is then used to fetch DNA sequence of those transcript sequences to determine the coding potential using CPC.
     
-    To get help documentation about this module, run: perl ncRNAScan -h fetch
+    To get help documentation about this module, run:
+    
+     perl ncRNAScan -h fetch
 
 =item 5. CPC.sh (ncRNAScan Option -cpc or --cpc)
     
-    In the final step, the fetched FASTA sequences are used to determine the coding potential and those that are flagged as "noncoding" are used to create the final list of high confidence ncRNAs.
+    In this step, the fetched FASTA sequences are used to determine the coding potential and those that are flagged as "noncoding" are used to create the final list of high confidence ncRNAs. This step may take a while to finish.
 
-    To get help documentation about this module, run: perl ncRNAScan -h cpc
+    To get help documentation about this module, run:
+
+     perl ncRNAScan -h cpc
+
+=item 6. RNAfold (ncRNAScan Option -rna or --rnafold)
+
+    In the final step, ncRNAScan pipeline invokes RNAfold program to calculate minimum free energy structure of the predicted non-coding RNA. This step may take a while to finish.
+
+    To get help documentation about this module, run:
+    
+     perl ncRNAScan -h rna
 
 =back
 
-The final output is a putative list of ncRNAs in GTF format that can be directly uploaded as custom tracks to Genome Browsers, such as UCSC etc...
+The final output is a putative list of ncRNAs in GTF format that can be directly uploaded as custom tracks to Genome Browsers, such as UCSC etc... and predicted secondary structures by RNAfold.
 
 The pipeline has the ability to run each of these individual modules if any of them fail during the initial run.
 
@@ -877,7 +903,11 @@ perl ncRNAScan -setup
 
 =item * Run CPC module of the pipeline:
 
-    perl ncRNAScan -cpc
+    perl ncRNAScan -run -out /data/ncRNAScan -cpc
+
+=item * Run RNAfold module of the pipeline:
+
+    perl ncRNAScan -run -out /data/ncRNAScan -rna
 
 =back
 
@@ -915,6 +945,10 @@ ncRNAScan takes the following arguments:
 
     Run the CPC module. No options are required.
 
+=item -rna or --rnafold 
+
+    Run RNAfold module of the pipeline. No options required
+
 =back
 
 =head1 AUTHOR
@@ -927,6 +961,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Oct-30-2013
+May-07-2014
 
 =cut
