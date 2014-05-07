@@ -389,6 +389,7 @@ sub setup_ncRNAScan {
     }
     elsif ($dl_util =~ m/.+?(wget)$/i) {
 	succ_or_fail(1, $1);
+	$dl_util .= ' --no-check-certificate ';
     }
     else{
 	succ_or_fail(0, 'Curl|Wget');
@@ -414,13 +415,17 @@ sub setup_ncRNAScan {
 	system("rm -rf $install_dir/.build");
     }
 
+    if (-d '.build') {
+	system("rm -rf .build");
+    }
+
     system("mkdir $install_dir/.build");
     succ_or_fail(0, '.build dir') if (!-d "$install_dir/.build");
 
     system("rm $install_dir/master.zip") if (-e "$install_dir/master.zip");
 
     my $dl_util_slave = '';
-    if ($dl_util =~ m/.*?wget$/i) {
+    if ($dl_util =~ m/.*?wget\s+/i) {
       $dl_util_slave = $dl_util . ' -O master.zip ';
     }
     else {
@@ -440,6 +445,7 @@ sub setup_ncRNAScan {
 
     # Use cpanm to install Set::IntervalTree
     system("$dl_util https://raw.githubusercontent.com/miyagawa/cpanminus/master/cpanm  > /dev/null 2>&1");
+    succ_or_fail(0, 'cpanm') if (!-e 'cpanm');
     system("mv cpanm $install_dir/.build");
     system("chmod 755 $install_dir/.build/cpanm");
 
