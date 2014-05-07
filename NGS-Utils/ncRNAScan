@@ -203,8 +203,8 @@ sub run_ncRNAScan {
 							      join('-', split(/\-|\--/, $get_uq_sc_opts)) .
 							      ' -stdout -unique -kc 3 -ck transcript ' .
 							      " > $unique_ncRNAs");
+	    pipeline_status($io, $is_failed);
 	}
-	pipeline_status($io, $is_failed);
 	
 	close ncRNAScan_categorize_mod;
 		
@@ -241,14 +241,14 @@ sub run_ncRNAScan {
 							 join('-', split(/\-|\--/, $fetch_sc_opts)) .
 							 ' -tmap ' . $ncRNAScan_unique_file .
 							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t'");
+	    pipeline_status($io, $is_failed);
 	}
-	pipeline_status($io, $is_failed);
 	
 	close ncRNAScan_get_unique_mod;
 	
     } if (defined($fetch_sc_opts) && $fetch_sc_opts ne '');
     
-    # Run CPC ########################################################################################
+    # Run CPC and RNAfold ############################################################################
     do {
 
 	$io->c_time('Module 5: Running CPC.sh');
@@ -287,9 +287,13 @@ sub run_ncRNAScan {
 	    my $CPC_out_file = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.CPC.predict.txt';
 	    my $cpc_work_dir = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.CPC.out' ;
 	    my $ncRNAScan_final_trs = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.final.gtf';
+	    my $RNAfold_dir = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.RNAfold.pre';
+	    my $RNAfold_dir_final = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.RNAfold';
+	    my $RNAfold_mfe = $RNAfold_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.mfe';
 	    my $unique_gtf = $outdir . 'get_unique_features/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.gtf';
 	    
 	    $io->execute_system_command("mkdir -p $cpc_work_dir");
+	    $io->execute_system_command("mkdir -p $RNAfold_dir");
 	    
 	    $io->execute_system_command($deps->{'cpc'} . 
 					' "' . $ncRNAScan_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . '" ' .
@@ -301,7 +305,7 @@ sub run_ncRNAScan {
 	    
 	    if (-e $CPC_out_file && -s $CPC_out_file) {
 		$io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | ".
-					    "while read line; do grep \$line $unique_gtf; done > $ncRNAScan_final_trs",
+					    "while read trid; do grep \$trid $unique_gtf; done > $ncRNAScan_final_trs",
 					    'Getting noncoding "only" transcripts [ ' .
 					    $io->file_basename($unique_gtf, 'suffix') .
 					    " ] ...\n");
@@ -309,7 +313,55 @@ sub run_ncRNAScan {
 	    else {
 		$io->error('CPC prediction step seems to have failed... Bailing out!');
 	    }
+	    
+
+	    #### Do RNAfold and draw entropy plot #####################################################################
+
+	    $io->c_time('Running RNAfold predictions on ' . $io->file_basename($ncRNAScan_unique_seq_file, 'suffix'));
+
+	    $io->execute_system_command($deps->{'RNAfold'} . 
+					' -p < ' . $ncRNAScan_unique_seq_file . ' > ' . $RNAfold_mfe,
+					"Command call:\n" .
+					"-------------\n" . $deps->{'RNAfold'} .
+                                        ' -p < ' . $ncRNAScan_unique_seq_file . ' > ' . $RNAfold_mfe);
+
+	    $io->c_time('Generating RNAfold plots');
+
+	    opendir (RNAfold_pl, $RNAfold_dir) || 
+		$io->error("Cannot open directory $RNAfold_dir to generate plots");
+
+	    push my @RNA_relPlots, grep {/\_dp\.ps$/} readdir RNAfold_pl;
+	    
+	    foreach my $dp_ (@RNA_relPlots) {
+		$dp_ = $RNAfold_dir . '/' . $dp_;
+		my $sp_ = $RNAfold_dir . '/' . $io->file_basename($dp_, 'suffix');
+		$sp_ =~ s/\_dp\.ps$/\_sp\.ps/i;
+		my $ps = $sp_;
+		$ps =~ s/\_sp\.ps$/\.ps/;
+		
+		$io->execute_system_command($deps->{'relplot'} . ' ' . $dp_ . ' ' . $sp_ . ' > ' . $ps,
+					    "Command call:\n" .
+					    "-------------\n" .
+					    $deps->{'relplot'} . ' ' . $dp_ . ' ' . $sp_ . ' > ' . $ps);
+		unlink $dp_;
+		unlink $sp_;
+
+		$io->error('RNAfold prediction step failed. Bailing out!') if (!-e $ps || !-s $ps);
+	    }
+
+	    $io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | ".
+					"while read trid; do find $RNAfold_dir '\$trid\*' exec mv -t $RNAfold_dir_final {} \\;; done",
+					"Command call:\n" .
+					"-------------\n" .
+					'grep noncoding '. $CPC_out_file . ' | cut -d \"|\" -f 1 | ' .
+                                        'while read trid; do find ' . $RNAfold_dir . ' \'\$trid\*\' exec mv -t ' . $RNAfold_dir_final . ' {} \\;; done' .
+					"\n\n" . 'Getting noncoding "only" transcripts [ ' .
+					$io->file_basename($unique_gtf, 'suffix') .
+					" ] ...\n");
+  
+	    close RNAfold_pl;    
 	}
+
 	close ncRNAScan_fetch_seq_mod;
     	
     } if (defined $start_cpc);
@@ -703,6 +755,7 @@ sub get_deps {
     ($deps->{'fetch'}) = ($dep_tools =~ m/(.+?$FETCH_SC)/i);
     ($deps->{'get'}) = ($dep_tools =~ m/(.+?$GET_UQ_SC)/i);
     ($deps->{'cpc'}) = ($dep_tools =~ m/(.+?$CPC_SH_SC)/i);
+    ($deps->{'relplot'}) = ($dep_tools =~ m/(.+?$RELPLOT_MOD_SC)/i);
     return;
 }
 
