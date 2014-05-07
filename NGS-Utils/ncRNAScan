@@ -439,7 +439,7 @@ sub setup_ncRNAScan {
     system("unzip -d $install_dir/.build $install_dir/.build/master.zip  > /dev/null 2>&1");
 
     # Use cpanm to install Set::IntervalTree
-    system("$dl_util https://raw.github.com/miyagawa/cpanminus/master/cpanm  > /dev/null 2>&1");
+    system("$dl_util https://raw.githubusercontent.com/miyagawa/cpanminus/master/cpanm  > /dev/null 2>&1");
     system("mv cpanm $install_dir/.build");
     system("chmod 755 $install_dir/.build/cpanm");
 
