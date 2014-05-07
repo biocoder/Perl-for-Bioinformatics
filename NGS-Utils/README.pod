@@ -8,7 +8,7 @@ ncRNAScan is a pipeline to extract putative novel ncRNAs ab initio, given a list
 
 Complete Description: 
 
-    perldoc ncRNAScan
+ perldoc ncRNAScan
 
 Examples:
 
