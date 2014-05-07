@@ -50,6 +50,9 @@ elsif (defined $help && $help ne '') {
     close $depconf_fh;
     close $pl_dep_paths_fh;
 }
+else {
+    die "\nInvalid Option:$! See $0 -help for valid options.\n\n";
+}
 		
 
 sub run_ncRNAScan {
@@ -67,13 +70,15 @@ sub run_ncRNAScan {
 
     my $io = IO::Routine->new($help, $quiet);
 
+    $io->verify_options([$out]) if (defined $help && $help eq '');
+
     if (!defined $out) {
 	$outdir = $io->validate_create_path($out, 'do not create',
-					    'Directory path to ncRNAScan pipeline');
+					    'ncRNAScan pipeline output directory');
     }
     else {
 	$outdir = $io->validate_create_path($out, 'create',
-					    'Directory path to ncRNAScan pipeline')
+					    'ncRNAScan pipeline output directory')
     }
 
     my $s_time = $io->start_timer;
