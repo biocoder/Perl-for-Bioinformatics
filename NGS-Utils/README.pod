@@ -12,9 +12,9 @@ Complete Description:
 
 Examples:
 
-    perl ncRNAScan -h
+ perl ncRNAScan -h
 
-    perl ncRNAScan -run -out /data/ncRNAScan/ -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transscripts2.gtf' -cat-ncRNAs '-fpkm 2 -l 200 -min-exons 2 -antisense' -get-uq-feat '-sf known_ncRNAs.bed' -fetch-seq '-db mm10' -cpc -rna
+ perl ncRNAScan -run -out /data/ncRNAScan/ -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transscripts2.gtf' -cat-ncRNAs '-fpkm 2 -l 200 -min-exons 2 -antisense' -get-uq-feat '-sf known_ncRNAs.bed' -fetch-seq '-db mm10' -cpc -rna
 
 
 =head1 DESCRIPTION
