@@ -305,8 +305,7 @@ sub run_ncRNAScan {
 					    'Making output directory for ' . $io->file_basename($deps->{'cpc'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
 		    if (!-d $cat_dir);
 				
-		$io->execute_system_command("mkdir -p $cpc_work_dir");
-		$io->execute_system_command("mkdir -p $RNAfold_dir");
+		$io->execute_system_command("mkdir -p $cpc_work_dir") if (!-d $cpc_work_dir);
 		
 		$io->execute_system_command($deps->{'cpc'} . 
 					    ' "' . $ncRNAScan_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . '" ' .
@@ -336,13 +335,18 @@ sub run_ncRNAScan {
 
 		$io->c_time('Module 6: Running RNAfold predictions [ ' . $io->file_basename($ncRNAScan_unique_seq_file, 'suffix') . ' ] ...');
 
+		$io->execute_system_command("mkdir -p $RNAfold_dir") if (!-d $RNAfold_dir);
+
 		chdir $RNAfold_dir;
+		$io->execute_system_command("mkdir -p $RNAfold_dir_final",
+					    'Making directory for final RNAfold predictions [ ' . $io->file_basename($RNAfold_dir_final) . ' ] ...')
+		    if (!-d $RNAfold_dir_final);
 		
 		$io->execute_system_command($deps->{'RNAfold'} . 
-					    ' < ' . $ncRNAScan_unique_seq_file . ' &> ' . $RNAfold_mfe,
+					    ' -p < ' . $ncRNAScan_unique_seq_file . ' &> ' . $RNAfold_mfe,
 					    "Command call:\n" .
 					"-------------\n" . $deps->{'RNAfold'} .
-					    ' < ' . $ncRNAScan_unique_seq_file . ' &> ' . $RNAfold_mfe);
+					    ' -p < ' . $ncRNAScan_unique_seq_file . ' &> ' . $RNAfold_mfe);
 		
 		$io->c_time('Generating RNAfold plots');
 		
@@ -357,15 +361,20 @@ sub run_ncRNAScan {
 		    $ss_ =~ s/\_dp\.ps$/\_ss\.ps/i;
 		    my $ps = $ss_;
 		    $ps =~ s/\_ss\.ps$/\.ps/;
+
+		    $ss_ = esc_tr_id($ss_);
+		    $dp_ = esc_tr_id($dp_);
+		    $ps = esc_tr_id($ps);
 		    
-		    $io->execute_system_command($deps->{'relplot'} . ' ' . $dp_ . ' ' . $ss_ . ' > ' . $ps,
+		    $io->execute_system_command($deps->{'relplot'} . ' -p ' . $ss_ . ' ' . $dp_ . ' > ' . $ps,
 						"Command call:\n" .
 						"-------------\n" .
-						$deps->{'relplot'} . ' ' . $dp_ . ' ' . $ss_ . ' > ' . $ps);
+						$deps->{'relplot'} . ' -p ' . $ss_ . ' ' . $dp_ . ' > ' . $ps);
 		    unlink $dp_;
 		    unlink $ss_;
 		    
-		    $io->error('RNAfold prediction step failed. Bailing out!') if (!-e $ps || !-s $ps);
+		    $io->error('RNAfold prediction step failed. Cannot generate final PostScript file from _ss.ps and _dp.ps.\nBailing out!') 
+			if (!-e $ps || !-s $ps);
 		}
 		close RNAfold_pl;    
 	    } if (defined $start_rnafold);
@@ -791,6 +800,16 @@ sub read_conf {
         die "\nCannot open $USER_HOME$conf" . ".\nMay be setup was unsuccessful (?): $!\!\n" .
         "\nRun \"perl ncRNAScan -setup\" to try to setup ncRNAScan pipeline.\n\n";
     return $conf_fh;
+}
+
+# Escape tr ids
+sub esc_tr_id {
+    my $tr_id = shift;
+
+    $tr_id =~ s/\|/\\\|/;
+    $tr_id =~ s/\:/\\\:/;
+
+    return $tr_id;
 }
 
 __END__
