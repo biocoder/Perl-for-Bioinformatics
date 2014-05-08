@@ -335,6 +335,8 @@ sub run_ncRNAScan {
 	    do {
 
 		$io->c_time('Module 6: Running RNAfold predictions [ ' . $io->file_basename($ncRNAScan_unique_seq_file, 'suffix') . ' ] ...');
+
+		chdir $RNAfold_dir;
 		
 		$io->execute_system_command($deps->{'RNAfold'} . 
 					    ' < ' . $ncRNAScan_unique_seq_file . ' &> ' . $RNAfold_mfe,
@@ -352,16 +354,16 @@ sub run_ncRNAScan {
 		foreach my $dp_ (@RNA_relPlots) {
 		    $dp_ = $RNAfold_dir . '/' . $dp_;
 		    my $sp_ = $RNAfold_dir . '/' . $io->file_basename($dp_, 'suffix');
-		    $sp_ =~ s/\_dp\.ps$/\_sp\.ps/i;
-		    my $ps = $sp_;
-		    $ps =~ s/\_sp\.ps$/\.ps/;
+		    $ss_ =~ s/\_dp\.ps$/\_ss\.ps/i;
+		    my $ps = $ss_;
+		    $ps =~ s/\_ss\.ps$/\.ps/;
 		    
-		    $io->execute_system_command($deps->{'relplot'} . ' ' . $dp_ . ' ' . $sp_ . ' > ' . $ps,
+		    $io->execute_system_command($deps->{'relplot'} . ' ' . $dp_ . ' ' . $ss_ . ' > ' . $ps,
 						"Command call:\n" .
 						"-------------\n" .
-						$deps->{'relplot'} . ' ' . $dp_ . ' ' . $sp_ . ' > ' . $ps);
+						$deps->{'relplot'} . ' ' . $dp_ . ' ' . $ss_ . ' > ' . $ps);
 		    unlink $dp_;
-		    unlink $sp_;
+		    unlink $ss_;
 		    
 		    $io->error('RNAfold prediction step failed. Bailing out!') if (!-e $ps || !-s $ps);
 		}
