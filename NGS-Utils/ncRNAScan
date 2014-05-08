@@ -353,7 +353,7 @@ sub run_ncRNAScan {
 		
 		foreach my $dp_ (@RNA_relPlots) {
 		    $dp_ = $RNAfold_dir . '/' . $dp_;
-		    my $sp_ = $RNAfold_dir . '/' . $io->file_basename($dp_, 'suffix');
+		    my $ss_ = $RNAfold_dir . '/' . $io->file_basename($dp_, 'suffix');
 		    $ss_ =~ s/\_dp\.ps$/\_ss\.ps/i;
 		    my $ps = $ss_;
 		    $ps =~ s/\_ss\.ps$/\.ps/;
