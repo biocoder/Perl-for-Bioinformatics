@@ -333,13 +333,13 @@ sub run_ncRNAScan {
 
 	    do {
 
-		$io->c_time('Module 6: Running RNAfold predictions [ ' . $io->file_basename($ncRNAScan_unique_seq_file, 'suffix') . ' ] ...');
+		$io->c_time('Module 6: Running RNAfold predictions [ on ' . $io->file_basename($ncRNAScan_unique_seq_file, 'suffix') . ' ] ...');
 
 		$io->execute_system_command("mkdir -p $RNAfold_dir") if (!-d $RNAfold_dir);
 
 		chdir $RNAfold_dir;
 
-		$io->c_time('Making directory for RNAfold predictions [ on ' . $io->file_basename($RNAfold_dir_final, 'suffix') . ' ] ...');
+		$io->c_time('Making directory for RNAfold predictions [ ' . $io->file_basename($RNAfold_dir_final, 'suffix') . ' ] ...');
 		$io->execute_system_command("mkdir -p $RNAfold_dir_final")			    
 		    if (!-d $RNAfold_dir_final);
 		
