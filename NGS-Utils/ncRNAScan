@@ -339,7 +339,7 @@ sub run_ncRNAScan {
 
 		chdir $RNAfold_dir;
 
-		$io->c_time('Making directory for RNAfold predictions [ ' . $io->file_basename($RNAfold_dir_final) . ' ] ...');
+		$io->c_time('Making directory for RNAfold predictions [ ' . $io->file_basename($RNAfold_dir_final, 'suffix') . ' ] ...');
 		$io->execute_system_command("mkdir -p $RNAfold_dir_final")			    
 		    if (!-d $RNAfold_dir_final);
 		
