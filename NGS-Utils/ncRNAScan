@@ -401,7 +401,7 @@ sub run_ncRNAScan {
 
 		$io->c_time('Moving around files and cleaning up directories ...');
 		$io->execute_system_command("mv $RNAfold_dir/*.mfe $RNAfold_dir_final/.");
-		$io->execute_system_command("rmdir $RNAfold_dir");
+		$io->execute_system_command("rm -rf $RNAfold_dir");
 
 	    } if (defined $start_rnafold);
   	}
