@@ -5,7 +5,7 @@ An attempt to provide a solution to avoid routine IO chores. Works only on UNIX 
 
 Version
 -------
-0.35
+0.36
 
 Installation
 ------------

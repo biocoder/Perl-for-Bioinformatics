@@ -23,13 +23,13 @@ IO::Routine - An attempt to provide a solution to avoid routine IO chores.
 
 =over 3
 
-Version 0.35
+Version 0.36
 
 =back
 
 =cut
 
-our $VERSION = '0.35';
+our $VERSION = '0.36';
 
 =head1 SYNOPSIS
 
@@ -891,10 +891,10 @@ sub end_timer {
 	if (sprintf("%.2f", tv_interval($start_time)) > 60) {
 	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 60), " Minute(s).\n\n";
 	}
-	elsif (( sprintf("%.2f", tv_interval($start_time)) / 60 ) > 60) {
+	elsif (( sprintf("%.2f", tv_interval($start_time)) / 3600 ) > 1) {
 	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 3600), " Hour(s).\n\n";
 	}
-	elsif ((( sprintf("%.2f", tv_interval($start_time)) / 60 ) / 60 ) > 24) {
+	elsif (( sprintf("%.2f", tv_interval($start_time)) / 86400 ) > 1) {
 	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 86400), " Day(s).\n\n";
 	}
 	elsif (sprintf("%.2f", tv_interval($start_time)) <= 60) {
