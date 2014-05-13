@@ -753,6 +753,11 @@ sub cpanm_status {
     my $install_dir = shift;
     my $pm = shift;
     my $cpanm_log = `$install_dir/.build/cpanm -f -l $install_dir/PERLLIBS $pm 2>&1`;
+    
+    if ($cpanm_log !~ m/.*?success.*/i && $pm =~ m/xml/i) {
+	print STDOUT "\nYou need to install XML parser C libraries.\n\n\t\* On Ubuntu / Debian based Linux distributions, as root user, do:\n\n\t\tapt-get install libexpat1 libexpat1-dev\n\n\t\* On RedHat / Fedora / CentOS based Linux distributions, as root user do:\n\n\t\tyum install expat expat-devel\n\n";
+	succ_or_fail(0, $pm);
+    }
 
     succ_or_fail(0, $pm) if ($cpanm_log !~ m/.*?success.*/i);
     succ_or_fail(1, $pm);
