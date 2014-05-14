@@ -162,7 +162,7 @@ sub get_putative_ncRNAs {
 		next if (!$q_t_id || $q_t_id eq '');
 		$q_t_id =~ s/\./\\./g;
 		my $t_lines = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_]", 0);
-		if ($t_lines =~ m/.+?FPKM.+?\"(.+?)\".+?cov.+?\"(.+?)\".+/i) {
+		if ($t_lines =~ m/.+?[FR]PKM.+?\"(.+?)\".+?cov.+?\"(.+?)\".+/i) {
 		    $io->execute_system_command("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/' >> $p_file_names_gtf->[$_]") if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff);
 		}
 		else {
@@ -712,7 +712,7 @@ categorize_ncRNAs.pl takes the following arguments:
 
     Default: disabled
 
-    Extract transcript features whose FPKM value is at least this much.
+    Extract transcript features whose FPKM / RPKM value is at least this much.
     This can be a floating point value.
 
 =item -cov or --cov-cutoff (Optional)
