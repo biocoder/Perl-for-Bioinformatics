@@ -65,7 +65,7 @@ if (!$macro_seen) {
     translate
     0.015 dup scale
     0 setgray
-    -6.8 -8 moveto (Entropy) gsave 0.1 dup scale show grestore
+    -0.8 -1.8 moveto (Entropy) gsave 0.1 dup scale show grestore
 grestore
 } bind def
 /colorbar { % xloc yloc colorbar -> []
@@ -103,8 +103,8 @@ foreach (@sp) {
 print "] def\n\n";
 print "/invert ", $opt_p ? 'true' : 'false', " def\n";
 print "drawreliability\n";
-print "0.1 0.1 colorbar\n";
-print "0.2 0.2 legendtext\n";
+print "0.01 0.01 colorbar\n";
+print "0.02 0.02 legendtext\n";
 print $ss_ps[1];  # print tail
 
 sub swallow_ss_ps {

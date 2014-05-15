@@ -26,7 +26,7 @@ my $is_valid_option = GetOptions('help:s'            => \$help,
 				 'fetch-seq=s'       => \$fetch_sc_opts,
 				 'get-uq-feat=s'     => \$get_uq_sc_opts,
 				 'cpc'               => \$start_cpc,
-				 'rnafold'           => \$start_rnafold);
+				 'rnafold:s'         => \$start_rnafold);
 
 my $CAT_SC = 'categorize_ncRNAs.pl';
 my $FETCH_SC = 'fetch_seq_from_ucsc.pl';
@@ -281,8 +281,8 @@ sub run_ncRNAScan {
 	    my $CPC_out_file = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.CPC.predict.txt';
 	    my $cpc_work_dir = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.CPC.out' ;
 	    my $ncRNAScan_final_trs = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.final.gtf';
-	    my $RNAfold_dir = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.RNAfold.pre';
-	    my $RNAfold_dir_final = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.RNAfold';
+	    my $RNAfold_dir = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.pre.RNAfold';
+	    my $RNAfold_dir_final = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.final.RNAfold';
 	    my $RNAfold_mfe = $RNAfold_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.mfe';
 	    my $unique_gtf = $outdir . 'get_unique_features/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.gtf';
 	    
@@ -345,10 +345,10 @@ sub run_ncRNAScan {
 		
 		$io->c_time('Running RNAfold with -p flag. This may take very long time ...');
 		$io->execute_system_command($deps->{'RNAfold'} . 
-					    ' -p < ' . $ncRNAScan_unique_seq_file . ' &> ' . $RNAfold_mfe,
+					    ' -p ' . $start_rnafold . ' < ' . $ncRNAScan_unique_seq_file . ' &> ' . $RNAfold_mfe,
 					    "Command call:\n" .
 					    "-------------\n" . $deps->{'RNAfold'} .
-					    ' -p < ' . $ncRNAScan_unique_seq_file . ' &> ' . $RNAfold_mfe);
+					    ' -p ' . $start_rnafold . ' < ' . $ncRNAScan_unique_seq_file . ' &> ' . $RNAfold_mfe);
 		
 		$io->c_time('Now generating RNAfold color plots ...');
 		
@@ -376,10 +376,10 @@ sub run_ncRNAScan {
 		    $dp_ = esc_tr_id($dp_);
 		    $ps = esc_tr_id($pre_ps);
 
-		    $io->execute_system_command($deps->{'relplot'} . ' -p ' . $ss_ . ' ' . $dp_ . ' > ' . $ps,
+		    $io->execute_system_command($deps->{'relplot'} . $ss_ . ' ' . $dp_ . ' > ' . $ps,
 						"Command call:\n" .
 						"-------------\n" .
-						$deps->{'relplot'} . ' -p ' . $ss_ . ' ' . $dp_ . ' > ' . $ps);
+						$deps->{'relplot'} . $ss_ . ' ' . $dp_ . ' > ' . $ps);
 		    
 		    $io->c_time('Cleaning up *_ss.ps and *_dp.ps files ...');
 		    $io->execute_system_command("rm $dp_");
