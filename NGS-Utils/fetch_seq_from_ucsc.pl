@@ -167,7 +167,7 @@ while (my $line = <$tmap_fh>) {
     $seqs_fetched++;
 }
 
-$io->c_time("$seqs_feteched sequences feteched...");
+$io->c_time("$seqs_fetched sequences feteched...");
 
 $io->end_timer($s_time);
 close $tmap_fh;
