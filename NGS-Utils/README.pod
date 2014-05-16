@@ -1,6 +1,3 @@
-☲☴☳ ncRNAScan
-=============
-
 =head1 NAME
 
 ncRNAScan
