@@ -85,7 +85,8 @@ sub run_ncRNAScan {
     }
 
     my $s_time = $io->start_timer;
-    $io->c_time('Starting ncRNAScan Pipeline...');
+    binmode(STDOUT, ":utf8");
+    $io->c_time("Starting \x{2632}\x{2634}\x{2633} ncRNAScan Pipeline...");
 
     my $dep_tools_fh = $io->open_file('<', $USER_HOME . '/.ncRNAScan.depconf');
     get_deps($dep_tools_fh);
@@ -412,7 +413,7 @@ sub run_ncRNAScan {
     close $dep_tools_fh;
     close $pl_dep_paths_fh;
     
-    $io->c_time('ncRNAScan Pipeline Finished!');
+    $io->c_time("\x{2632}\x{2634}\x{2633} ncRNAScan Pipeline Finished!");
     $io->end_timer($s_time);
 }
 
