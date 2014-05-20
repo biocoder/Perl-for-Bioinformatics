@@ -451,6 +451,9 @@ sub setup_ncRNAScan {
     # Uname
     check_util('uname');
 
+    # bunzip2
+    check_util('bunzip2');
+
     print "\n\nWe definetely need the custom module, IO::Routine.\n" .
       "We also need good grace of cpanm to install remaining modules.\n\n" .
 	"Attempting to fetch IO::Routine from Perl-for-Bioinformatics repository on github...\n";
@@ -526,6 +529,10 @@ sub setup_ncRNAScan {
 	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/.ncRNAScan.depbin/* $install_dir/.ncRNAScan.depbin/.");
 	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/* $install_dir/.");
     }
+
+    print "Decompressing Rfam CM files...\n";
+    system("bunzip2 $install_dir/.ncRNAScan.depbin/Rfam.cm.1_1.bz2");
+    system("bunzip2 $install_dir/.ncRNAScan.depbin/Rfam.cm.1_1.i1m.bz2");
     
     print "\nCleaning up build directory...\n";
     system("rm -rf $install_dir/.build");
@@ -626,6 +633,8 @@ sub setup_ncRNAScan {
     print $dep_fh check_bio_util('blastall', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('RNAfold', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('gtfToGenePred', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('cmscan', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('Rfam.cm.1_1', $install_dir, $sys_arch), "\n";
     print $dep_fh "$install_dir/" . $CAT_SC, "\n" if (check_native("$install_dir/" . $CAT_SC));
     print $dep_fh "$install_dir/" . $FETCH_SC, "\n" if (check_native("$install_dir/" . $FETCH_SC));
     print $dep_fh "$install_dir/" . $GET_UQ_SC, "\n" if (check_native("$install_dir/" . $GET_UQ_SC));
@@ -806,6 +815,8 @@ sub get_deps {
     ($deps->{'blastall'}) = ($dep_tools =~ m/(.+?blastall)/i);
     ($deps->{'RNAfold'}) = ($dep_tools =~ m/(.+?rnafold)/i);
     ($deps->{'bin-gtfToGenePred'}) = ($dep_tools =~ m/(.+?gtfToGenePred)/i);
+    ($deps->{'cmscan'}) = ($dep_tools =~ m/(.+?cmscan)/i);
+    ($deps->{'rfam_cm'}) = ($dep_tools =~ m/(.+?Rfam\.cm\.1\_1)/i);
     ($deps->{'cat'}) = ($dep_tools =~ m/(.+?$CAT_SC)/i);
     ($deps->{'fetch'}) = ($dep_tools =~ m/(.+?$FETCH_SC)/i);
     ($deps->{'get'}) = ($dep_tools =~ m/(.+?$GET_UQ_SC)/i);
