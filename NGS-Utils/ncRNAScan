@@ -466,6 +466,14 @@ sub setup_ncRNAScan {
 	system("rm -rf .build");
     }
 
+    if (-d "$install_dir/.ncRNAScan.depbin") {
+	system("rm -rf $install_dir/.ncRNAScan.depbin");
+    }
+
+    if (-d '.ncRNAScan.depbin') {
+	system("rm -rf .ncRNAScan.depbin");
+    }
+
     system("mkdir $install_dir/.build");
     succ_or_fail(0, '.build dir') if (!-d "$install_dir/.build");
 
@@ -524,13 +532,13 @@ sub setup_ncRNAScan {
     chop $inst_file_parts[1] if ($inst_file_parts[1] =~ m/\/$/);
 
     if (!-d "$inst_file_parts[1]/.ncRNAScan.depbin") {
-	print "\nMoving required tools and scripts to current install path...\n";
+	print "\n\nMoving required tools and scripts to current install path...\n";
 	system("mkdir $install_dir/.ncRNAScan.depbin");
 	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/.ncRNAScan.depbin/* $install_dir/.ncRNAScan.depbin/.");
 	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/* $install_dir/.");
     }
 
-    print "Decompressing Rfam CM files...\n";
+    print "\nInflating Rfam CM files...\n";
     system("bunzip2 $install_dir/.ncRNAScan.depbin/Rfam.cm.1_1.bz2");
     system("bunzip2 $install_dir/.ncRNAScan.depbin/Rfam.cm.1_1.i1m.bz2");
     
@@ -634,7 +642,7 @@ sub setup_ncRNAScan {
     print $dep_fh check_bio_util('RNAfold', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('gtfToGenePred', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('cmscan', $install_dir, $sys_arch), "\n";
-    print $dep_fh check_bio_util('Rfam.cm.1_1', $install_dir, $sys_arch), "\n";
+    print $dep_fh "$install_dir/.ncRNAScan.depbin/Rfam.cm.1_1\n" if (-e "$install_dir/.ncRNAScan.depbin/Rfam.cm.1_1");
     print $dep_fh "$install_dir/" . $CAT_SC, "\n" if (check_native("$install_dir/" . $CAT_SC));
     print $dep_fh "$install_dir/" . $FETCH_SC, "\n" if (check_native("$install_dir/" . $FETCH_SC));
     print $dep_fh "$install_dir/" . $GET_UQ_SC, "\n" if (check_native("$install_dir/" . $GET_UQ_SC));
