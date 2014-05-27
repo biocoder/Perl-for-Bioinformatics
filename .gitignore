@@ -20,3 +20,5 @@
 # NGS-Utils #
 ##############################
 /NGS-Utils/.ncRNAScan.depconf
+/NGS-Utils/.ncRNAScan.depbin/Rfam.cm.1_1
+/NGS-Utils/.ncRNAScan.depbin/Rfam.cm.1_1.i1m
