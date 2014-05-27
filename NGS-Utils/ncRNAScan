@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Getopt::Long;
 use File::Temp;
+use Cwd qw (abs_path);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
@@ -14,7 +15,7 @@ my $AUTHORFULLNAME = 'Kranti Konganti';
 my ($help, $quiet, $setup, $get_uq_sc_opts,
     $fetch_sc_opts, $categorize_sc_opts,
     $cuffcmp_opts, $deps, $run, $out, $start_cpc, 
-    $start_rnafold);
+    $start_rnafold, $rm_int_plots, $start_infernal);
 
 my $is_valid_option = GetOptions('help:s'            => \$help,
                                  'quiet'             => \$quiet,
@@ -26,7 +27,9 @@ my $is_valid_option = GetOptions('help:s'            => \$help,
 				 'fetch-seq=s'       => \$fetch_sc_opts,
 				 'get-uq-feat=s'     => \$get_uq_sc_opts,
 				 'cpc'               => \$start_cpc,
-				 'rnafold:s'         => \$start_rnafold);
+				 'rnafold:s'         => \$start_rnafold,
+				 'rm-int-plots'      => \$rm_int_plots,
+				 'infernal:s'        => \$start_infernal);
 
 my $CAT_SC = 'categorize_ncRNAs.pl';
 my $FETCH_SC = 'fetch_seq_from_ucsc.pl';
@@ -257,7 +260,7 @@ sub run_ncRNAScan {
 	
     } if (defined($fetch_sc_opts) && $fetch_sc_opts ne '');
     
-    # Finally Run CPC and RNAfold #########################################################################
+    # Finally Run CPC, RNAfold and Infernal ##############################################################
     do {
 	
 	opendir (ncRNAScan_fetch_seq_mod, $outdir . 'fetch_seq_from_ucsc') ||
@@ -276,8 +279,12 @@ sub run_ncRNAScan {
 	my $ncRNAScan_final = $outdir . 'ncRNAScan.final';
 	my $cat_dir = $outdir . 'CPC';
 	
-
+	$io->execute_system_command("mkdir -p $ncRNAScan_final",
+				    'Making output directory to store final list of ncRNAs [ ' . $io->file_basename($ncRNAScan_final) . '  ]')
+	    if (!-d $ncRNAScan_final);
+	
 	foreach my $ncRNAScan_unique_seq_file (@ncRNAScan_unique_seq_files) {
+
 	    $ncRNAScan_unique_seq_file = $outdir . 'fetch_seq_from_ucsc/' . $ncRNAScan_unique_seq_file;
 	    my $CPC_out_file = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.CPC.predict.txt';
 	    my $cpc_work_dir = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.CPC.out' ;
@@ -286,6 +293,8 @@ sub run_ncRNAScan {
 	    my $RNAfold_dir_final = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.final.RNAfold';
 	    my $RNAfold_mfe = $RNAfold_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.mfe';
 	    my $unique_gtf = $outdir . 'get_unique_features/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.gtf';
+	    my $pre_infernal = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.pre.infernal';
+	    my $final_infernal = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.final.infernal';
 	    
 
 	    # Run CPC ####################################################################################
@@ -297,11 +306,7 @@ sub run_ncRNAScan {
 		    $io->error("Environment variable CPC_HOME must be set pointing to CPC directory before running CPC.\n" .
 			       'See CPC installation instructions (http://cpc.cbi.pku.edu.cn/docs/install_guide.jsp)');
 		}
-	    		
-		$io->execute_system_command("mkdir -p $ncRNAScan_final",
-					    'Making output directory to store final list of ncRNAs [ ' . $io->file_basename($ncRNAScan_final) . '  ]')
-		    if (!-d $ncRNAScan_final);
-	    
+	    			    
 		$io->execute_system_command("mkdir -p $cat_dir",
 					    'Making output directory for ' . $io->file_basename($deps->{'cpc'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
 		    if (!-d $cat_dir);
@@ -382,33 +387,65 @@ sub run_ncRNAScan {
 						"-------------\n" .
 						$deps->{'relplot'} . $ss_ . ' ' . $dp_ . ' > ' . $ps);
 		    
-		    $io->c_time('Cleaning up *_ss.ps and *_dp.ps files ...');
-		    $io->execute_system_command("rm $dp_");
-		    $io->execute_system_command("rm $ss_");
+		    $io->c_time('Cleaning up *_ss.ps and *_dp.ps files ...'), 
+		    $io->execute_system_command("rm $dp_"),
+		    $io->execute_system_command("rm $ss_")
+			if ($rm_int_plots);
 		    
 		    $io->error('RNAfold prediction step failed. Cannot generate final PostScript file from _ss.ps and _dp.ps.' . "\nBailing out!") 
 			if (!-e $pre_ps || !-s $pre_ps);
 		}
 		close RNAfold_pl;
 		
-		$io->c_time('Filtering transcripts [ ' . $io->file_basename($unique_gtf, 'suffix') . ' ] ...\n');    
-		$io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | " .
-                                            "while read trid; do find $RNAfold_dir -type f -name \$trid\\* -exec mv -t $RNAfold_dir_final" . "/\ {} \\;; done;",
-					    "Command call:\n" .
-                                            "-------------\n" .
-                                            "grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | " .
-                                            "while read trid; do find $RNAfold_dir -type f -name \$trid\\* -exec mv -t $RNAfold_dir_final" . "/\ {} \\;; done;" .
-                                            "\n\n");
+		if (defined $start_cpc) {
+		    $io->c_time('Filtering transcripts [ ' . $io->file_basename($unique_gtf, 'suffix') . ' ] ...\n');    
+		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | " .
+						"while read trid; do find $RNAfold_dir -type f -name \$trid\\* -exec mv -t $RNAfold_dir_final" . "/\ {} \\;; done;");
+		}
+		else {
+		    $io->c_time('CPC was not run! Will retain all transcripts.');
+		    $io->execute_system_command("mv $RNAfold_dir/*.ps $RNAfold_dir_final/.");
+		}
 
 		$io->c_time('Moving around files and cleaning up directories ...');
 		$io->execute_system_command("mv $RNAfold_dir/*.mfe $RNAfold_dir_final/.");
-		$io->execute_system_command("rm -rf $RNAfold_dir");
+		$io->execute_system_command("mv $RNAfold_dir $RNAfold_dir_final/.");
 
 	    } if (defined $start_rnafold);
+
+	    do {
+		my $tbl = $final_infernal . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.txt';
+		my $raw = $final_infernal . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.cmscan';
+
+		$io->execute_system_command("mkdir -p $final_infernal")
+		    if (!-d $final_infernal);		
+
+		$io->c_time('Running cmscan from Infernal...');
+		$io->execute_system_command($deps->{'cmscan'} . ' ' . $start_infernal . ' --tblout ' .
+					    $tbl . ' ' . $deps->{'rfam_cm'} . ' ' . $ncRNAScan_unique_seq_file . ' &> ' . $raw,
+					    "Command call:\n" .
+                                            "-------------\n" . $deps->{'cmscan'} . ' ' . $start_infernal . ' --tblout ' .
+                                            $tbl . ' ' . $deps->{'rfam_cm'} . ' ' . $ncRNAScan_unique_seq_file . ' &> ' . $raw);
+
+		if (defined $start_cpc) {
+		    $io->exist_sys_cmd(['sort', 'head', 'awk', 'uniq']);
+		    my $infernal_annot = $io->execute_get_sys_cmd_output(0, "grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | " .
+									 "while read trid; do annot=`grep \"\$trid\" $tbl | sort -k15,15nr | " .
+									 "uniq | awk '{\$1=\"\";for(i=3;i<=17;i++)\$i=\"\";print \$0}' | " .
+									 "cut -d \" \" -f 2- | sed -e 's/\\s\\+/ /g' | head -n 1`;" .
+									 "infernal_annot='Infernal prediction \"'\$annot'\";'" .
+									 "sed -i 's/\\(\$trid.*$\\)/\\1 \$infernal_annot/g' $ncRNAScan_unique_seq_file;" .
+									 " done;");
+		}
+		else {
+		}
+	      		    
+	    } if (defined $start_infernal);
+	    
   	}
 	close ncRNAScan_fetch_seq_mod;
     	
-    } if (defined $start_cpc || defined $start_rnafold);
+    } if (defined $start_cpc || defined $start_rnafold || defined $start_infernal);
 
     close $dep_tools_fh;
     close $pl_dep_paths_fh;
@@ -466,14 +503,6 @@ sub setup_ncRNAScan {
 	system("rm -rf .build");
     }
 
-    if (-d "$install_dir/.ncRNAScan.depbin") {
-	system("rm -rf $install_dir/.ncRNAScan.depbin");
-    }
-
-    if (-d '.ncRNAScan.depbin') {
-	system("rm -rf .ncRNAScan.depbin");
-    }
-
     system("mkdir $install_dir/.build");
     succ_or_fail(0, '.build dir') if (!-d "$install_dir/.build");
 
@@ -481,7 +510,7 @@ sub setup_ncRNAScan {
 
     my $dl_util_slave = '';
     if ($dl_util =~ m/.*?wget\s+/i) {
-      $dl_util_slave = $dl_util . ' -O master.zip ';
+      $dl_util_slave = $dl_util . '-O master.zip';
     }
     else {
       $dl_util_slave = $dl_util;
@@ -528,16 +557,18 @@ sub setup_ncRNAScan {
     require "$install_dir/PERLLIBS/lib/IO/Routine.pm";
     my $io = IO::Routine->new($help, $quiet);
 
-    my @inst_file_parts = $io->file_basename($0, 'all');
-    chop $inst_file_parts[1] if ($inst_file_parts[1] =~ m/\/$/);
+    chop(my $ncRNAScan_root = ($io->file_basename(abs_path($0), 'all'))[1]);
 
-    if (!-d "$inst_file_parts[1]/.ncRNAScan.depbin") {
-	print "\n\nMoving required tools and scripts to current install path...\n";
+    if (!-d "$ncRNAScan_root/.ncRNAScan.depbin") {
+	print "\nMoving required tools and scripts to current install path...\n";
 	system("mkdir $install_dir/.ncRNAScan.depbin");
 	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/.ncRNAScan.depbin/* $install_dir/.ncRNAScan.depbin/.");
 	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/* $install_dir/.");
     }
     
+    print "\n\nCleaning up build directory...\n";
+    system("rm -rf $install_dir/.build");
+
     $io->execute_system_command(0, 'Detecting system architecture...');
 
     my $sys_arch_info = $io->execute_get_sys_cmd_output('uname -a');
@@ -628,26 +659,34 @@ sub setup_ncRNAScan {
 
     # We will figure out if user is installing at a different location other than
     # from the cloned repo.
-    $install_dir = $inst_file_parts[1] if (-d "$inst_file_parts[1]/.ncRNAScan.depbin" && $inst_file_parts[1] !~ m/^\./);
+    $install_dir = $ncRNAScan_root if (-d "$ncRNAScan_root/.ncRNAScan.depbin" && $ncRNAScan_root !~ m/^\./);
+
+    if (-e "$install_dir/.ncRNAScan.depbin/Rfam.cm.1_1.bz2" &&
+	-e "$install_dir/.ncRNAScan.depbin/Rfam.cm.1_1.i1m.bz2") {
+	print "Decompressing Rfam CM files...\n\n";
+	system("bunzip2 $install_dir/.ncRNAScan.depbin/Rfam.cm.1_1.bz2");
+	system("bunzip2 $install_dir/.ncRNAScan.depbin/Rfam.cm.1_1.i1m.bz2");
+    }
 
     print $dep_fh check_bio_util('cuffcompare', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('blastall', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('RNAfold', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('gtfToGenePred', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('cmscan', $install_dir, $sys_arch), "\n";
-    print $dep_fh "$install_dir/.ncRNAScan.depbin/Rfam.cm.1_1\n" if (-e "$install_dir/.ncRNAScan.depbin/Rfam.cm.1_1");
     print $dep_fh "$install_dir/" . $CAT_SC, "\n" if (check_native("$install_dir/" . $CAT_SC));
     print $dep_fh "$install_dir/" . $FETCH_SC, "\n" if (check_native("$install_dir/" . $FETCH_SC));
     print $dep_fh "$install_dir/" . $GET_UQ_SC, "\n" if (check_native("$install_dir/" . $GET_UQ_SC));
     print $dep_fh "$install_dir/" . $RELPLOT_MOD_SC, "\n" if (check_native("$install_dir/" . $RELPLOT_MOD_SC));
     print $dep_fh "$install_dir/" . $CPC_SH_SC, "\n" if (check_native("$install_dir/" . $CPC_SH_SC));
 
-    print "\nInflating Rfam CM files...\n";
-    system("bunzip2 $install_dir/.ncRNAScan.depbin/Rfam.cm.1_1.bz2");
-    system("bunzip2 $install_dir/.ncRNAScan.depbin/Rfam.cm.1_1.i1m.bz2");
-
-    print "\nCleaning up build directory...";
-    system("rm -rf $install_dir/.build");
+    if (-e "$install_dir/.ncRNAScan.depbin/Rfam.cm.1_1" &&
+	-s "$install_dir/.ncRNAScan.depbin/Rfam.cm.1_1") {
+	print $dep_fh "$install_dir/.ncRNAScan.depbin/Rfam.cm.1_1\n";
+	succ_or_fail(1, "Rfam.cm.1_1");
+    }
+    else {
+	succ_or_fail(0, "Rfam.cm.1_1");
+    }
 
     if (!exists $ENV{'CPC_HOME'}) {
 	succ_or_fail(3, 'CPC');
@@ -655,6 +694,7 @@ sub setup_ncRNAScan {
 	print "\nSee CPC installation instructions (http://cpc.cbi.pku.edu.cn/docs/install_guide.jsp) if you would like to run CPC module with ncRNAScan.";
     }
     close $dep_fh;
+
     $io->execute_system_command(0,
 				"\n\nSetup complete. See \"perl ncRNAScan -h\" to run the pipeline with options.");
     # For build check
@@ -831,6 +871,11 @@ sub get_deps {
     ($deps->{'get'}) = ($dep_tools =~ m/(.+?$GET_UQ_SC)/i);
     ($deps->{'cpc'}) = ($dep_tools =~ m/(.+?$CPC_SH_SC)/i);
     ($deps->{'relplot'}) = ($dep_tools =~ m/(.+?$RELPLOT_MOD_SC)/i);
+
+    foreach my $dep (keys %$deps) {
+	die "\nCannot find required dependency [ " . $dep . " ]. May be reinstalling ncRNAScan will resolve the issue?\n\n"
+	    if (!$deps->{$dep} || !-e $deps->{$dep});
+    }
     return;
 }
 
