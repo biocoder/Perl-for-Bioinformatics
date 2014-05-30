@@ -19,7 +19,7 @@ IO::Routine [![Build Status](https://api.travis-ci.org/biocoder/Perl-for-Bioinfo
 * Install ncRNAScan (Mac and Linux):
 
           cd /to/your/preferred/install/path
-          curl -O https://raw.github.com/biocoder/Perl-for-Bioinformatics/master/NGS-Utils/ncRNAScan
+          curl -O https://raw.githubusercontent.com/biocoder/Perl-for-Bioinformatics/master/NGS-Utils/ncRNAScan
           perl ncRNAScan -setup
 
 * Documentation:
