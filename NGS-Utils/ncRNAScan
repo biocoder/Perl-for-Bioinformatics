@@ -1020,8 +1020,6 @@ The final output is a putative list of annotated ncRNAs in GTF format that can b
 
 The pipeline has the ability to run each of these individual modules if any of them fail during the initial run.
 
-=back
-
 =head1 EXAMPLE
 
 =head2 Installation:
