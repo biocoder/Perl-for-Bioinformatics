@@ -1014,9 +1014,13 @@ To get help documentation about this module, run:
 
 =back
 
+=head1 Output
+
 The final output is a putative list of annotated ncRNAs in GTF format that can be directly uploaded as custom tracks to Genome Browsers, such as UCSC etc... and predicted secondary structures by RNAfold.
 
 The pipeline has the ability to run each of these individual modules if any of them fail during the initial run.
+
+=back
 
 =head1 EXAMPLE
 
@@ -1084,27 +1088,31 @@ Try to setup the pipeline with all its dependencies.
 Run the ncRNAScan pipeline with output directory supplied as option.
 Ex: perl ncRNAScan -run /home/konganti/ncRNAScan_output ...
 
-=item -cuff or --cuffcompare (Optional)
+=item -cuff or --cuffcompare
 
 Run the Cuffcompare module with supplied options.
 
-=item -cat or --cat-ncRNAs (Optional)
+=item -cat or --cat-ncRNAs
 
 Run the categorize_ncRNAs.pl module with supplied options.
 
-=item -get or --get-uq-feat (Optional)
+=item -get or --get-uq-feat
 
 Run the get_unique_features.pl module with supplied options.
 
-=item -fetch or --fetch-seq (Optional)
+=item -fetch or --fetch-seq
 
 Run the fetch_seq_from_ucsc.pl module with supplied options.
 
-=item -cpc or --cpc (Optional)
+=item -cpc or --cpc
 
 Run the CPC module. No options are required.
 
-=item -rna or --rnafold 
+=item -rna or --rnafold
+
+Run RNAfold module of the pipeline. No options required
+
+=item -rna or --rnafold
 
 Run RNAfold module of the pipeline. No options required
 
