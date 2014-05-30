@@ -14,15 +14,14 @@ my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
     $fetch_sc_opts, $categorize_sc_opts,
-    $cuffcmp_opts, $deps, $run, $out, $start_cpc, 
+    $cuffcmp_opts, $deps, $out, $start_cpc, 
     $start_rnafold, $rm_int_plots, $start_infernal);
 
 my $is_valid_option = GetOptions('help:s'            => \$help,
                                  'quiet'             => \$quiet,
 				 'setup'             => \$setup,
-				 'run'               => \$run, 
+				 'run=s'             => \$out, 
 				 'cuffcompare=s'     => \$cuffcmp_opts,
-				 'out=s'             => \$out,
 				 'cat-ncRNAs=s'      => \$categorize_sc_opts,
 				 'fetch-seq=s'       => \$fetch_sc_opts,
 				 'get-uq-feat=s'     => \$get_uq_sc_opts,
@@ -39,8 +38,8 @@ my $RELPLOT_MOD_SC = 'relplot_mod.pl';
 my $USER_HOME = $ENV{'HOME'};
 
 setup_ncRNAScan(`pwd`) if (defined $setup);
-if (defined $run || (defined $help && $help eq '')) {
-    run_ncRNAScan(`pwd`);
+if (defined $out || (defined $help && $help eq '')) {
+    run_ncRNAScan();
 }
 elsif (defined $help && $help ne '') {
     my $depconf_fh = read_conf('/.ncRNAScan.depconf');
@@ -52,6 +51,7 @@ elsif (defined $help && $help ne '') {
     system("perl $pl_inc_string $deps->{'get'} -h") if ($help =~ m/get|get-uq-feat/i);
     system("perl $pl_inc_string $deps->{'fetch'} -h") if ($help =~ m/fetch|fetch-seq/i);
     system("$deps->{'RNAfold'} --detailed-help") if ($help =~ m/rnafold|rna|fold/i);
+    system("$deps->{'cmscan'} -h") if ($help =~m /infernal|inf/i);
     print "\nSee http://cpc.cbi.pku.edu.cn/docs/install_guide.jsp for help documentation.\n\n" if ($help =~ m/cpc/i);
     close $depconf_fh;
     close $pl_dep_paths_fh;
@@ -62,11 +62,7 @@ else {
 		
 
 sub run_ncRNAScan {
-    chomp(my $ran_fromHere = shift);
     my $outdir;
-
-    $ran_fromHere .= '/' if ($ran_fromHere !~ m/\/$/);
-    
     my $pl_dep_paths_fh = read_conf('/.ncRNAScan.PERLLIBS');
     my $pl_inc_string = source_env($pl_dep_paths_fh);
 
@@ -89,7 +85,7 @@ sub run_ncRNAScan {
 
     my $s_time = $io->start_timer;
     binmode(STDOUT, ":utf8");
-    $io->c_time("Starting \x{2632}\x{2634}\x{2633} ncRNAScan Pipeline...");
+    $io->c_time("Starting \x{2632}\x{2634} ncRNAScan Pipeline...");
 
     my $dep_tools_fh = $io->open_file('<', $USER_HOME . '/.ncRNAScan.depconf');
     get_deps($dep_tools_fh);
@@ -397,13 +393,13 @@ sub run_ncRNAScan {
 		}
 		close RNAfold_pl;
 		
-		if (defined $start_cpc) {
+		if (-e $CPC_out_file && -s $CPC_out_file) {
 		    $io->c_time('Filtering transcripts [ ' . $io->file_basename($unique_gtf, 'suffix') . ' ] ...\n');    
 		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | " .
 						"while read trid; do find $RNAfold_dir -type f -name \$trid\\* -exec mv -t $RNAfold_dir_final" . "/\ {} \\;; done;");
 		}
 		else {
-		    $io->c_time('CPC was not run! Will retain all transcripts.');
+		    $io->warning('CPC was not run! Will run RNAfold on all transcript models.');
 		    $io->execute_system_command("mv $RNAfold_dir/*.ps $RNAfold_dir_final/.");
 		}
 
@@ -413,6 +409,8 @@ sub run_ncRNAScan {
 
 	    } if (defined $start_rnafold);
 
+	    #### Start Infernal and edit final GTF  ##########################################################
+
 	    do {
 		my $tbl = $final_infernal . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.txt';
 		my $raw = $final_infernal . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.cmscan';
@@ -420,24 +418,45 @@ sub run_ncRNAScan {
 		$io->execute_system_command("mkdir -p $final_infernal")
 		    if (!-d $final_infernal);		
 
-		$io->c_time('Running cmscan from Infernal...');
+		$io->c_time('Module 7: Running cmscan from Infernal [ on ' . $io->file_basename($ncRNAScan_unique_seq_file, 'suffix') . ' ] ...');
+
 		$io->execute_system_command($deps->{'cmscan'} . ' ' . $start_infernal . ' --tblout ' .
 					    $tbl . ' ' . $deps->{'rfam_cm'} . ' ' . $ncRNAScan_unique_seq_file . ' &> ' . $raw,
 					    "Command call:\n" .
                                             "-------------\n" . $deps->{'cmscan'} . ' ' . $start_infernal . ' --tblout ' .
                                             $tbl . ' ' . $deps->{'rfam_cm'} . ' ' . $ncRNAScan_unique_seq_file . ' &> ' . $raw);
 
-		if (defined $start_cpc) {
-		    $io->exist_sys_cmd(['sort', 'head', 'awk', 'uniq']);
-		    my $infernal_annot = $io->execute_get_sys_cmd_output(0, "grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | " .
-									 "while read trid; do annot=`grep \"\$trid\" $tbl | sort -k15,15nr | " .
-									 "uniq | awk '{\$1=\"\";for(i=3;i<=17;i++)\$i=\"\";print \$0}' | " .
-									 "cut -d \" \" -f 2- | sed -e 's/\\s\\+/ /g' | head -n 1`;" .
-									 "infernal_annot='Infernal prediction \"'\$annot'\";'" .
-									 "sed -i 's/\\(\$trid.*$\\)/\\1 \$infernal_annot/g' $ncRNAScan_unique_seq_file;" .
-									 " done;");
+		if (-e $CPC_out_file && -s $CPC_out_file) {
+		    $io->exist_sys_cmd(['sort', 'head', 'awk', 'uniq', 'mv']);
+		    $io->c_time('Updating final GTF file with Infernal annotations...');
+		    
+		    my $tmp_annot = $io->open_file('>', $ncRNAScan_final_trs . '.tmp');
+		    
+		    my $infernal_run = $io->execute_get_sys_cmd_output("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | sort -n | uniq | " .
+								       "while read trid; do annot=`grep \"\$trid\" $tbl | sort -k15,15nr | " .
+								       "uniq | awk '{\$1=\"\";for(i=3;i<=17;i++)\$i=\"\";print \$0}' | " .
+								       "cut -d \" \" -f 2- | sed -e 's/\\s\\+/ /g' | head -n 1`; " .
+								       "if [ -z \"\$annot\" ]; then annot='No Annotation'; fi; " .
+								       "grep \"\$trid\" $ncRNAScan_final_trs | " .
+								       "sed -e \"s%\$% Infernal predicition \\\"\$annot\\\"\\;%\"" .
+								       "; done;",			 
+								       "Command call:\n" .
+								       "-------------\n" .
+								       "grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | sort -n | uniq | " .
+                                                                       "while read trid; do annot=`grep \"\$trid\" $tbl | sort -k15,15nr | " .
+                                                                       "uniq | awk '{\$1=\"\";for(i=3;i<=17;i++)\$i=\"\";print \$0}' | " .
+                                                                       "cut -d \" \" -f 2- | sed -e 's/\\s\\+/ /g' | head -n 1`; " .
+                                                                       "if [ -z \"\$annot\" ]; then annot='No Annotation'; fi; " .
+                                                                       "grep \"\$trid\" $ncRNAScan_final_trs | " .
+                                                                       "sed -e \"s%\$% Infernal prediction \\\"\$annot\\\"\\;%\"" .
+                                                                       "; done;");
+		    pipeline_status($io, $infernal_run);
+		    print $tmp_annot $infernal_run;
+		    $io->c_time('Moving around files...');
+		    $io->execute_system_command("mv $tmp_annot $ncRNAScan_final_trs");
 		}
 		else {
+		    $io->warning('CPC was not run! Will run Infernal on all transcript models.');
 		}
 	      		    
 	    } if (defined $start_infernal);
@@ -450,7 +469,8 @@ sub run_ncRNAScan {
     close $dep_tools_fh;
     close $pl_dep_paths_fh;
     
-    $io->c_time("\x{2632}\x{2634}\x{2633} ncRNAScan Pipeline Finished!");
+    # \x{2633}
+    $io->c_time("\x{2632}\x{2634} ncRNAScan Pipeline Finished!");
     $io->end_timer($s_time);
 }
 
@@ -761,9 +781,9 @@ sub check_util {
 sub pipeline_status {
     my $self = shift;
     my $status = shift;
-    print $status;
-    $self->c_time('ncRNAScan pipeline aborted!');
-    die "\n" if ($status =~ m/ERROR!/);
+    print "$status\n",
+    $self->c_time("\x{2632}\x{2634} ncRNAScan pipeline aborted!"),
+    die "\n" if ($status =~ m/ERROR\!|STDERR/i);
     return;
 }
 
@@ -838,6 +858,15 @@ sub get_num_tr_files {
     
     $tr_files = join(' ', @args[$last_opt_elem .. $#args]);
     return($tr_files, $tr_size);
+}
+
+# Get number of transcripts
+sub get_num_trs {
+    my $self = shift;
+    my $file = shift;
+    $self->exist_sys_cmd(['wc', 'sort', 'uniq']);
+    return $self->execute_get_sys_cmd_output('grep -oP \'transcript_id \\".+?\\"\' ' . $file .
+					     ' | awk \'{print $2}\' | sed -e \'s%\"%%g\' | sort -n | uniq | wc -l');
 }
 
 # Get cuffcompare's annotation file
@@ -916,12 +945,12 @@ Examples:
 
  perl ncRNAScan -h
 
- perl ncRNAScan -run -out /data/ncRNAScan/ -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transscripts2.gtf' -cat-ncRNAs '-fpkm 2 -l 200 -min-exons 2 -antisense' -get-uq-feat '-sf known_ncRNAs.bed' -fetch-seq '-db mm10' -cpc -rna
+ perl ncRNAScan -run /data/ncRNAScan/ -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transscripts2.gtf' -cat-ncRNAs '-fpkm 2 -l 200 -min-exons 2 -antisense' -get-uq-feat '-sf known_ncRNAs.bed' -fetch-seq '-db mm10' -cpc -rna -inf
 
 
 =head1 DESCRIPTION
 
-This pipeline script will bind together the functionality of the tools / scripts: Cuffcompare, categorize_ncRNAs.pl, get_unique_features.pl, fetch_seq_from_ucsc.pl, RNAfold and / or Coding Potential Calculator (CPC). Transcriptome construction tools such as Cufflinks produces a set of assembled transcripts in GTF format. ncRNAScan uses this data in addition to known gene annotation to extract putative ncRNAs constructed by the ab initio assemblers. The pipeline relies on the FPKM / RPKM values generated by these assemblers to assess the confidence of the constructed de novo transcripts and validates it against the known refenrece gene and non coding RNA informationto identify putative novel ncRNAs.  In brief, the pipeline steps are as follows:
+This pipeline script will bind together the functionality of the tools / scripts: Cuffcompare, categorize_ncRNAs.pl, get_unique_features.pl, fetch_seq_from_ucsc.pl, RNAfold, Infernal and Coding Potential Calculator (CPC). Transcriptome construction tools such as Cufflinks produces a set of assembled transcripts in GTF format. ncRNAScan uses this data in addition to known gene annotation to extract putative ncRNAs constructed by the ab initio assemblers. The pipeline relies on the FPKM / RPKM values generated by these assemblers to assess the confidence of the constructed de novo transcripts and validates it against the known refenrece gene and non coding RNA informationto identify putative novel ncRNAs.  In brief, the pipeline steps are as follows:
 
 =over 5
 
@@ -969,15 +998,23 @@ To get help documentation about this module, run:
 
 =item 6. RNAfold (ncRNAScan Option -rna or --rnafold)
 
-In the final step, ncRNAScan pipeline invokes RNAfold program to calculate minimum free energy structure of the predicted non-coding RNA. This step may take a while to finish.
-
+Here, ncRNAScan pipeline invokes RNAfold program to calculate minimum free energy structure of the predicted non-coding RNA. This step may take a while to finish.
+                                                                                                                                                                
 To get help documentation about this module, run:
     
  perl ncRNAScan -h rna
 
+=item 7. Infernal (ncRNAScan Option -inf or --infernal)
+
+In the final step, ncRNAScan pipeline invokes cmscan from Infernal package to search Rfam databases for sturcture and sequence similarities to annotate the putative ncRNAs .
+                                                                                                                                                                
+To get help documentation about this module, run:
+    
+ perl ncRNAScan -h inf
+
 =back
 
-The final output is a putative list of ncRNAs in GTF format that can be directly uploaded as custom tracks to Genome Browsers, such as UCSC etc... and predicted secondary structures by RNAfold.
+The final output is a putative list of annotated ncRNAs in GTF format that can be directly uploaded as custom tracks to Genome Browsers, such as UCSC etc... and predicted secondary structures by RNAfold.
 
 The pipeline has the ability to run each of these individual modules if any of them fail during the initial run.
 
@@ -999,28 +1036,32 @@ The pipeline has the ability to run each of these individual modules if any of t
 
 =item * Run the complete pipeline:
 
- perl ncRNAScan -run -out /data/ncRNAScan/ -cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 1.1 -min-exons 1 -fpkm 2 -antisense -sample-names "M0,M1,M2"' -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_ncRNAs/mm10_ncRNA.bed' -fetch '-db mm10' -cpc
+ perl ncRNAScan -run /data/ncRNAScan/ -cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 1.1 -min-exons 1 -fpkm 2 -antisense -sample-names "M0,M1,M2"' -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_ncRNAs/mm10_ncRNA.bed' -fetch '-db mm10' -cpc
 
 =item * Run categorize_ncRNAs module of the pipeline:
     
- perl ncRNAScan -run -out /data/ncRNAScan/ -cat '-clean -overlap 1.1 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks\
+ perl ncRNAScan -run /data/ncRNAScan/ -cat '-clean -overlap 1.1 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks\
 /transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf'
 
 =item * Run get_unique_features module of the pipeline:
     
- perl ncRNAScan -run -out /data/ncRNAScan -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_ncRNAs/mm10_ncRNA.bed'
+ perl ncRNAScan -run /data/ncRNAScan -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_ncRNAs/mm10_ncRNA.bed'
 
 =item * Run fetch_unique_features module of the pipeline:
 
- perl ncRNAScan -run -out /data/ncRNAScan -fetch '-db mm10'
+ perl ncRNAScan -run /data/ncRNAScan -fetch '-db mm10'
 
 =item * Run CPC module of the pipeline:
 
- perl ncRNAScan -run -out /data/ncRNAScan -cpc
+ perl ncRNAScan -run /data/ncRNAScan -cpc
 
 =item * Run RNAfold module of the pipeline:
 
- perl ncRNAScan -run -out /data/ncRNAScan -rna
+ perl ncRNAScan -run /data/ncRNAScan -rna
+
+=item * Run Infernal module of the pipeline:
+
+ perl ncRNAScan -run /data/ncRNAScan -inf
 
 =back
 
@@ -1037,6 +1078,11 @@ Displays this helpful message.
 =item -setup or --setup
     
 Try to setup the pipeline with all its dependencies.
+
+=item -run or --run
+
+Run the ncRNAScan pipeline with output directory supplied as option.
+Ex: perl ncRNAScan -run /home/konganti/ncRNAScan_output ...
 
 =item -cuff or --cuffcompare (Optional)
 
