@@ -778,7 +778,7 @@ sub setup_cpc {
     else {
 	print "\nEnter full path to uniref90.fasta: ";
 	chomp($format_db = <STDIN>);
-	succ_or_fail(2, "CPC [ $! ]")
+	succ_or_fail(0, "CPC [ $! ]")
 	    if (!-r $format_db || !-e $format_db || !-s $format_db);
     }
 
@@ -960,7 +960,15 @@ sub ask_user {
 
  while (1) {
      print $msg, ' [ y/n ]: ';
-     chomp($ans = <STDIN>);
+     
+     eval {
+	 local $SIG{ALRM} = sub { die "DidNotAnswer" };
+	 alarm 10;
+	 chomp($ans = <STDIN>);
+     };
+     
+     succ_or_fail(0, "\n\nCPC [ No answer for 10 sencods. ] ??") if ($@ =~ m/DidNotAnswer/i);
+     
      if ($ans !~ m/^y|n$/i) {
 	 print "\nInvalid answer!\n";
 	 next;
