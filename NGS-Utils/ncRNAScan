@@ -4,7 +4,7 @@ use strict;
 use warnings;
 use Getopt::Long;
 use File::Temp;
-use Cwd qw (abs_path);
+use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
@@ -511,6 +511,21 @@ sub setup_ncRNAScan {
     # bunzip2
     check_util('bunzip2');
 
+    # gunzip
+    check_util('gunzip');
+
+    # rm
+    check_util('rm');
+
+    # mkdir
+    check_util('mkdir');
+
+    # touch
+    check_util('touch');
+    
+    # mv
+    check_util('mv');
+
     print "\n\nWe definetely need the custom module, IO::Routine.\n" .
       "We also need good grace of cpanm to install remaining modules.\n\n" .
 	"Attempting to fetch IO::Routine from Perl-for-Bioinformatics repository on github...\n";
@@ -693,6 +708,7 @@ sub setup_ncRNAScan {
     print $dep_fh check_bio_util('RNAfold', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('gtfToGenePred', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('cmscan', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('formatdb', $install_dir, $sys_arch), "\n";
     print $dep_fh "$install_dir/" . $CAT_SC, "\n" if (check_native("$install_dir/" . $CAT_SC));
     print $dep_fh "$install_dir/" . $FETCH_SC, "\n" if (check_native("$install_dir/" . $FETCH_SC));
     print $dep_fh "$install_dir/" . $GET_UQ_SC, "\n" if (check_native("$install_dir/" . $GET_UQ_SC));
@@ -708,10 +724,15 @@ sub setup_ncRNAScan {
 	succ_or_fail(0, "Rfam.cm.1_1");
     }
 
+    setup_cpc($dl_util_slave, $dep_fh);
+
     if (!exists $ENV{'CPC_HOME'}) {
-	succ_or_fail(3, 'CPC');
-	print "\n\nSeems like Coding Potential Calculator (CPC) is not installed. This may not be a problem if you do not intend to use CPC.";
-	print "\nSee CPC installation instructions (http://cpc.cbi.pku.edu.cn/docs/install_guide.jsp) if you would like to run CPC module with ncRNAScan.";
+	succ_or_fail(2, 'CPC');
+	#print "\n\nSeems like Coding Potential Calculator (CPC) is not installed. This may not be a problem if you do not intend to use CPC.";
+	#print "\nSee CPC installation instructions (http://cpc.cbi.pku.edu.cn/docs/install_guide.jsp) if you would like to run CPC module with ncRNAScan.";
+    }
+    else {
+	succ_or_fail(1, 'CPC');
     }
     close $dep_fh;
 
@@ -719,6 +740,61 @@ sub setup_ncRNAScan {
 				"\n\nSetup complete. See \"perl ncRNAScan -h\" to run the pipeline with options.");
     # For build check
     exit;
+}
+
+
+# Try and install CPC into current install path. 
+sub setup_cpc {
+    my $dl_util = shift;
+    my $fh = shift;
+    my $depconf_fh = read_conf('/.ncRNAScan.depconf');
+ 
+    my $curr_dir = cwd . '/.cpc';
+    system("rm -rf $curr_dir") if (-d $curr_dir);
+    
+    get_deps($depconf_fh);
+
+    print "\n\nAttempting to setup CPC [ github.com/biocoder/cpc ]. \nThis may take a while. Stay put...\n\n";
+    system("$dl_util https://github.com/biocoder/cpc/archive/master.zip > /dev/null 2>&1");
+    system("unzip -d $curr_dir master.zip > /dev/null 2>&1");
+    system("rm master.zip");
+    system("mv $curr_dir/cpc-master/* $curr_dir/.");
+    rmdir "$curr_dir/cpc-master";
+
+    chdir "$curr_dir/cpc-master/libs/libsvm/libsvm-2.81";
+    system("make clean && make > /dev/null 2>&1");
+
+    chdir "$curr_dir/cpc-master/libs/estate";
+    system("make clean && make > /dev/null 2>&1");
+
+    my $format_db = 'uniref90.fasta.gz';
+    if (!ask_user("\nIf you already have uniref90.fasta file somewhere, then there is no point in wasting time to download it again.\n" .
+		  "Do you already have uniref90.fasta somewhere on this system?")) {
+	
+	print "\nAttempting protein database download...\n\n";
+	chdir "$curr_dir/data";
+	$dl_util =~ s/master\.zip/uniref90\.fasta\.gz/;
+	system("$dl_util ftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz");
+    }
+    else {
+	print "\nEnter full path to uniref90.fasta: ";
+	chomp($format_db = <STDIN>);
+	succ_or_fail(2, "CPC [ $! ]")
+	    if (!-r $format_db || !-e $format_db || !-s $format_db);
+    }
+
+    print "\nDecompressing uniref90.fasta.gz...\n",
+    system("gunzip uniref90.fasta.gz") if ($format_db =~ m/\.gz$/);
+	
+    if (!-e "$curr_dir/data/formatdb.log" || !-s "$curr_dir/data/formatdb.log") {
+	print "\nFormatting database...\n";
+	system($deps->{'formatdb'} . " -i $format_db -p T -n prot_db > /dev/null 2>&1");
+    }
+    
+
+    print $fh $curr_dir, "\n";
+    $ENV{'CPC_HOME'} = $curr_dir;
+    return;
 }
 
 
@@ -880,9 +956,22 @@ sub get_annot {
 # Ask for user input
 sub ask_user {
  my $msg = shift;
- print $msg, ': ';
- chomp(my $ans = <STDIN>);
- return $ans;
+ my $ans;
+
+ while (1) {
+     print $msg, ' [ y/n ]: ';
+     chomp($ans = <STDIN>);
+     if ($ans !~ m/^y|n$/i) {
+	 print "\nInvalid answer!\n";
+	 next;
+     }
+     else {
+	 last;
+     }
+ }
+ 
+ return 1 if ($ans =~ m/^y$/i);
+ return 0 if ($ans =~ m/^n$/i)
 }
 
 # Get deps
@@ -894,6 +983,7 @@ sub get_deps {
     ($deps->{'RNAfold'}) = ($dep_tools =~ m/(.+?rnafold)/i);
     ($deps->{'bin-gtfToGenePred'}) = ($dep_tools =~ m/(.+?gtfToGenePred)/i);
     ($deps->{'cmscan'}) = ($dep_tools =~ m/(.+?cmscan)/i);
+    ($deps->{'formatdb'}) = ($dep_tools =~ m/(.+?formatdb)/i);
     ($deps->{'rfam_cm'}) = ($dep_tools =~ m/(.+?Rfam\.cm\.1\_1)/i);
     ($deps->{'cat'}) = ($dep_tools =~ m/(.+?$CAT_SC)/i);
     ($deps->{'fetch'}) = ($dep_tools =~ m/(.+?$FETCH_SC)/i);
@@ -1110,9 +1200,9 @@ Run the CPC module. No options are required.
 
 Run RNAfold module of the pipeline. No options required
 
-=item -rna or --rnafold
+=item -inf or --infernal
 
-Run RNAfold module of the pipeline. No options required
+Run Infernal module of the pipeline. No options required
 
 =back
 

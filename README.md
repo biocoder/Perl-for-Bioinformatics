@@ -16,7 +16,7 @@ IO::Routine [![Build Status](https://api.travis-ci.org/biocoder/Perl-for-Bioinfo
 
 * Head on to [NGS-Utils](https://github.com/biocoder/Perl-for-Bioinformatics/tree/master/NGS-Utils) directory for script list.
 
-* Install ncRNAScan (Mac and Linux):
+* Install ncRNAScan and all its dependencies (Mac and Linux):
 
           cd /to/your/preferred/install/path
           curl -O https://raw.githubusercontent.com/biocoder/Perl-for-Bioinformatics/master/NGS-Utils/ncRNAScan
