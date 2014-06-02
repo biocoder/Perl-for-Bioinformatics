@@ -19,8 +19,8 @@
 
 # NGS-Utils #
 ##############################
-/NGS-Utils/.ncRNAScan.depconf
-/NGS-Utils/.ncRNAScan.depbin/Rfam.cm.1_1
-/NGS-Utils/.ncRNAScan.depbin/Rfam.cm.1_1.i1m
-/NGS-Utils/.ncRNAScan.depbin/Rfam.cm.1_1.bz2
-/NGS-Utils/.ncRNAScan.depbin/Rfam.cm.1_1.i1m.bz2
+NGS-Utils/.ncRNAScan.depconf
+NGS-Utils/.ncRNAScan.depbin/Rfam.cm.1_1
+NGS-Utils/.ncRNAScan.depbin/Rfam.cm.1_1.i1m
+NGS-Utils/.ncRNAScan.depbin/Rfam.cm.1_1.bz2
+NGS-Utils/.ncRNAScan.depbin/Rfam.cm.1_1.i1m.bz2
