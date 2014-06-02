@@ -772,7 +772,6 @@ sub setup_cpc {
 		  "Do you already have uniref90.fasta somewhere on this system?")) {
 	
 	print "\nAttempting protein database download...\n\n";
-	chdir "$curr_dir/data";
 	$dl_util =~ s/master\.zip/uniref90\.fasta\.gz/;
 	system("$dl_util ftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz");
     }
@@ -788,6 +787,7 @@ sub setup_cpc {
 	
     if (!-e "$curr_dir/data/formatdb.log" || !-s "$curr_dir/data/formatdb.log") {
 	print "\nFormatting database...\n";
+	chdir "$curr_dir/data";
 	system($deps->{'formatdb'} . " -i $format_db -p T -n prot_db > /dev/null 2>&1");
     }
     
