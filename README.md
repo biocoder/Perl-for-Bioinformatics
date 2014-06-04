@@ -48,6 +48,11 @@ or to get help documentation for individual modules, do:
      * On RedHat / Fedora / CentOS based Linux distributions, as `root` user do:
      
             yum install expat expat-devel
+            
+* Caveats:
+    * The pipeline script uses a lot of inherent Linux core utils and has been only tested in BASH shell. 
+ 
+           
 
 
 =========
