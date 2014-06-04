@@ -1008,7 +1008,7 @@ sub ask_user {
 	 chomp($ans = <STDIN>);
      };
      
-     succ_or_fail(0, "\n\nCPC [ No answer for 10 sencods. ] ??") if ($@ =~ m/DidNotAnswer/i);
+     succ_or_fail(0, "\n\nCPC [ No answer for 60 sencods. ] ??") if ($@ =~ m/DidNotAnswer/i);
      
      if ($ans !~ m/^y|n|fasta|fa$/i) {
 	 print "\nInvalid answer!\n";
