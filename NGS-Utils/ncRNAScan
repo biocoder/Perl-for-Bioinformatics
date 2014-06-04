@@ -15,7 +15,8 @@ my $AUTHORFULLNAME = 'Kranti Konganti';
 my ($help, $quiet, $setup, $get_uq_sc_opts,
     $fetch_sc_opts, $categorize_sc_opts,
     $cuffcmp_opts, $deps, $out, $start_cpc, 
-    $start_rnafold, $rm_int_plots, $start_infernal);
+    $start_rnafold, $rm_int_plots, $start_infernal,
+    $num_cpu);
 
 my $is_valid_option = GetOptions('help:s'            => \$help,
                                  'quiet'             => \$quiet,
@@ -28,7 +29,8 @@ my $is_valid_option = GetOptions('help:s'            => \$help,
 				 'cpc'               => \$start_cpc,
 				 'rnafold:s'         => \$start_rnafold,
 				 'rm-int-plots'      => \$rm_int_plots,
-				 'infernal:s'        => \$start_infernal);
+				 'infernal:s'        => \$start_infernal,
+				 'cpu=i'             => \$num_cpu);
 
 my $CAT_SC = 'categorize_ncRNAs.pl';
 my $FETCH_SC = 'fetch_seq_from_ucsc.pl';
@@ -175,7 +177,8 @@ sub run_ncRNAScan {
 
     # Run get_unique_features.pl ######################################################################
     do {
-
+	
+	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
 	$io->c_time('Module 3: Running get_unique_features.pl');
 	
 	my $is_failed = '';
@@ -195,6 +198,9 @@ sub run_ncRNAScan {
 	
 	foreach my $ncRNAScan_class_file (@ncRNAScan_class_files) {
 	    
+	    
+	    $cpu->start and next if (defined $num_cpu);
+	    
 	    $ncRNAScan_class_file = $outdir . 'categorize_ncRNAs/' . $ncRNAScan_class_file;
 	    my $unique_ncRNAs = $cat_dir . '/' . $io->file_basename($ncRNAScan_class_file) . '.unique.gtf';
 		
@@ -212,8 +218,10 @@ sub run_ncRNAScan {
 							      ' -stdout -unique -kc 3 -ck transcript ' .
 							      " > $unique_ncRNAs");
 	    pipeline_status($io, $is_failed);
+	    $cpu->finish if (defined $num_cpu);
 	}
 	
+	$cpu->wait_all_children if (defined $num_cpu);
 	close ncRNAScan_categorize_mod;
 		
     } if (defined($get_uq_sc_opts) && $get_uq_sc_opts ne '');
@@ -238,6 +246,7 @@ sub run_ncRNAScan {
 	push my @ncRNAScan_unique_files, grep {/putative\.class\.ncRNAs\.unique\.gtf$/} readdir ncRNAScan_get_unique_mod;
 	
 	foreach my $ncRNAScan_unique_file (@ncRNAScan_unique_files) {
+	    
 	    $ncRNAScan_unique_file = $outdir . 'get_unique_features/' . $ncRNAScan_unique_file;
 	    
 	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'fetch'} . ' ' .
@@ -573,6 +582,7 @@ sub setup_ncRNAScan {
     cpanm_status($install_dir, 'LWP::Simple');
     cpanm_status($install_dir, 'XML::XPath');
     cpanm_status($install_dir, 'XML::XPath::XMLParser');
+    cpanm_status($install_dir, 'Parallel::ForkManager');
 
     print "\n\nThank you cpanm!\n";
 
@@ -1023,6 +1033,16 @@ sub esc_tr_id {
     $tr_id =~ s/\:/\\\:/;
 
     return $tr_id;
+}
+
+# Load parallel fork module
+sub do_parallel {
+    my $num_cpu = shift;
+    require Parallel::ForkManager;
+    Parallel::ForkManager->import();
+    my $cpu = Parallel::ForkManager->new($num_cpu);
+    $cpu->set_max_procs($num_cpu);
+    return $cpu;
 }
 
 __END__
