@@ -87,6 +87,8 @@ To get help documentation about this module, run:
 
 The final output is a putative list of annotated ncRNAs in GTF format that can be directly uploaded as custom tracks to Genome Browsers, such as UCSC etc... and predicted secondary structures by RNAfold. 
 
+=over 5
+
 =item * Cuffcompare output is stored in the directory called "cuffcompare". ncRNAScan uses 'ncRNAScan_cuffcmp.tracking' file from this folder for the next module.
 
 =item * categorize_ncRNAs.pl's output is stored in the directory called "categorize_ncRNAs". ncRNAScan uses files ending with suffix '.putative.class.ncRNAs.gtf' for the next module.
@@ -98,8 +100,10 @@ The final output is a putative list of annotated ncRNAs in GTF format that can b
 =item * CPC predictions are stored in a directory called "CPC".
 
 =item * The final result files are stored in a directory called ncRNAScan.final and have a suffix '.putative.class.ncRNAs.unique.final.gtf'.
-
+ 
 =item * The RNAfold plots are stored in directories inside ncRNAScan.final directory ending in suffix '.putative.class.ncRNAs.unique.final.RNAfold'.
+
+=back
 
 The pipeline has the ability to run each of these individual modules if any of them fail during the initial run.
 
