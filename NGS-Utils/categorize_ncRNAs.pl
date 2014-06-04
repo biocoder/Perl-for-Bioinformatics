@@ -5,6 +5,7 @@ use Carp;
 use Getopt::Long qw(:config pass_through);
 use IO::Routine;
 use Set::IntervalTree;
+use Parallel::ForkManager;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
 my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-10-09 12:46:11 -0500 (Wed, 09 Oct 2013) $ =~ m/.+?\:(.+)/;
@@ -14,7 +15,8 @@ my $AUTHORFULLNAME = 'Kranti Konganti';
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
     $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
-    $antisense_only, $disp_anti_option, $gtf_bin);
+    $antisense_only, $disp_anti_option, $gtf_bin, $num_cpu);
+
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 my $ncRNA_class = {};
 
@@ -34,7 +36,8 @@ my $is_valid_option = GetOptions('help|?'              => \$help,
 				 'include-novel'       => \$novel,
 				 'clean-tmp'           => \$no_tmp,
 				 'bin-gtfToGenePred=s' => \$gtf_bin,
-				 'antisense-only'      => \$antisense_only);
+				 'antisense-only'      => \$antisense_only,
+				 'cpu=i'               => \$num_cpu);
 
 my $io = IO::Routine->new($help, $quiet);
 my $s_time = $io->start_timer;
@@ -176,6 +179,7 @@ sub get_putative_ncRNAs {
 
 # Convert GTF to gene prediction format.
 sub get_genePred {
+    my $cpu = '';
     $io->c_time('Converting putative ncRNAs list to Gene Prediction format using gtfToGenePred tool');
 
     my $exe_gtfToGenePred = 'gtfToGenePred';
@@ -186,19 +190,37 @@ sub get_genePred {
     $io->error('Cannot find gtfToGenePred tool in your path') 
 	if ($check_for_gtfToGenePred !~ m/.*?gtfToGenePred.*?convert a GTF file to a genePred/i);
 
+    if (defined $num_cpu) {
+        $cpu = Parallel::ForkManager->new($num_cpu);
+	$cpu->set_max_procs($num_cpu);
+    }
+    
     for (0 .. $#$p_file_names_gtf) {
+	$cpu->start and next if (defined $num_cpu);
 	$io->verify_files([$p_file_names_gtf->[$_]], ['GTF']);
 	$io->execute_system_command("$exe_gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_] 2> /dev/null",
 	    "$exe_gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_] 2> /dev/null");
+	$cpu->finish if (defined $num_cpu);
     }
+    $cpu->wait_all_children;
     return;
 }
 
 # Categorize ncRNAs
 sub class_ncRNAs {
     my $refAnnot = store_coords($refGenePred);
+    my $cpu = '';
+
+    if (defined $num_cpu) {
+	$cpu = Parallel::ForkManager->new($num_cpu);
+	$cpu->set_max_procs($num_cpu);
+    }
+  
 
     for (0 .. $#ARGV) {
+
+	$cpu->start and next if (defined $num_cpu);
+
         my $p_gtf = $p_file_names_gtf->[$_];
         my $p_ncRNAs = store_coords($p_file_names_txt->[$_]);
         my $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.class.ncRNAs.gtf';
@@ -209,23 +231,23 @@ sub class_ncRNAs {
 	my ($num_ex_ov, $num_incs, $num_concs, $num_poncs, $num_lincs, $noclass, $num_noSense,
 	    $discard) = 0;
 
-	$io->c_time('Categorizing ncRNAs (Exonic overlaps)...');
+	$io->c_time('Categorizing ncRNAs (Exonic overlaps) [' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_ex_ov, $num_noSense) = calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 
-	$io->c_time('Categorizing ncRNAs (Intronic overlaps - incs)...');
+	$io->c_time('Categorizing ncRNAs (Intronic overlaps - incs) [' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_incs, $discard) = calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing ncRNAs (Intronic overlaps - concs)...');
+	$io->c_time('Categorizing ncRNAs (Intronic overlaps - concs) [' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_concs, $discard) = calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing ncRNAs (Intronic overlaps - poncs)...');
+	$io->c_time('Categorizing ncRNAs (Intronic overlaps - poncs) [' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_poncs, $discard) = calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing ncRNAs (lincRNA)...');
+	$io->c_time('Categorizing ncRNAs (lincRNA) [' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 	
-	$io->c_time("\n\nncRNA Summary:\n" . 
-		    "--------------\n" .
+	$io->c_time("\n\nncRNA Summary [" . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . " ] :\n" . 
+		    "----------------------------------------------------------------------\n" .
 		    "LincRNAs: $num_lincs\n" . 
 		    "Intronic overlaps - concs: $num_concs\n" .
                     "Intronic overlaps - poncs: $num_poncs\n" . 
@@ -238,8 +260,12 @@ sub class_ncRNAs {
 					     $num_poncs) . 
 		    "\nUncategorized: " . 
 		    ($noclass + $num_noSense) . "\n" );
+	
+	$cpu->finish if (defined $num_cpu);
     }
-	return;
+
+    $cpu->wait_all_children if (defined $num_cpu);
+    return;
 }
 
 # Calculate LincRNAs
@@ -787,6 +813,12 @@ categorize_ncRNAs.pl takes the following arguments:
     
     When reporting exonic overlaps with reference exons, report only Antisense
     exonic overlaps.
+
+=item -cpu or --cpu (Optional)
+
+    Default: 1
+    
+    Use this many number of CPUs to run in parallel.
 
 =back
 

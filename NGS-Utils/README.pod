@@ -85,7 +85,22 @@ To get help documentation about this module, run:
 
 =head1 Output
 
-The final output is a putative list of annotated ncRNAs in GTF format that can be directly uploaded as custom tracks to Genome Browsers, such as UCSC etc... and predicted secondary structures by RNAfold.
+The final output is a putative list of annotated ncRNAs in GTF format that can be directly uploaded as custom tracks to Genome Browsers, such as UCSC etc... and predicted secondary structures by RNAfold. 
+
+* Cuffcompare output is stored in the directory called "cuffcompare". ncRNAScan uses 'ncRNAScan_cuffcmp.tracking' file from this folder for the next module.
+
+* categorize_ncRNAs.pl's output is stored in the directory called "categorize_ncRNAs". ncRNAScan uses files ending with suffix '.putative.class.ncRNAs.gtf' for the next module.
+
+* get_unique_features.pl's output is stored in the directory called "get_unique_features". ncRNAScan uses files ending with suffix '.putative.class.ncRNAs.unique.gtf ' for the next module
+
+* fetch_seq_from_ucsc.pl's output is stored in the directory called "fetch_seq_from_ucsc". ncRNAScan uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules.
+
+* CPC predictions are stored in a directory called "CPC".
+
+* The final result files are stored in a directory called ncRNAScan.final and have a suffix '.putative.class.ncRNAs.unique.final.gtf'.
+
+* The RNAfold plots are stored in directories inside ncRNAScan.final directory ending in suffix '.putative.class.ncRNAs.unique.final.RNAfold'.
+
 
 The pipeline has the ability to run each of these individual modules if any of them fail during the initial run.
 
@@ -179,9 +194,15 @@ Run the CPC module. No options are required.
 
 Run RNAfold module of the pipeline. No options required
 
-=item -rna or --rnafold
+=item -inf or --infernal
 
-Run RNAfold module of the pipeline. No options required
+Run Infernal module of the pipeline. No options required
+
+=item -cpu or --cpu
+
+ncRNAScan will attempt to run multiple processes on this may CPU cores.
+Mentioning number of CPUs equal to number of assembled transcript files 
+is strongly encouraged.
 
 =back
 

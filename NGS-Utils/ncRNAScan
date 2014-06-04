@@ -146,6 +146,8 @@ sub run_ncRNAScan {
 							 "-------------\n" .
 							 $deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
 							 $annot . ' ' . $annot_for_cat);
+
+	    $categorize_sc_opts .= " -cpu $num_cpu" if (defined $num_cpu);
 	    
 	     $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
 							  join('-', split(/\-|\--/, $categorize_sc_opts)) .
@@ -197,8 +199,7 @@ sub run_ncRNAScan {
 	push my @ncRNAScan_class_files, grep {/putative\.class\.ncRNAs\.gtf$/} readdir ncRNAScan_categorize_mod;
 	
 	foreach my $ncRNAScan_class_file (@ncRNAScan_class_files) {
-	    
-	    
+	    	    
 	    $cpu->start and next if (defined $num_cpu);
 	    
 	    $ncRNAScan_class_file = $outdir . 'categorize_ncRNAs/' . $ncRNAScan_class_file;
@@ -230,6 +231,7 @@ sub run_ncRNAScan {
     # Run fetch_seq_from_ucsc.pl ######################################################################
     do {
 
+	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
 	$io->c_time('Module 4: Running fetch_seq_from_ucsc.pl');
 	
 	my $is_failed = '';
@@ -247,6 +249,8 @@ sub run_ncRNAScan {
 	
 	foreach my $ncRNAScan_unique_file (@ncRNAScan_unique_files) {
 	    
+	    $cpu->start and next if (defined $num_cpu);
+
 	    $ncRNAScan_unique_file = $outdir . 'get_unique_features/' . $ncRNAScan_unique_file;
 	    
 	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'fetch'} . ' ' .
@@ -259,8 +263,10 @@ sub run_ncRNAScan {
 							 ' -tmap ' . $ncRNAScan_unique_file .
 							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t'");
 	    pipeline_status($io, $is_failed);
+	    $cpu->finish if (defined $num_cpu);
 	}
 	
+	$cpu->wait_all_children if (defined $num_cpu);
 	close ncRNAScan_get_unique_mod;
 	
     } if (defined($fetch_sc_opts) && $fetch_sc_opts ne '');
@@ -268,6 +274,8 @@ sub run_ncRNAScan {
     # Finally Run CPC, RNAfold and Infernal ##############################################################
     do {
 	
+	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
+
 	opendir (ncRNAScan_fetch_seq_mod, $outdir . 'fetch_seq_from_ucsc') ||
 	    $io->error("Cannot open directory $outdir" .
 		       'fetch_seq_from_ucsc to read unique ncRNA features.');
@@ -290,6 +298,8 @@ sub run_ncRNAScan {
 	
 	foreach my $ncRNAScan_unique_seq_file (@ncRNAScan_unique_seq_files) {
 
+	    $cpu->start and next if (defined $num_cpu);
+
 	    $ncRNAScan_unique_seq_file = $outdir . 'fetch_seq_from_ucsc/' . $ncRNAScan_unique_seq_file;
 	    my $CPC_out_file = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.CPC.predict.txt';
 	    my $cpc_work_dir = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.CPC.out' ;
@@ -307,7 +317,9 @@ sub run_ncRNAScan {
 	    do {
 		$io->c_time('Module 5: Running CPC.sh');
 		
-		if (!exists $ENV{'CPC_HOME'}) {
+		$ENV{'CPC_HOME'} = $deps->{'cpc_home'} if (!exists $ENV{'CPC_HOME'});
+
+		if (!-d $ENV{'CPC_HOME'} || $ENV{'CPC_HOME'} eq '') {
 		    $io->error("Environment variable CPC_HOME must be set pointing to CPC directory before running CPC.\n" .
 			       'See CPC installation instructions (http://cpc.cbi.pku.edu.cn/docs/install_guide.jsp)');
 		}
@@ -429,7 +441,7 @@ sub run_ncRNAScan {
 
 		$io->c_time('Module 7: Running cmscan from Infernal [ on ' . $io->file_basename($ncRNAScan_unique_seq_file, 'suffix') . ' ] ...');
 
-		$io->execute_system_command($deps->{'cmscan'} . ' ' . $start_infernal . ' --tblout ' .
+		$io->execute_system_command($deps->{'cmscan'} . ' --cpu 1 ' . $start_infernal . ' --tblout ' .
 					    $tbl . ' ' . $deps->{'rfam_cm'} . ' ' . $ncRNAScan_unique_seq_file . ' &> ' . $raw,
 					    "Command call:\n" .
                                             "-------------\n" . $deps->{'cmscan'} . ' ' . $start_infernal . ' --tblout ' .
@@ -447,7 +459,7 @@ sub run_ncRNAScan {
 								       "cut -d \" \" -f 2- | sed -e 's/\\s\\+/ /g' | head -n 1`; " .
 								       "if [ -z \"\$annot\" ]; then annot='No Annotation'; fi; " .
 								       "grep \"\$trid\" $ncRNAScan_final_trs | " .
-								       "sed -e \"s%\$% Infernal predicition \\\"\$annot\\\"\\;%\"" .
+								       "sed -e \"s%\$% Infernal\_predicition \\\"\$annot\\\"\\;%\"" .
 								       "; done;",			 
 								       "Command call:\n" .
 								       "-------------\n" .
@@ -457,20 +469,25 @@ sub run_ncRNAScan {
                                                                        "cut -d \" \" -f 2- | sed -e 's/\\s\\+/ /g' | head -n 1`; " .
                                                                        "if [ -z \"\$annot\" ]; then annot='No Annotation'; fi; " .
                                                                        "grep \"\$trid\" $ncRNAScan_final_trs | " .
-                                                                       "sed -e \"s%\$% Infernal prediction \\\"\$annot\\\"\\;%\"" .
+                                                                       "sed -e \"s%\$% Infernal\_prediction \\\"\$annot\\\"\\;%\"" .
                                                                        "; done;");
-		    pipeline_status($io, $infernal_run);
+
+		    pipeline_status($io, 'ERROR!', 'Cannot get annotation from Infernal run') if (!$infernal_run);
 		    print $tmp_annot $infernal_run;
 		    $io->c_time('Moving around files...');
-		    $io->execute_system_command("mv $tmp_annot $ncRNAScan_final_trs");
+		    $io->execute_system_command("mv $ncRNAScan_final_trs" . '.tmp ' . $ncRNAScan_final_trs);
 		}
 		else {
 		    $io->warning('CPC was not run! Will run Infernal on all transcript models.');
 		}
 	      		    
 	    } if (defined $start_infernal);
+
+	    $cpu->finish if (defined $cpu);
 	    
   	}
+	
+	$cpu->wait_all_children if (defined $cpu);
 	close ncRNAScan_fetch_seq_mod;
     	
     } if (defined $start_cpc || defined $start_rnafold || defined $start_infernal);
@@ -757,10 +774,16 @@ sub setup_ncRNAScan {
 sub setup_cpc {
     my $dl_util = shift;
     my $fh = shift;
+
+    return if (exists $ENV{'CPC_HOME'});
+
     my $depconf_fh = read_conf('/.ncRNAScan.depconf');
  
     my $curr_dir = cwd . '/.cpc';
     system("rm -rf $curr_dir") if (-d $curr_dir);
+    
+    print $fh "cpcHome:$curr_dir\n";
+    $ENV{'CPC_HOME'} = $curr_dir;
     
     get_deps($depconf_fh);
 
@@ -786,24 +809,23 @@ sub setup_cpc {
 	system("$dl_util ftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz");
     }
     else {
-	print "\nEnter full path to uniref90.fasta: ";
-	chomp($format_db = <STDIN>);
-	succ_or_fail(0, "CPC [ $! ]")
+	$format_db = ask_user("\nEnter full path to uniref90.fasta: ");
+	succ_or_fail(0, "CPC [ ERROR: $! ]")
 	    if (!-r $format_db || !-e $format_db || !-s $format_db);
     }
 
     print "\nDecompressing uniref90.fasta.gz...\n",
     system("gunzip uniref90.fasta.gz") if ($format_db =~ m/\.gz$/);
 	
-    if (!-e "$curr_dir/data/formatdb.log" || !-s "$curr_dir/data/formatdb.log") {
+    if (!-e "$curr_dir/data/formatdb.log" ||
+	!-s "$curr_dir/data/formatdb.log" ||
+	!-e "$curr_dir/data/prot_db.pal" ||
+	!-s "$curr_dir/data/prot_db.pal") {
 	print "\nFormatting database...\n";
 	chdir "$curr_dir/data";
 	system($deps->{'formatdb'} . " -i $format_db -p T -n prot_db > /dev/null 2>&1");
     }
     
-
-    print $fh $curr_dir, "\n";
-    $ENV{'CPC_HOME'} = $curr_dir;
     return;
 }
 
@@ -867,9 +889,18 @@ sub check_util {
 sub pipeline_status {
     my $self = shift;
     my $status = shift;
-    print "$status\n",
-    $self->c_time("\x{2632}\x{2634} ncRNAScan pipeline aborted!"),
-    die "\n" if ($status =~ m/ERROR\!|STDERR/i);
+    my $msg = shift;
+
+    if ($status =~ m/ERROR\!/i) {
+	if ($msg) {
+	    print "ERROR!\n------\n$msg\n";
+	}
+	else {
+	    print "ERROR!\n------\n$status\n";
+	}
+	$self->c_time("\x{2632}\x{2634} ncRNAScan pipeline aborted!");
+	die "\n";
+    }
     return;
 }
 
@@ -973,13 +1004,13 @@ sub ask_user {
      
      eval {
 	 local $SIG{ALRM} = sub { die "DidNotAnswer" };
-	 alarm 10;
+	 alarm 60;
 	 chomp($ans = <STDIN>);
      };
      
      succ_or_fail(0, "\n\nCPC [ No answer for 10 sencods. ] ??") if ($@ =~ m/DidNotAnswer/i);
      
-     if ($ans !~ m/^y|n$/i) {
+     if ($ans !~ m/^y|n|fasta|fa$/i) {
 	 print "\nInvalid answer!\n";
 	 next;
      }
@@ -989,7 +1020,8 @@ sub ask_user {
  }
  
  return 1 if ($ans =~ m/^y$/i);
- return 0 if ($ans =~ m/^n$/i)
+ return 0 if ($ans =~ m/^n$/i);
+ return $ans if ($ans =~ m/fasta|fa$/);
 }
 
 # Get deps
@@ -1008,9 +1040,10 @@ sub get_deps {
     ($deps->{'get'}) = ($dep_tools =~ m/(.+?$GET_UQ_SC)/i);
     ($deps->{'cpc'}) = ($dep_tools =~ m/(.+?$CPC_SH_SC)/i);
     ($deps->{'relplot'}) = ($dep_tools =~ m/(.+?$RELPLOT_MOD_SC)/i);
+    ($deps->{'cpc_home'}) = ($dep_tools =~ m/cpcHome\:(.+)/i) if (!exists $ENV{'CPC_HOME'}); 
 
     foreach my $dep (keys %$deps) {
-	die "\nCannot find required dependency [ " . $dep . " ]. May be reinstalling ncRNAScan will resolve the issue?\n\n"
+	die "\n\nCannot find required dependency [ " . $dep . " ]. May be reinstalling ncRNAScan will resolve the issue?\n\n"
 	    if (!$deps->{$dep} || !-e $deps->{$dep});
     }
     return;
@@ -1134,7 +1167,22 @@ To get help documentation about this module, run:
 
 =head1 Output
 
-The final output is a putative list of annotated ncRNAs in GTF format that can be directly uploaded as custom tracks to Genome Browsers, such as UCSC etc... and predicted secondary structures by RNAfold.
+The final output is a putative list of annotated ncRNAs in GTF format that can be directly uploaded as custom tracks to Genome Browsers, such as UCSC etc... and predicted secondary structures by RNAfold. 
+
+* Cuffcompare output is stored in the directory called "cuffcompare". ncRNAScan uses 'ncRNAScan_cuffcmp.tracking' file from this folder for the next module.
+
+* categorize_ncRNAs.pl's output is stored in the directory called "categorize_ncRNAs". ncRNAScan uses files ending with suffix '.putative.class.ncRNAs.gtf' for the next module.
+
+* get_unique_features.pl's output is stored in the directory called "get_unique_features". ncRNAScan uses files ending with suffix '.putative.class.ncRNAs.unique.gtf ' for the next module
+
+* fetch_seq_from_ucsc.pl's output is stored in the directory called "fetch_seq_from_ucsc". ncRNAScan uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules.
+
+* CPC predictions are stored in a directory called "CPC".
+
+* The final result files are stored in a directory called ncRNAScan.final and have a suffix '.putative.class.ncRNAs.unique.final.gtf'.
+
+* The RNAfold plots are stored in directories inside ncRNAScan.final directory ending in suffix '.putative.class.ncRNAs.unique.final.RNAfold'.
+
 
 The pipeline has the ability to run each of these individual modules if any of them fail during the initial run.
 
@@ -1231,6 +1279,12 @@ Run RNAfold module of the pipeline. No options required
 =item -inf or --infernal
 
 Run Infernal module of the pipeline. No options required
+
+=item -cpu or --cpu
+
+ncRNAScan will attempt to run multiple processes on this may CPU cores.
+Mentioning number of CPUs equal to number of assembled transcript files 
+is strongly encouraged.
 
 =back
 
