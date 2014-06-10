@@ -1015,6 +1015,7 @@ sub ask_user {
 	 next;
      }
      else {
+	 alarm 0;
 	 last;
      }
  }
