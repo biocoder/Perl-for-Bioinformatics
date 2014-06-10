@@ -622,7 +622,7 @@ sub setup_ncRNAScan {
     chop(my $ncRNAScan_root = ($io->file_basename(abs_path($0), 'all'))[1]);
 
     if (!-d "$ncRNAScan_root/.ncRNAScan.depbin") {
-	print "\nMoving required tools and scripts to current install path...\n";
+	print "\n\nMoving required tools and scripts to current install path...\n";
 	system("mkdir $install_dir/.ncRNAScan.depbin");
 	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/.ncRNAScan.depbin/* $install_dir/.ncRNAScan.depbin/.");
 	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/* $install_dir/.");
