@@ -82,6 +82,7 @@ $io->error('Cufflinks assembled transcript files not provided.')
 $io->c_time('Tainting sample names...');
 $sample_names = $io->strip_leading_and_trailing_spaces($sample_names);
 $sample_names =~ s/\s+/\_/g;
+$sample_names =~ s/\,$//;
 my @lables = split/\,/, $sample_names;
 
 for (0 .. $#ARGV) {
