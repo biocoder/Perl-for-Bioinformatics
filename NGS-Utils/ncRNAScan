@@ -126,6 +126,12 @@ sub run_ncRNAScan {
 	my $is_failed = '';
 	my $cat_dir = $outdir . 'categorize_ncRNAs';
 	
+	if (!-e "$cuffcmp_dir/ncRNAScan_cuffcmp.tracking" || !-s "$cuffcmp_dir/ncRNAScan_cuffcmp.tracking") {
+	    
+	    print "\nCannot find Cuffcompare tracking [ $cuffcmp_dir/ncRNAScan_cuffcmp.tracking ] file...\n";
+	    pipeline_status($io, 'ERROR'); 
+	}
+	
 	$io->execute_system_command("mkdir -p $cat_dir",
 				    'Making output directory for ' .
 				    $io->file_basename($deps->{'cat'}, 'suffix') .
@@ -198,6 +204,12 @@ sub run_ncRNAScan {
 	    
 	push my @ncRNAScan_class_files, grep {/putative\.class\.ncRNAs\.gtf$/} readdir ncRNAScan_categorize_mod;
 	
+	if ($#ncRNAScan_class_files ==  0) {
+
+            print "\nCannot find output in $cat_dir ...\n";
+            pipeline_status($io, 'ERROR');
+	}
+	
 	foreach my $ncRNAScan_class_file (@ncRNAScan_class_files) {
 	    	    
 	    $cpu->start and next if (defined $num_cpu);
@@ -246,6 +258,12 @@ sub run_ncRNAScan {
 		       'get_unique_features to read unique ncRNA features.');
 	
 	push my @ncRNAScan_unique_files, grep {/putative\.class\.ncRNAs\.unique\.gtf$/} readdir ncRNAScan_get_unique_mod;
+
+	if ($#ncRNAScan_unique_files ==  0) {
+
+            print "\nCannot find output in $cat_dir ...\n";
+            pipeline_status($io, 'ERROR');
+        }
 	
 	foreach my $ncRNAScan_unique_file (@ncRNAScan_unique_files) {
 	    
