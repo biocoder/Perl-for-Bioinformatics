@@ -178,7 +178,9 @@ sub run_ncRNAScan {
 							  " -cuffcmp $cuffcmp_dir/ncRNAScan_cuffcmp.tracking -out $cat_dir " .
 							  "-bin $deps->{'bin-gtfToGenePred'} " .
 							  join('-', split(/\-|\--/, $categorize_sc_opts)));
-	}	
+	}
+
+	print $is_failed;
 	pipeline_status($io, $is_failed);
 	
     } if (defined($categorize_sc_opts) && $categorize_sc_opts ne '');
@@ -230,6 +232,8 @@ sub run_ncRNAScan {
 							      join('-', split(/\-|\--/, $get_uq_sc_opts)) .
 							      ' -stdout -unique -kc 3 -ck transcript ' .
 							      " > $unique_ncRNAs");
+
+	    print $is_failed;
 	    pipeline_status($io, $is_failed);
 	    $cpu->finish if (defined $num_cpu);
 	}
@@ -280,6 +284,7 @@ sub run_ncRNAScan {
 							 join('-', split(/\-|\--/, $fetch_sc_opts)) .
 							 ' -tmap ' . $ncRNAScan_unique_file .
 							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t'");
+	    print $is_failed;
 	    pipeline_status($io, $is_failed);
 	    $cpu->finish if (defined $num_cpu);
 	}
