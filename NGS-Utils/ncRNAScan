@@ -4,6 +4,7 @@ use strict;
 use warnings;
 use Getopt::Long;
 use File::Temp;
+use File::Basename;
 use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
@@ -16,7 +17,7 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $fetch_sc_opts, $categorize_sc_opts,
     $cuffcmp_opts, $deps, $out, $start_cpc, 
     $start_rnafold, $rm_int_plots, $start_infernal,
-    $num_cpu);
+    $num_cpu, $local_lib);
 
 my $is_valid_option = GetOptions('help:s'                    => \$help,
                                  'quiet'                     => \$quiet,
@@ -30,16 +31,19 @@ my $is_valid_option = GetOptions('help:s'                    => \$help,
 				 'rnafold:s'                 => \$start_rnafold,
 				 'rm-int-plots'              => \$rm_int_plots,
 				 'infernal:s'                => \$start_infernal,
-				 'cpu=i'                     => \$num_cpu);
+				 'cpu=i'                     => \$num_cpu,
+				 'local-lib=s'               => \$local_lib);
 
 my $CAT_SC = 'categorize_ncRNAs.pl';
 my $FETCH_SC = 'fetch_seq_from_ucsc.pl';
 my $GET_UQ_SC = 'get_unique_features.pl';
 my $CPC_SH_SC = 'CPC.sh';
 my $RELPLOT_MOD_SC = 'relplot_mod.pl';
-my $USER_HOME = $ENV{'HOME'};
+my $USER_HOME = dirname(abs_path($0));
+my $num_cpu_by_2 = sprintf("%.0f", $num_cpu / 2) - 1 if (defined $num_cpu);
 
 setup_ncRNAScan(`pwd`) if (defined $setup);
+
 if (defined $out || (defined $help && $help eq '')) {
     run_ncRNAScan();
 }
@@ -622,20 +626,26 @@ sub setup_ncRNAScan {
     system("mv cpanm $install_dir/.build");
     system("chmod 755 $install_dir/.build/cpanm");
 
-    cpanm_status($install_dir, 'Module::Load');
-    cpanm_status($install_dir, 'Set::IntervalTree');
-    cpanm_status($install_dir, 'LWP::Simple');
-    cpanm_status($install_dir, 'XML::XPath');
-    cpanm_status($install_dir, 'XML::XPath::XMLParser');
-    cpanm_status($install_dir, 'Parallel::ForkManager');
+    my $pm_install_dir = $install_dir;
+    if (defined $local_lib) {
+	chop $local_lib if ($local_lib =~ m/\/$/);
+	$pm_install_dir = $local_lib;
+    }
+
+    cpanm_status($pm_install_dir, 'Module::Load');
+    cpanm_status($pm_install_dir, 'Set::IntervalTree');
+    cpanm_status($pm_install_dir, 'LWP::Simple');
+    cpanm_status($pm_install_dir, 'XML::XPath');
+    cpanm_status($pm_install_dir, 'XML::XPath::XMLParser');
+    cpanm_status($pm_install_dir, 'Parallel::ForkManager');
 
     print "\n\nThank you cpanm!\n";
 
-    my $pm_path = "$install_dir/PERLLIBS:$install_dir/PERLLIBS/lib:$install_dir/PERLLIBS/lib/perl5";
+    my $pm_path = "$pm_install_dir/PERLLIBS:$pm_install_dir/PERLLIBS/lib:$pm_install_dir/PERLLIBS/lib/perl5";
 
     print "\nInstalling IO::Routine...\n\n";
-    system("mkdir $install_dir/PERLLIBS") if (!-d "$install_dir/PERLLIBS");
-    my $custom_pm_log = `cd $install_dir/.build/Perl-for-Bioinformatics-master/IO-Routine;perl Makefile.PL PREFIX=$install_dir/PERLLIBS LIB=$install_dir/PERLLIBS/lib && make && make test && make install; 2>&1`;
+    system("mkdir $pm_install_dir/PERLLIBS") if (!-d "$pm_install_dir/PERLLIBS");
+    my $custom_pm_log = `cd $install_dir/.build/Perl-for-Bioinformatics-master/IO-Routine;perl Makefile.PL PREFIX=$pm_install_dir/PERLLIBS LIB=$pm_install_dir/PERLLIBS/lib && make && make test && make install; 2>&1`;
 
     if ($custom_pm_log =~ m/fail|error|cannot/i) {
 	succ_or_fail(0, 'IO::Routine');
@@ -647,7 +657,7 @@ sub setup_ncRNAScan {
     require "$install_dir/PERLLIBS/lib/IO/Routine.pm";
     my $io = IO::Routine->new($help, $quiet);
 
-    chop(my $ncRNAScan_root = ($io->file_basename(abs_path($0), 'all'))[1]);
+    chop(my $ncRNAScan_root = dirname(abs_path($0));
 
     if (!-d "$ncRNAScan_root/.ncRNAScan.depbin") {
 	print "\n\nMoving required tools and scripts to current install path...\n";
