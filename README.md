@@ -49,6 +49,9 @@ or to get help documentation for individual modules, do:
      
             yum install expat expat-devel
             
+     * _**RNAfold:**_ RNAfold is slow and does not work for sequences over 4000bp in length. I am working in including an alternative secondary structure prediction program instead of RNAfold. Meanwhile you may skip running RNAfold module by not issuing the `--rnafold` option with `ncRNAScan`.
+            
+            
 * Caveats:
     * The pipeline script uses a lot of inherent Linux core utils and has been only tested in BASH shell. 
  
