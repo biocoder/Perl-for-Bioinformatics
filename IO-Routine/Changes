@@ -1,9 +1,8 @@
 Revision history for IO-Routine:
 --------------------------------
 
-0.36      2014-05-13 11:15:54 America/Chicago
-	  c_time() displays elapsed time correctly in
-	  days, hours, minutes and seconds.
+0.36      2014-06-17 11:39:49 America/Chicago
+	  Minute(s) timer corrected to move onto hours.
 
 0.35      2013-12-17 15:15:36 America/Chicago
 	  Error quits without displaying POD. User

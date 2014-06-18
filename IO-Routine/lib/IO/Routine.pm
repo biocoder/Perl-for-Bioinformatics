@@ -888,7 +888,7 @@ sub end_timer {
 	if (!$start_time);
     
     if (!$quiet || !defined($quiet)) {
-	if (sprintf("%.2f", tv_interval($start_time)) > 60) {
+	if (( sprintf("%.2f", tv_interval($start_time)) / 60) > 1) {
 	    print "\nTime Elapsed: ", sprintf("%.2f", tv_interval($start_time) / 60), " Minute(s).\n\n";
 	}
 	elsif (( sprintf("%.2f", tv_interval($start_time)) / 3600 ) > 1) {
