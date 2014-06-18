@@ -15,7 +15,8 @@ my $AUTHORFULLNAME = 'Kranti Konganti';
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
     $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
-    $antisense_only, $disp_anti_option, $gtf_bin, $num_cpu);
+    $antisense_only, $disp_anti_option, $gtf_bin, $num_cpu,
+    $linc_rna_prox);
 
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 my $ncRNA_class = {};
@@ -37,7 +38,8 @@ my $is_valid_option = GetOptions('help|?'              => \$help,
 				 'clean-tmp'           => \$no_tmp,
 				 'bin-gtfToGenePred=s' => \$gtf_bin,
 				 'antisense-only'      => \$antisense_only,
-				 'cpu=i'               => \$num_cpu);
+				 'cpu=i'               => \$num_cpu,
+				 'linc-rna-prox=i'     => \$linc_rna_prox);
 
 my $io = IO::Routine->new($help, $quiet);
 my $s_time = $io->start_timer;
@@ -278,6 +280,7 @@ sub calc_lincRNAs {
     my $u_ncRNAs = shift;
     my $found = 0;
     my $num_noClass = 0;
+    my $ov_found_chk_flag = 0;
 
     foreach my $chr (keys %{$refAnnot}) {
 	my $ref_gene_tree = Set::IntervalTree->new();
@@ -291,6 +294,12 @@ sub calc_lincRNAs {
 		$ref_exon_ends,
 		$ref_tr_id) = get_parts($ref_gene);
 	    
+	    if (defined $linc_rna_prox && $linc_rna_prox > 0) {
+		$ref_tr_start += $linc_rna_prox;
+		$ref_tr_end += $linc_rna_prox;
+		$ov_found_chk_flag = 1;
+	    }
+
 	    $ref_gene_tree->insert($ref_tr_id, $ref_tr_start, $ref_tr_end);
 	} 
 
@@ -310,7 +319,7 @@ sub calc_lincRNAs {
 	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
 	    my $ov_found = $ref_gene_tree->fetch($nc_tr_start, $nc_tr_end);
 	    
-	    if (scalar(@$ov_found) == 0 &&
+	    if (scalar(@$ov_found) == $ov_found_chk_flag &&
 		!exists $ncRNA_class->{$unique_key} &&
 		$ncRNA_length >= $length) {
 		$found++;
@@ -814,6 +823,13 @@ categorize_ncRNAs.pl takes the following arguments:
     
     When reporting exonic overlaps with reference exons, report only Antisense
     exonic overlaps.
+
+=item --linc-rna-prox (Optional)
+
+    Default: disabled
+
+    When reporting Long intergenic ncRNAs, report only those which are within this
+    many number of bases upstream or downstream of the reference gene.
 
 =item -cpu or --cpu (Optional)
 
