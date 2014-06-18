@@ -17,30 +17,33 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $fetch_sc_opts, $categorize_sc_opts,
     $cuffcmp_opts, $deps, $out, $start_cpc, 
     $start_rnafold, $rm_int_plots, $start_infernal,
-    $num_cpu, $local_lib);
+    $num_cpu, $local_lib, $inf_cov);
 
-my $is_valid_option = GetOptions('help:s'                    => \$help,
-                                 'quiet'                     => \$quiet,
-				 'setup'                     => \$setup,
-				 'run=s'                     => \$out, 
-				 'cuffcompare|cuffcmp=s'     => \$cuffcmp_opts,
-				 'cat-ncRNAs=s'              => \$categorize_sc_opts,
-				 'fetch-seq=s'               => \$fetch_sc_opts,
-				 'get-uq-feat=s'             => \$get_uq_sc_opts,
-				 'cpc'                       => \$start_cpc,
-				 'rnafold:s'                 => \$start_rnafold,
-				 'rm-int-plots'              => \$rm_int_plots,
-				 'infernal:s'                => \$start_infernal,
-				 'cpu=i'                     => \$num_cpu,
-				 'local-lib=s'               => \$local_lib);
+my $is_valid_option = GetOptions('help:s'                           => \$help,
+                                 'quiet'                            => \$quiet,
+				 'setup'                            => \$setup,
+				 'run=s'                            => \$out, 
+				 'cuffcompare|cuffcmp=s'            => \$cuffcmp_opts,
+				 'cat-ncRNAs=s'                     => \$categorize_sc_opts,
+				 'fetch-seq=s'                      => \$fetch_sc_opts,
+				 'get-uq-feat=s'                    => \$get_uq_sc_opts,
+				 'cpc'                              => \$start_cpc,
+				 'rnafold:s'                        => \$start_rnafold,
+				 'rm-int-plots'                     => \$rm_int_plots,
+				 'infernal:s'                       => \$start_infernal,
+				 'cpu=i'                            => \$num_cpu,
+				 'coverage-infernal|cov-inf=f' => \$inf_cov,
+				 'local-lib=s'                      => \$local_lib);
 
 my $CAT_SC = 'categorize_ncRNAs.pl';
 my $FETCH_SC = 'fetch_seq_from_ucsc.pl';
 my $GET_UQ_SC = 'get_unique_features.pl';
 my $CPC_SH_SC = 'CPC.sh';
+my $ANN_INF_SC = 'annotate_final_ncRNAs.sh';
 my $RELPLOT_MOD_SC = 'relplot_mod.pl';
 my $USER_HOME = dirname(abs_path($0));
 my $num_cpu_by_2 = sprintf("%.0f", $num_cpu / 2) - 1 if (defined $num_cpu);
+$inf_cov = 25 if (!defined $inf_cov);
 
 setup_ncRNAScan(`pwd`) if (defined $setup);
 
@@ -485,24 +488,14 @@ sub run_ncRNAScan {
 		    
 		    my $tmp_annot = $io->open_file('>', $ncRNAScan_final_trs . '.tmp');
 		    
-		    my $infernal_run = $io->execute_get_sys_cmd_output("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | sort -n | uniq | " .
-								       "while read trid; do annot=`grep \"\$trid\" $tbl | sort -k15,15nr | " .
-								       "uniq | awk '{\$1=\"\";for(i=3;i<=17;i++)\$i=\"\";print \$0}' | " .
-								       "cut -d \" \" -f 2- | sed -e 's/\\s\\+/ /g' | head -n 1`; " .
-								       "if [ -z \"\$annot\" ]; then annot='No Annotation'; fi; " .
-								       "grep \"\$trid\" $ncRNAScan_final_trs | " .
-								       "sed -e \"s%\$% Infernal\_predicition \\\"\$annot\\\"\\;%\"" .
-								       "; done;",			 
+		    my $infernal_run = $io->execute_get_sys_cmd_output("FINAL_GTF=$ncRNAScan_final_trs" .
+								       " CM_TXT_OUT=$tbl CPC_TXT_OUT=$CPC_out_file COV=$inf_cov" .
+								       ' ' . $deps->{'ann-inf'},
 								       "Command call:\n" .
 								       "-------------\n" .
-								       "grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | sort -n | uniq | " .
-                                                                       "while read trid; do annot=`grep \"\$trid\" $tbl | sort -k15,15nr | " .
-                                                                       "uniq | awk '{\$1=\"\";for(i=3;i<=17;i++)\$i=\"\";print \$0}' | " .
-                                                                       "cut -d \" \" -f 2- | sed -e 's/\\s\\+/ /g' | head -n 1`; " .
-                                                                       "if [ -z \"\$annot\" ]; then annot='No Annotation'; fi; " .
-                                                                       "grep \"\$trid\" $ncRNAScan_final_trs | " .
-                                                                       "sed -e \"s%\$% Infernal\_prediction \\\"\$annot\\\"\\;%\"" .
-                                                                       "; done;");
+								       "FINAL_GTF=$ncRNAScan_final_trs" .
+								       " CM_TXT_OUT=$tbl CPC_TXT_OUT=$CPC_out_file COV=$inf_cov" .
+                                                                       ' ' . $deps->{'ann-inf'});
 
 		    pipeline_status($io, 'ERROR!', 'Cannot get annotation from Infernal run') if (!$infernal_run);
 		    print $tmp_annot $infernal_run;
@@ -632,12 +625,12 @@ sub setup_ncRNAScan {
 	$pm_install_dir = $local_lib;
     }
 
-    cpanm_status($pm_install_dir, 'Module::Load');
-    cpanm_status($pm_install_dir, 'Set::IntervalTree');
-    cpanm_status($pm_install_dir, 'LWP::Simple');
-    cpanm_status($pm_install_dir, 'XML::XPath');
-    cpanm_status($pm_install_dir, 'XML::XPath::XMLParser');
-    cpanm_status($pm_install_dir, 'Parallel::ForkManager');
+    cpanm_status($pm_install_dir, 'Module::Load', $install_dir);
+    cpanm_status($pm_install_dir, 'Set::IntervalTree', $install_dir);
+    cpanm_status($pm_install_dir, 'LWP::Simple', $install_dir);
+    cpanm_status($pm_install_dir, 'XML::XPath', $install_dir);
+    cpanm_status($pm_install_dir, 'XML::XPath::XMLParser', $install_dir);
+    cpanm_status($pm_install_dir, 'Parallel::ForkManager', $install_dir);
 
     print "\n\nThank you cpanm!\n";
 
@@ -654,10 +647,10 @@ sub setup_ncRNAScan {
 	succ_or_fail(1, 'IO::Routine');
     }
 
-    require "$install_dir/PERLLIBS/lib/IO/Routine.pm";
+    require "$pm_install_dir/PERLLIBS/lib/IO/Routine.pm";
     my $io = IO::Routine->new($help, $quiet);
 
-    chop(my $ncRNAScan_root = dirname(abs_path($0)));
+    chomp(my $ncRNAScan_root = dirname(abs_path($0)));
 
     if (!-d "$ncRNAScan_root/.ncRNAScan.depbin") {
 	print "\n\nMoving required tools and scripts to current install path...\n";
@@ -779,6 +772,7 @@ sub setup_ncRNAScan {
     print $dep_fh "$install_dir/" . $GET_UQ_SC, "\n" if (check_native("$install_dir/" . $GET_UQ_SC));
     print $dep_fh "$install_dir/" . $RELPLOT_MOD_SC, "\n" if (check_native("$install_dir/" . $RELPLOT_MOD_SC));
     print $dep_fh "$install_dir/" . $CPC_SH_SC, "\n" if (check_native("$install_dir/" . $CPC_SH_SC));
+    print $dep_fh "$install_dir/" . $ANN_INF_SC, "\n" if (check_native("$install_dir/" . $ANN_INF_SC));
 
     if (-e "$install_dir/.ncRNAScan.depbin/Rfam.cm.1_1" &&
 	-s "$install_dir/.ncRNAScan.depbin/Rfam.cm.1_1") {
@@ -789,14 +783,13 @@ sub setup_ncRNAScan {
 	succ_or_fail(0, "Rfam.cm.1_1");
     }
 
-    setup_cpc($dl_util_slave, $dep_fh);
-
     if (!exists $ENV{'CPC_HOME'}) {
 	succ_or_fail(2, 'CPC');
 	#print "\n\nSeems like Coding Potential Calculator (CPC) is not installed. This may not be a problem if you do not intend to use CPC.";
 	#print "\nSee CPC installation instructions (http://cpc.cbi.pku.edu.cn/docs/install_guide.jsp) if you would like to run CPC module with ncRNAScan.";
     }
     else {
+	setup_cpc($dl_util_slave, $dep_fh);
 	succ_or_fail(1, 'CPC');
     }
     close $dep_fh;
@@ -871,6 +864,7 @@ sub setup_cpc {
 # Check for pipeline scripts.
 sub check_native {
     my $nat_sc = shift;
+    
     (my $sc) = ($nat_sc =~ m/.*\/(.+?\.pl|.+?\.sh)$/);
 
     if (-e $nat_sc) {
@@ -986,7 +980,9 @@ sub source_env {
 sub cpanm_status {
     my $install_dir = shift;
     my $pm = shift;
-    my $cpanm_log = `$install_dir/.build/cpanm -f -l $install_dir/PERLLIBS $pm 2>&1`;
+    my $cpanm_bin = shift;
+
+    my $cpanm_log = `$cpanm_bin/.build/cpanm -f -l $install_dir/PERLLIBS $pm 2>&1`;
     
     if ($cpanm_log !~ m/.*?success.*/i && $pm =~ m/xml/i) {
 	print STDOUT "\n\nYou need to install XML parser C libraries.\n\n\t\* On Ubuntu / Debian based Linux distributions, as root user, do:\n\n\t\tapt-get install libexpat1 libexpat1-dev\n\n\t\* On RedHat / Fedora / CentOS based Linux distributions, as root user do:\n\n\t\tyum install expat expat-devel\n\n";
@@ -1078,6 +1074,7 @@ sub get_deps {
     ($deps->{'fetch'}) = ($dep_tools =~ m/(.+?$FETCH_SC)/i);
     ($deps->{'get'}) = ($dep_tools =~ m/(.+?$GET_UQ_SC)/i);
     ($deps->{'cpc'}) = ($dep_tools =~ m/(.+?$CPC_SH_SC)/i);
+    ($deps->{'ann-inf'}) = ($dep_tools =~ m/(.+?$ANN_INF_SC)/i);
     ($deps->{'relplot'}) = ($dep_tools =~ m/(.+?$RELPLOT_MOD_SC)/i);
     ($deps->{'cpc_home'}) = ($dep_tools =~ m/cpcHome\:(.+)/i) if (!exists $ENV{'CPC_HOME'}); 
 
@@ -1320,6 +1317,11 @@ Run RNAfold module of the pipeline. No options required
 =item -inf or --infernal
 
 Run Infernal module of the pipeline. No options required
+
+=item -cov-inf or --coverage-infernal
+
+Only annotate final putative ncRNAs which have cmscan match over this much percentage of sequence.
+Default: 25
 
 =item -cpu or --cpu
 

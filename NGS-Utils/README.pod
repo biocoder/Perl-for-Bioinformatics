@@ -200,6 +200,11 @@ Run RNAfold module of the pipeline. No options required
 
 Run Infernal module of the pipeline. No options required
 
+=item -cov-inf or --coverage-infernal
+
+Only annotate final putative ncRNAs which have cmscan match over this much percentage of sequence.
+Default: 25
+
 =item -cpu or --cpu
 
 ncRNAScan will attempt to run multiple processes on this may CPU cores.
