@@ -240,7 +240,7 @@ sub run_ncRNAScan {
 							      ' -stdout -unique -kc 3 -ck transcript ' .
 							      " > $unique_ncRNAs");
 
-	    print $is_failed;
+	    #print $is_failed;
 	    pipeline_status($io, $is_failed);
 	    $cpu->finish if (defined $num_cpu);
 	}
