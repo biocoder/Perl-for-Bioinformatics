@@ -32,7 +32,7 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'rm-int-plots'                     => \$rm_int_plots,
 				 'infernal:s'                       => \$start_infernal,
 				 'cpu=i'                            => \$num_cpu,
-				 'coverage-infernal|cov-inf=f' => \$inf_cov,
+				 'coverage-infernal|cov-inf=f'      => \$inf_cov,
 				 'local-lib=s'                      => \$local_lib);
 
 my $CAT_SC = 'categorize_ncRNAs.pl';
