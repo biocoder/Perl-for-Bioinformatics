@@ -35,6 +35,7 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'coverage-infernal|cov-inf=f'      => \$inf_cov,
 				 'local-lib=s'                      => \$local_lib);
 
+# Initialize known defaults
 my $CAT_SC = 'categorize_ncRNAs.pl';
 my $FETCH_SC = 'fetch_seq_from_ucsc.pl';
 my $GET_UQ_SC = 'get_unique_features.pl';
@@ -149,6 +150,7 @@ sub run_ncRNAScan {
 	    
 	    my ($tr_files, $tr_size) = get_num_tr_files($cuffcmp_opts);
 	    my $annot = get_annot($cuffcmp_opts);
+	    $num_cpu_by_2 = sprintf("%.0f", $num_cpu / ($tr_size + 1)) - 1 if (defined $num_cpu);
 	    
 	    $io->c_time('Converting annotation file supplied with cuffcompare to gene prediction format [ GTF -> genePred ]');
 	    my $annot_for_cat = $cat_dir . '/' . $io->file_basename($annot) . '.txt';
@@ -160,7 +162,7 @@ sub run_ncRNAScan {
 							 $deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
 							 $annot . ' ' . $annot_for_cat);
 
-	    $categorize_sc_opts .= " -cpu $num_cpu" if (defined $num_cpu);
+	    $categorize_sc_opts .= " -cpu $num_cpu_by_2" if (defined $num_cpu);
 	    
 	     $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
 							  join('-', split(/\-|\--/, $categorize_sc_opts)) .
@@ -329,6 +331,7 @@ sub run_ncRNAScan {
 	foreach my $ncRNAScan_unique_seq_file (@ncRNAScan_unique_seq_files) {
 
 	    $cpu->start and next if (defined $num_cpu);
+	    $num_cpu_by_2 = sprintf("%.0f", $num_cpu / scalar(@ncRNAScan_unique_seq_files)) - 1 if (defined $num_cpu);
 
 	    $ncRNAScan_unique_seq_file = $outdir . 'fetch_seq_from_ucsc/' . $ncRNAScan_unique_seq_file;
 	    my $CPC_out_file = $cat_dir . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.CPC.predict.txt';
