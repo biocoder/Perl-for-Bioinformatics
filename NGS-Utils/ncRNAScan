@@ -162,7 +162,7 @@ sub run_ncRNAScan {
 							 $deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
 							 $annot . ' ' . $annot_for_cat);
 
-	    $categorize_sc_opts .= " -cpu $num_cpu_by_2" if (defined $num_cpu);
+	    $categorize_sc_opts .= " -cpu $num_cpu_by_2 --non-calc-cpu $num_cpu" if (defined $num_cpu);
 	    
 	     $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
 							  join('-', split(/\-|\--/, $categorize_sc_opts)) .
@@ -1250,7 +1250,7 @@ The pipeline has the ability to run each of these individual modules if any of t
 
 =item * Run categorize_ncRNAs module of the pipeline:
     
- perl ncRNAScan -run /data/ncRNAScan/ -cat '-clean -overlap 1.1 -len 200 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names 'M0,M1,M2' /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf'
+ perl ncRNAScan -run /data/ncRNAScan/ -cat '-clean -overlap 1.1 -len 200 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf'
 
 =item * Run get_unique_features module of the pipeline:
     

@@ -16,10 +16,11 @@ my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
     $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
     $antisense_only, $disp_anti_option, $gtf_bin, $num_cpu,
-    $linc_rna_prox);
+    $linc_rna_prox, $non_calc_cpu, $ncRNA_max_length);
 
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 my $ncRNA_class = {};
+my $full_read_supp = 'yes|no';
 
 my $is_valid_option = GetOptions('help|?'              => \$help,
 				 'quiet'               => \$quiet,
@@ -32,6 +33,7 @@ my $is_valid_option = GetOptions('help|?'              => \$help,
 				 'genePred'            => \$genePred,
 				 'categorize'          => \$categorize,
 				 'length=i'            => \$length,
+				 'max-length=i'        => \$ncRNA_max_length,
 				 'min-exons=i'         => \$min_exons,
 				 'overlap=f'           => \$overlap,
 				 'include-novel'       => \$novel,
@@ -39,7 +41,9 @@ my $is_valid_option = GetOptions('help|?'              => \$help,
 				 'bin-gtfToGenePred=s' => \$gtf_bin,
 				 'antisense-only'      => \$antisense_only,
 				 'cpu=i'               => \$num_cpu,
-				 'linc-rna-prox=i'     => \$linc_rna_prox);
+				 'linc-rna-prox=i'     => \$linc_rna_prox,
+				 'full-read-support'   => \$full_read_supp,
+				 'non-calc-cpu=i'      => \$non_calc_cpu);
 
 my $io = IO::Routine->new($help, $quiet);
 my $s_time = $io->start_timer;
@@ -62,6 +66,7 @@ $cov_cutoff = 0.0 if (!defined $cov_cutoff || $cov_cutoff eq '');
 $length = 200 if (!defined $length || $length eq '');
 $overlap = 0 if (!defined $overlap || $overlap eq '');
 $min_exons = 2 if (!defined $min_exons || $min_exons eq '');
+$full_read_supp = 'yes' if (defined $full_read_supp);
 
 $io->c_time('Validating output path...');
 my $output = $io->validate_create_path($out, 'create', 
@@ -151,14 +156,22 @@ exit;
 # to cufflinks assembled transcript fragments.
 sub get_putative_ncRNAs {
     $io->c_time('Getting putative list of ncRNAs in GTF format...');
+    my $cpu = '';
+
     if (defined $novel) {
 	$extract_pat = 'j|i|o|u|x';
     }
     else {
 	$extract_pat = 'i|o|u|x';
     }
+
+    if (defined $non_calc_cpu) {
+        $cpu = Parallel::ForkManager->new($non_calc_cpu);
+        $cpu->set_max_procs($non_calc_cpu);
+    }
     
     while (my $line = <$cuffcmp_fh>) {
+	$cpu->start and next if (defined $num_cpu);
 	chomp $line;
 	$line = $io->strip_leading_and_trailing_spaces($line);
 	my ($t_id, $loc_id, $loc_name, $class_code, @cols) = split/\t/, $line;
@@ -168,15 +181,17 @@ sub get_putative_ncRNAs {
 		next if (!$q_t_id || $q_t_id eq '');
 		$q_t_id =~ s/\./\\./g;
 		my $t_lines = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_]", 0);
-		if ($t_lines =~ m/.+?[FR]PKM.+?\"(.+?)\".+?cov.+?\"(.+?)\".+/i) {
-		    $io->execute_system_command("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/' >> $p_file_names_gtf->[$_]") if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff);
+		if ($t_lines =~ m/.+?[FR]PKM.+?\"(.+?)\".+?cov.+?\"(.+?)\".+?full\_read\_support.+?\"(yes|no)\".*/i) {
+		    $io->execute_system_command("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/' >> $p_file_names_gtf->[$_]") if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff && $3 =~ m/$full_read_supp/i);
 		}
 		else {
 		    $io->execute_system_command("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/' >> $p_file_names_gtf->[$_]");
 		}
 	    }
 	}
+	$cpu->finish if (defined $num_cpu);
     }
+    $cpu->wait_all_children if (defined $num_cpu);
     return;
 }
 
@@ -205,7 +220,7 @@ sub get_genePred {
 	    "$exe_gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_] 2> /dev/null");
 	$cpu->finish if (defined $num_cpu);
     }
-    $cpu->wait_all_children;
+    $cpu->wait_all_children if (defined $num_cpu);
     return;
 }
 
@@ -315,13 +330,16 @@ sub calc_lincRNAs {
 	 
 	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" .
                 @$nc_exon_starts . @$nc_exon_ends;
+	    
 	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
-	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
+	    $ncRNA_max_length = $ncRNA_length if ( (!defined $ncRNA_max_length) || ($ncRNA_max_length eq '') );
+
 	    my $ov_found = $ref_gene_tree->fetch($nc_tr_start, $nc_tr_end);
 	    
 	    if (scalar(@$ov_found) == $ov_found_chk_flag &&
 		!exists $ncRNA_class->{$unique_key} &&
-		$ncRNA_length >= $length) {
+		$ncRNA_length >= $length &&
+		$ncRNA_length <= $ncRNA_max_length) {
 		$found++;
 		$ncRNA_class->{$unique_key} = 1;
 		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; ncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
@@ -366,6 +384,7 @@ sub calc_overlaps {
 		@$nc_exon_starts . @$nc_exon_ends;
 
 	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
+	    $ncRNA_max_length = $ncRNA_length if ( (!defined $ncRNA_max_length) || ($ncRNA_max_length eq '') );
 	    $nc_int_tree->insert($nc_tr_id, $nc_tr_start, $nc_tr_end) if ($mode =~ m/^ponc|conc$/i);
 
 	    foreach my $ref_gene (values @{$refAnnot->{$nc_chr}}) {
@@ -383,7 +402,8 @@ sub calc_overlaps {
 		# Only lncRNAs, adjustable by user with -length and -min-exons parameters.
 		
 		if ($ncRNA_length >= $length &&
-		    $nc_exons >= $min_exons) { 
+		    $nc_exons >= $min_exons &&
+		    $ncRNA_length <= $ncRNA_max_length) { 
 
 		    # Complete overlap reference gene with ncRNA intron.
 		    if ($mode =~ m/^conc$/i &&
@@ -761,6 +781,12 @@ categorize_ncRNAs.pl takes the following arguments:
     Extract transript features whose coverage is at least this much. This
     can be a floating point value.
 
+=item -full or --full-read-support (Optional)
+
+    Default: disabled
+
+    Extract Cufflinks' transcripts whose value full_read_support is "yes".
+
 =item -inc or --include-novel (Optional)
 
     Default: disabled
@@ -794,6 +820,11 @@ categorize_ncRNAs.pl takes the following arguments:
 
     Extract transcripts whose length is at least this much.
 
+=item -max-len or --max-length (Optional)
+
+    Default: disabled
+
+    Extract transcripts whose length is not more than this much.
 
 =item -min or --min-exons (Optional)
 
