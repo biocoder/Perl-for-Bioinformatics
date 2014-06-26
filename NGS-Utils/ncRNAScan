@@ -435,10 +435,10 @@ sub run_ncRNAScan {
 		    $dp_ = esc_tr_id($dp_);
 		    $ps = esc_tr_id($pre_ps);
 
-		    $io->execute_system_command($deps->{'relplot'} . $ss_ . ' ' . $dp_ . ' > ' . $ps,
+		    $io->execute_system_command($deps->{'relplot'} . ' ' . $ss_ . ' ' . $dp_ . ' > ' . $ps,
 						"Command call:\n" .
 						"-------------\n" .
-						$deps->{'relplot'} . $ss_ . ' ' . $dp_ . ' > ' . $ps);
+						$deps->{'relplot'} . ' ' . $ss_ . ' ' . $dp_ . ' > ' . $ps);
 		    
 		    $io->c_time('Cleaning up *_ss.ps and *_dp.ps files ...'), 
 		    $io->execute_system_command("rm $dp_"),
