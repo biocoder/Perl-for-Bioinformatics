@@ -1,6 +1,3 @@
-os:
- - linux
- - osx
 language: "perl"
 perl:
  - "5.18"
