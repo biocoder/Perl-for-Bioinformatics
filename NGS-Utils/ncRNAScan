@@ -787,13 +787,15 @@ sub setup_ncRNAScan {
     }
 
     if (!exists $ENV{'CPC_HOME'}) {
-	succ_or_fail(2, 'CPC');
+	if (ask_user('Do you want me to attempt to install CPC?')) {
+	    	setup_cpc($dl_util_slave, $dep_fh);
+		succ_or_fail(1, 'CPC');
+	}
+	else {
+	    succ_or_fail(2, 'CPC');
+	}
 	#print "\n\nSeems like Coding Potential Calculator (CPC) is not installed. This may not be a problem if you do not intend to use CPC.";
 	#print "\nSee CPC installation instructions (http://cpc.cbi.pku.edu.cn/docs/install_guide.jsp) if you would like to run CPC module with ncRNAScan.";
-    }
-    else {
-	setup_cpc($dl_util_slave, $dep_fh);
-	succ_or_fail(1, 'CPC');
     }
     close $dep_fh;
 
