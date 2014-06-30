@@ -10,7 +10,7 @@ os:
  - osx
 
 install: 
- - "cd ../NGS-Utils; perl ncRNAScan -setup"
+ - "cd NGS-Utils; perl ncRNAScan -setup"
 
 notifications:
   email: false
