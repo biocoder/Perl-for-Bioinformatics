@@ -787,7 +787,7 @@ sub setup_ncRNAScan {
     }
 
     if (!exists $ENV{'CPC_HOME'}) {
-	if (ask_user('Do you want me to attempt to install CPC?')) {
+	if (ask_user("\n\nDo you want me to attempt to install CPC?")) {
 	    	setup_cpc($dl_util_slave, $dep_fh);
 		succ_or_fail(1, 'CPC');
 	}
