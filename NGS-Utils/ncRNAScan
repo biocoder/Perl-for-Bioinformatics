@@ -1123,8 +1123,12 @@ __END__
 
 =head1 NAME
 
-ncRNAScan
-
+            ____  _   _    _    ____                  
+ _ __   ___|  _ \| \ | |  / \  / ___|  ___ __ _ _ __  
+| '_ \ / __| |_) |  \| | / _ \ \___ \ / __/ _` | '_ \ 
+| | | | (__|  _ <| |\  |/ ___ \ ___) | (_| (_| | | | |
+|_| |_|\___|_| \_\_| \_/_/   \_\____/ \___\__,_|_| |_|
+                                                       
 =head1 SYNOPSIS
 
 ncRNAScan is a pipeline to extract putative novel ncRNAs ab initio, given a list of transcripts in GTF format assembled from deep sequencing data (ex: RNA-Seq).
