@@ -47,7 +47,7 @@ To get help documentation about this module, run:
 
 =item 3. get_unique_features.pl (ncRNAScan Option: -get or --get--uq-feat)
     
-It then compares the putative list with supplied known ncRNAs in BED format to get features that do not overlap any known ncRNAs.
+It then compares the putative list with supplied known ncRNAs in BED format to get features that do not overlap any known ncRNAs. To extract known ncRNAs from your assembled transcripts for downstream analysis, include --known with -get option of ncRNAscan.
 
 To get help documentation about this module, run:
 
@@ -135,9 +135,13 @@ The pipeline has the ability to run each of these individual modules if any of t
     
  perl ncRNAScan -run /data/ncRNAScan/ -cat '-clean -overlap 1.1 -len 200 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf'
 
-=item * Run get_unique_features module of the pipeline:
+=item * Run get_unique_features module of the pipeline to extract novel ncRNAs:
     
  perl ncRNAScan -run /data/ncRNAScan -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_ncRNAs/mm10_ncRNA.bed'
+
+=item * Run get_unique_features module of the pipeline to extract known ncRNAs:
+    
+ perl ncRNAScan -run /data/ncRNAScan -get '--known -sf /data/projects/mm10/macrophages/ncrna/known_ref_ncRNAs/mm10_ncRNA.bed'
 
 =item * Run fetch_unique_features module of the pipeline:
 
