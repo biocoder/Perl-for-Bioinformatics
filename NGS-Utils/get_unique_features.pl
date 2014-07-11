@@ -17,7 +17,7 @@ my $s_time = $io->start_timer();
 my ($help, $quiet, $sc1, $sc2, $cc1, $cc2,
     $sf, $cf, $chr_s, $chr_c,
     %seen_coord, %store_s_coords, %seen_s,
-    $unique, $pipe2stdout, $j_fh, $overlap, 
+    $unique, $known, $pipe2stdout, $j_fh, $overlap, 
     $tr_coords, $tr_start_col,
     $tr_end_col, $trans_bd_on_chr, $keyword, $keyword_col,
     $sff, $cff);
@@ -33,6 +33,7 @@ my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'help'                       => \$help,
 				 'quiet'                      => \$quiet,
 				 'unique'                     => \$unique,
+				 'known'                      => \$known,
 				 'overlap=f'                  => \$overlap,
 				 'no-exon-match=s'            => \$tr_coords,
 				 'stdout'                     => \$pipe2stdout,
@@ -73,7 +74,11 @@ $keyword_col-- if(defined($keyword_col) && ($keyword_col ne ''));
 
 my ($cf_filename, $path, $suffix) = $io->file_basename($cf, 'all');
 
-if (defined($unique)) {
+$io->warning('Both --known and --unique switches are on. Getting only known ncRNAs...')
+    if (defined $unique && defined $known);
+undef $unique if ( defined $known || (defined $known && defined $unique) );
+
+if (defined $unique) {
   $io->execute_system_command(0,
 			      'Getting unique features...',
 			      $quiet);
@@ -315,6 +320,11 @@ get_unique_features.pl takes the following arguments:
 =item -q or --quiet (Optional)
 
   Providing this option suppresses the log messages to the shell.
+  Default: disabled
+
+=item -u or --unique (Optional)
+
+  Get unique features between source and comparison file.
   Default: disabled
 
 =item -sff or --source-file-format (Optional)
