@@ -44,7 +44,7 @@ my $ANN_INF_SC = 'annotate_final_ncRNAs.sh';
 my $RELPLOT_MOD_SC = 'relplot_mod.pl';
 my $USER_HOME = dirname(abs_path($0));
 my $num_cpu_by_2 = sprintf("%.0f", $num_cpu / 2) - 1 if (defined $num_cpu);
-$inf_cov = 25 if (!defined $inf_cov);
+$inf_cov = 75 if (!defined $inf_cov);
 
 setup_ncRNAScan(`pwd`) if (defined $setup);
 
@@ -1334,7 +1334,7 @@ Run Infernal module of the pipeline. No options required
 =item -cov-inf or --coverage-infernal
 
 Only annotate final putative ncRNAs which have cmscan match over this much percentage of sequence.
-Default: 25
+Default: 75
 
 =item -cpu or --cpu
 
