@@ -387,11 +387,11 @@ sub run_ncRNAScan {
 
 		if (-e $CPC_out_file && -s $CPC_out_file) {
 		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | ".
-						"while read trid; do grep \$trid $unique_gtf; done > $ncRNAScan_final_trs");
+						"while read trid; do grep -P \"\${trid//\\./\\\\.}\" $unique_gtf; done > $ncRNAScan_final_trs");
 
 		    $io->c_time('Getting noncoding "only" transcripts [ ' .
 				$io->file_basename($unique_gtf, 'suffix') .
-				" ] ...\n");
+				" ] ...");
 		}
 		else {
 		    $io->error('CPC prediction step seems to have failed... Bailing out!');
@@ -517,7 +517,8 @@ sub run_ncRNAScan {
 								       " CM_TXT_OUT=$tbl CPC_TXT_OUT=$CPC_out_file COV=$inf_cov" .
                                                                        ' ' . $deps->{'ann-inf'});
 
-		    pipeline_status($io, 'ERROR!', 'Cannot get annotation from Infernal run') if (!$infernal_run);
+		    pipeline_status($io, 'ERROR!', 'Cannot get annotation from Infernal run') if (!$infernal_run ||
+												  $infernal_run =~ m/could not capture/i);
 		    print $tmp_annot $infernal_run;
 		    $io->c_time('Moving around files...');
 		    $io->execute_system_command("mv $ncRNAScan_final_trs" . '.tmp ' . $ncRNAScan_final_trs);
@@ -528,12 +529,12 @@ sub run_ncRNAScan {
 	      		    
 	    } if (defined $start_infernal);
 
-	    $cpu->finish if (defined $cpu);
-
 	    chomp (my $final_nc_tr_count = $io->execute_get_sys_cmd_output("grep -P '\ttranscript\t' $ncRNAScan_final_trs | wc -l"));
 	    $io->c_time('Final putative novel ncRNA count [ ' .
 			$io->file_basename($ncRNAScan_final_trs, 'suffix') .
 			' ]: ' . $final_nc_tr_count) if ($final_nc_tr_count);
+	    
+	    $cpu->finish if (defined $cpu);
 	}
 	
 	$cpu->wait_all_children if (defined $cpu);
