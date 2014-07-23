@@ -116,7 +116,7 @@ sub run_ncRNAScan {
 	    if (!-d $cuffcmp_dir);
 	
 	$io->execute_system_command($deps->{'cuffcompare'} .
-				    " -o $cuffcmp_dir/ncRNAScan_cuffcmp " .
+				    " -T -o $cuffcmp_dir/ncRNAScan_cuffcmp " .
 				    join('-', split(/\-/, $cuffcmp_opts)),
 				    "Command call:\n" .
 				    "-------------\n" . $deps->{'cuffcompare'} .

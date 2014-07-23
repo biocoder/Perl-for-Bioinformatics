@@ -249,19 +249,19 @@ sub class_ncRNAs {
 	my ($num_ex_ov, $num_incs, $num_concs, $num_poncs, $num_lincs, $noclass, $num_noSense,
 	    $discard) = 0;
 
-	$io->c_time('Categorizing ncRNAs (Exonic overlaps) [' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing ncRNAs (Exonic overlaps) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_ex_ov, $num_noSense) = calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 
-	$io->c_time('Categorizing ncRNAs (Intronic overlaps - incs) [' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing ncRNAs (Intronic overlaps - incs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_incs, $discard) = calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing ncRNAs (Intronic overlaps - concs) [' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing ncRNAs (Intronic overlaps - concs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_concs, $discard) = calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing ncRNAs (Intronic overlaps - poncs) [' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing ncRNAs (Intronic overlaps - poncs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_poncs, $discard) = calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing ncRNAs (lincRNA) [' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing ncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 	
 	$io->c_time("\n\nncRNA Summary [" . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . " ] :\n" . 
