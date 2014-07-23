@@ -224,7 +224,7 @@ Run Infernal module of the pipeline. No options required
 
 Skip runnning cmscan process once you know you have output from a successful 
 cmscan run. This option can be used when you want ncRNAScan to extract 
-annotation from infernal and attempt to annotate putatuve novel ncRNAs.
+annotation from infernal and attempt to annotate putative novel ncRNAs.
 
 =item -cov-inf or --coverage-infernal
 
