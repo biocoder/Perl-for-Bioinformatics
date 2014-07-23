@@ -92,6 +92,9 @@ $sample_names =~ s/\s+/\_/g;
 $sample_names =~ s/\,$//;
 my @lables = split/\,/, $sample_names;
 
+$io->error("Number of Sample Names is not equal to Number of transcripts' files provided")
+    if ($#lables != $#ARGV);
+
 for (0 .. $#ARGV) {
     $io->verify_files([$ARGV[$_]],
                       ["Cufflinks assembled transcript"]);
