@@ -246,6 +246,10 @@ sub class_ncRNAs {
         my $p_ncRNAs = store_coords($p_file_names_txt->[$_]);
         my $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.class.ncRNAs.gtf';
 	my $u_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.noClass.ncRNAs.gtf';
+
+	chomp (my $total_nc_trs_before_cat = $io->execute_get_sys_cmd_output("grep -P '\ttranscript\t' $ARGV[$_] | wc -l"));
+	$total_nc_trs_before_cat = 'NA' if (!$total_nc_trs_before_cat);
+
         unlink $c_ncRNAs if (-e $c_ncRNAs);
 	unlink $u_ncRNAs if (-e $u_ncRNAs);
 	
@@ -269,12 +273,13 @@ sub class_ncRNAs {
 	
 	$io->c_time("\n\nncRNA Summary [" . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . " ] :\n" . 
 		    "----------------------------------------------------------------------\n" .
+		    "Total number of input transcripts: $total_nc_trs_before_cat\n" .
 		    "LincRNAs: $num_lincs\n" . 
 		    "Intronic overlaps - concs: $num_concs\n" .
                     "Intronic overlaps - poncs: $num_poncs\n" . 
 		    "Intronic overlaps - incs: $num_incs\n" . 
 		    "Exonic overlaps: $num_ex_ov\n" . 
-		    "Total Categorized: " . ($num_lincs + 
+		    "Total categorized: " . ($num_lincs + 
 					     $num_concs + 
 					     $num_incs + 
 					     $num_ex_ov +
@@ -606,6 +611,7 @@ sub store_coords {
 # Split and return columns.
 sub get_parts {
     my @line_parts = split /\|/, shift;
+    $line_parts[8] =~ s/\./\\./g;
     
     return ($line_parts[0],
 	    $line_parts[1],

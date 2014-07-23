@@ -95,14 +95,20 @@ $io->c_time('Checking for required GNU core utils...', $quiet);
 $io->check_sys_level_cmds(['grep'],
                           ['2.6.3']);
 
+# For some clean output
+print STDOUT "\n";
+
 my $seqs_fetched =  0;
 while (my $line = <$tmap_fh>) {
     my ($u_seq_id, $unique_seq_id) = '';
 
-    next if ($line =~ m/^ref\_gene\_id/);
+    next if ($line =~ m/^ref\_gene\_id/ ||
+	     $line =~ m/^$/);
+
     next if (defined $skip_re &&
 	     $skip_re ne '' &&
 	     $line =~ qr/$skip_re/);
+
     next if (defined $match_re &&
 	     $match_re ne '' &&
 	     $line !~ qr/$match_re/);
@@ -141,8 +147,8 @@ while (my $line = <$tmap_fh>) {
 	$cols[14] !~ m/^\d+$/ &&
 	$cols[15] !~ m/^\d+$/) {
 	$io->error("Cannot find chromosome information in columns...\n".
-		   "Encountered columns for chromosome id, chromosome start and chromosome end are:\n" .
-		   $cols[13] . ', ' . $cols[14], ', and ' . $cols[15]);
+		   "Encountered line is:\n" .
+		   $line);
     }
 
     $cols[13] =~ s/chr//;
@@ -151,13 +157,11 @@ while (my $line = <$tmap_fh>) {
     chomp $fetched_seq;
 
     if ($fetched_seq !~ m/STDERR/i) {
-        $io->execute_system_command(0,
-				    "Skipping $unique_seq_id ... Already fetched!");
+	print STDOUT "Skipping $unique_seq_id ... Already fetched!\n" if (!$quiet);
         next;
     }
     else {
-	$io->execute_system_command(0,
-				    "Querying $unique_seq_id against UCSC DAS ...");
+	print STDOUT "Querying $unique_seq_id against UCSC DAS ...\n" if ();
     }
 
     my $xml = get("http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=$cols[13]:$cols[14],$cols[15]");

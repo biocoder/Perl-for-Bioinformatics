@@ -33,7 +33,7 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'rm-int-plots'                     => \$rm_int_plots,
 				 'infernal:s'                       => \$start_infernal,
 				 'cpu=i'                            => \$num_cpu,
-				 'skip-cpc-core'                    => \$skip_cpc_blast,
+				 'skip-cpc-core'                    => \$skip_cpc_core,
 				 'skip-rnafold-core'                => \$skip_rnafold_core,
 				 'skip-cmscan-core'                 => \$skip_cmscan_core,
 				 'coverage-infernal|cov-inf=f'      => \$inf_cov,
@@ -124,7 +124,7 @@ sub run_ncRNAScan {
 				    join('-', split(/\-/, $cuffcmp_opts)),
 				    "Command call:\n" .
 				    "-------------\n" . $deps->{'cuffcompare'} .
-				    " -o $cuffcmp_dir/ncRNAScan_cuffcmp " .
+				    " -T -o $cuffcmp_dir/ncRNAScan_cuffcmp " .
 					join('-', split(/\-/, $cuffcmp_opts)));
 
     } if (defined($cuffcmp_opts) && $cuffcmp_opts ne '');
@@ -231,20 +231,23 @@ sub run_ncRNAScan {
 	    
 	    $ncRNAScan_class_file = $outdir . 'categorize_ncRNAs/' . $ncRNAScan_class_file;
 	    my $unique_ncRNAs = $cat_dir . '/' . $io->file_basename($ncRNAScan_class_file) . '.unique.gtf';
+	    unlink $unique_ncRNAs if (-e $unique_ncRNAs);
 		
-		 $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'get'} . ' ' .
-							      '-q -cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
-							      join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-							      ' -stdout -unique -kc 3 -ck transcript | ' .
-							      "grep -oiP 'transcript_id\\s+.+?\\\;' | grep -oiP '\\\".+?\\\"' | sed -e 's/\\\"//g' | " .
-							      "while read line; do grep \$line $ncRNAScan_class_file; done" .
-							      " > $unique_ncRNAs",
-							      "Command call:\n" .
-							      "-------------\n" . $deps->{'get'} . ' ' .
-							      '-cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
-							      join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-							      ' -stdout -unique -kc 3 -ck transcript ' .
-							      " > $unique_ncRNAs");
+	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'get'} . ' ' .
+							 '-q -cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
+							 join('-', split(/\-|\--/, $get_uq_sc_opts)) .
+							 ' -stdout -unique -kc 3 -ck transcript -extract > ' .
+							 $unique_ncRNAs,
+							 "Command call:\n" .
+							 "-------------\n" . $deps->{'get'} . ' ' .
+							 '-q -cf ' . $ncRNAScan_class_file . ' -cff gtf -sff bed '.
+							 join('-', split(/\-|\--/, $get_uq_sc_opts)) .
+							 ' -stdout -unique -kc 3 -ck transcript -extract > ' .
+							 $unique_ncRNAs);
+
+	    my $thisModule_tr_count = $io->execute_get_sys_cmd_output("grep 'Total number of transcripts' $unique_ncRNAs");
+	    $io->execute_system_command("sed -i '/Total number of transcripts/d' $unique_ncRNAs");
+	    print STDOUT $thisModule_tr_count if ($thisModule_tr_count);
 
 	    #print $is_failed;
 	    pipeline_status($io, $is_failed);
@@ -347,6 +350,8 @@ sub run_ncRNAScan {
 	    my $unique_gtf = $outdir . 'get_unique_features/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.gtf';
 	    my $pre_infernal = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.pre.infernal';
 	    my $final_infernal = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.final.infernal';
+	    
+	    unlink $ncRNAScan_final_trs if (-e $ncRNAScan_final_trs);
 	    
 
 	    # Run CPC ####################################################################################
@@ -524,8 +529,12 @@ sub run_ncRNAScan {
 	    } if (defined $start_infernal);
 
 	    $cpu->finish if (defined $cpu);
-	    
-  	}
+
+	    chomp (my $final_nc_tr_count = $io->execute_get_sys_cmd_output("grep -P '\ttranscript\t' $ncRNAScan_final_trs | wc -l"));
+	    $io->c_time('Final putative novel ncRNA count [ ' .
+			$io->file_basename($ncRNAScan_final_trs, 'suffix') .
+			' ]: ' . $final_nc_tr_count) if ($final_nc_tr_count);
+	}
 	
 	$cpu->wait_all_children if (defined $cpu);
 	close ncRNAScan_fetch_seq_mod;
@@ -1335,13 +1344,31 @@ Run the fetch_seq_from_ucsc.pl module with supplied options.
 
 Run the CPC module. No options are required.
 
+=item --skip-cpc-core
+
+Skip runnning core CPC process once you know you have output from CPC.
+This option can be used when ncRNAScan fails for some reason after blastall
+within CPC has finished running but unable to continue forward.
+
 =item -rna or --rnafold
 
 Run RNAfold module of the pipeline. No options required
 
+=item --skip-rnafold-core
+
+Skip runnning core RNAfold process once you know you have output from RNAfold.
+This option can be used when you want ncRNAScan to generate plots based on
+output from RNAfold which should have completed successfully.
+
 =item -inf or --infernal
 
 Run Infernal module of the pipeline. No options required
+
+=item --skip-cmscan-core
+
+Skip runnning cmscan process once you know you have output from a successful 
+cmscan run. This option can be used when you want ncRNAScan to extract 
+annotation from infernal and attempt to annotate putatuve novel ncRNAs.
 
 =item -cov-inf or --coverage-infernal
 

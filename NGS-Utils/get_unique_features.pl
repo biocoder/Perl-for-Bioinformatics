@@ -17,6 +17,7 @@ my $s_time = $io->start_timer();
 my ($help, $quiet, $sc1, $sc2, $cc1, $cc2,
     $sf, $cf, $chr_s, $chr_c,
     %seen_coord, %store_s_coords, %seen_s,
+    %seen_cat_tr, $extract4pipeline,
     $unique, $known, $pipe2stdout, $j_fh, $overlap, 
     $tr_coords, $tr_start_col,
     $tr_end_col, $trans_bd_on_chr, $keyword, $keyword_col,
@@ -41,6 +42,7 @@ my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'keyword-col|kc=i'           => \$keyword_col,
 				 'source-file-format|sff=s'   => \$sff,
 				 'compare-file-format|cff=s'  => \$cff,
+				 'extract'                    => \$extract4pipeline
 				);
 
 # Check if sff or cff is defined
@@ -114,7 +116,10 @@ if (defined($tr_coords) &&
 elsif (defined($tr_coords) &&
        ($tr_coords ne '') &&
        ($tr_coords !~ m/\d+|\,/)) {
-    $io->error('Transcript coordinates must be numeric and be separated by a comma')
+    $io->error('Transcript coordinates must be numeric and be separated by a comma');
+}
+elsif ($is_valid_option eq '') {
+    $io->error('Transcript coordinates not defined');
 }
 
 # Store source coordinates in memory.
@@ -158,7 +163,7 @@ while (my $line = <$s_fh>) {
     }
 }
 # Now, extract either common or unique features.
-
+my $check_line = 0;
 while (my $line = <$c_fh>) {
     chomp $line;
     $line = $io->strip_leading_and_trailing_spaces($line);
@@ -173,6 +178,9 @@ while (my $line = <$c_fh>) {
 	next if ($cols[$keyword_col] ne $keyword);
     }
     
+    
+    my ($from_cat_ncRNA_tr_id) = ($line =~ m/(transcript\_id\s+\".+?\")/);
+    
     $overlap = 0 if (!defined($overlap) || $overlap eq '');
     #print $line, "\n";
 
@@ -186,22 +194,42 @@ while (my $line = <$c_fh>) {
 
                 if ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
 		    if (defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line) && !defined($unique)) {
-			print $j_fh $line, "\n";
+			if (defined $extract4pipeline) {
+			    extract_tr($from_cat_ncRNA_tr_id);
+			}
+			else {
+			    print $j_fh $line, "\n";
+			}
 		    }
 		}
                 elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
                     if (defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line) && !defined($unique)) {
-                        print $j_fh $line, "\n";
+                        if (defined $extract4pipeline) {
+			    extract_tr($from_cat_ncRNA_tr_id);
+			}
+			else {
+			    print $j_fh $line, "\n";
+			}
                     }
                 }
                 elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord) {
                     if (defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line) && !defined($unique)) {
-                        print $j_fh $line, "\n";
+                        if (defined $extract4pipeline) {
+			    extract_tr($from_cat_ncRNA_tr_id);
+			}
+			else {
+			    print $j_fh $line, "\n";
+			}
                     }
                 }
 		elsif ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord) {
                     if (defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line) && !defined($unique)) {
-                        print $j_fh $line, "\n";
+                        if (defined $extract4pipeline) {
+			    extract_tr($from_cat_ncRNA_tr_id);
+			}
+			else {
+			    print $j_fh $line, "\n";
+			}
                     }
 		}
             }
@@ -235,16 +263,38 @@ while (my $line = <$c_fh>) {
 	}
 
 	if (defined($unique) && !is_duplicate($line)) {
-	    print $j_fh $line, "\n";
+	    $check_line++;
+	    if (defined $extract4pipeline) {
+		extract_tr($from_cat_ncRNA_tr_id);
+	    }
+	    else {
+		print $j_fh $line, "\n";
+	    }
         }
     }
 }
 
 $io->end_timer($s_time, $quiet);
 
+$io->c_time('Total number of transcripts [ extracted from ' . $io->file_basename($cf, 'suffix') . ' ]: ' . $check_line);
+
 close $s_fh;
 close $c_fh;
 close $j_fh;
+
+
+#################################### Functions ##########################################
+
+# Get unique / common features from categorize_nRNAs module
+sub extract_tr {
+    my $tr_id = shift;
+    $tr_id =~ s/"/\\\"/g;
+    $tr_id =~ s/\./\\\./g;
+    #print "grep -P \"$tr_id\" $cf";
+ 
+    $io->execute_system_command("grep -P \"$tr_id\" $cf");
+    return;
+}
 
 # Avoid duplicates
 
@@ -401,6 +451,10 @@ get_unique_features.pl takes the following arguments:
  The column number of the --compare-keyword.
 
  Ex: For GTF file, it is -ck 'transcript' -kc '3'
+
+=item -extract
+
+ Extract unique or common features using grep from the compare file.
 
 =back
 

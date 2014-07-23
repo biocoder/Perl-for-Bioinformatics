@@ -200,18 +200,36 @@ Run the fetch_seq_from_ucsc.pl module with supplied options.
 
 Run the CPC module. No options are required.
 
+=item --skip-cpc-core
+
+Skip runnning core CPC process once you know you have output from CPC.
+This option can be used when ncRNAScan fails for some reason after blastall
+within CPC has finished running but unable to continue forward.
+
 =item -rna or --rnafold
 
 Run RNAfold module of the pipeline. No options required
+
+=item --skip-rnafold-core
+
+Skip runnning core RNAfold process once you know you have output from RNAfold.
+This option can be used when you want ncRNAScan to generate plots based on
+output from RNAfold which should have completed successfully.
 
 =item -inf or --infernal
 
 Run Infernal module of the pipeline. No options required
 
+=item --skip-cmscan-core
+
+Skip runnning cmscan process once you know you have output from a successful 
+cmscan run. This option can be used when you want ncRNAScan to extract 
+annotation from infernal and attempt to annotate putatuve novel ncRNAs.
+
 =item -cov-inf or --coverage-infernal
 
 Only annotate final putative ncRNAs which have cmscan match over this much percentage of sequence.
-Default: 25
+Default: 75
 
 =item -cpu or --cpu
 
