@@ -94,6 +94,10 @@ sub run_ncRNAScan {
 
     my $io = IO::Routine->new($help, $quiet);
 
+    my $s_time = $io->start_timer;
+    binmode(STDOUT, ":utf8");
+    $io->c_time("Starting \x{2632}\x{2634} ncRNAScan Pipeline...");
+
     $io->verify_options([$out, $is_valid_option]) if (defined $help && $help eq '');
 
     if (!defined $out) {
@@ -104,10 +108,6 @@ sub run_ncRNAScan {
 	$outdir = $io->validate_create_path($out, 'create',
 					    'ncRNAScan pipeline output directory')
     }
-
-    my $s_time = $io->start_timer;
-    binmode(STDOUT, ":utf8");
-    $io->c_time("Starting \x{2632}\x{2634} ncRNAScan Pipeline...");
 
     my $dep_tools_fh = $io->open_file('<', $USER_HOME . '/.ncRNAScan.depconf');
     get_deps($dep_tools_fh);
@@ -255,7 +255,13 @@ sub run_ncRNAScan {
 
 	    my $thisModule_tr_count = $io->execute_get_sys_cmd_output("grep 'Total number of transcripts' $unique_ncRNAs");
 	    $io->execute_system_command("sed -i '/Total number of transcripts/d' $unique_ncRNAs");
-	    print STDOUT $thisModule_tr_count if ($thisModule_tr_count);
+	    
+	    if ($thisModule_tr_count) {
+		print STDOUT $thisModule_tr_count;
+	    }
+	    else {
+		$io->error('An error has occurred while counting number of unique / common transcripts');
+	    }
 
 	    #print $is_failed;
 	    pipeline_status($io, $is_failed);
@@ -359,13 +365,12 @@ sub run_ncRNAScan {
 	    my $pre_infernal = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.pre.infernal';
 	    my $final_infernal = $ncRNAScan_final . '/' . $io->file_basename($ncRNAScan_unique_seq_file) . '.final.infernal';
 	    
-	    unlink $ncRNAScan_final_trs if (-e $ncRNAScan_final_trs);
-	    
-
-	    # Run CPC ####################################################################################
+    	    # Run CPC ####################################################################################
 
 	    do {
 		$io->c_time('Module 5: Running CPC.sh' . ' [ on ' .  $io->file_basename($ncRNAScan_unique_seq_file, 'suffix') . ' ] ...');
+
+		unlink $ncRNAScan_final_trs if (-e $ncRNAScan_final_trs);
 		
 		$ENV{'CPC_HOME'} = $deps->{'cpc_home'} if (!exists $ENV{'CPC_HOME'});
 
@@ -395,7 +400,7 @@ sub run_ncRNAScan {
 
 		if (-e $CPC_out_file && -s $CPC_out_file) {
 		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | ".
-						"while read trid; do grep -P \"\${trid//\\./\\\\.}\" $unique_gtf; done > $ncRNAScan_final_trs");
+						"while read trid; do grep -P \"\${trid//\\./\\\\.}\" $unique_gtf; done &> $ncRNAScan_final_trs");
 
 		    $io->c_time('Getting noncoding "only" transcripts [ ' .
 				$io->file_basename($unique_gtf, 'suffix') .
@@ -475,7 +480,7 @@ sub run_ncRNAScan {
 		if (-e $CPC_out_file && -s $CPC_out_file) {
 		    $io->c_time('Filtering transcripts [ ' . $io->file_basename($unique_gtf, 'suffix') . ' ] ...\n');    
 		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | " .
-						"while read trid; do find $RNAfold_dir -type f -name \$trid\\* -exec mv -t $RNAfold_dir_final" . "/\ {} \\;; done;");
+						"while read trid; do find $RNAfold_dir -type f -name \${trid//\\./\\\\.}\\* -exec mv -t $RNAfold_dir_final" . "/\ {} \\;; done;");
 		}
 		else {
 		    $io->warning('CPC was not run! Will run RNAfold on all transcript models.');
@@ -511,7 +516,7 @@ sub run_ncRNAScan {
 		}
     
 		if (-e $CPC_out_file && -s $CPC_out_file) {
-		    $io->exist_sys_cmd(['sort', 'head', 'awk', 'uniq', 'mv']);
+		    $io->exist_sys_cmd(['sort', 'head', 'awk', 'uniq', 'mv', 'bc']);
 		    $io->c_time('Updating final GTF file with Infernal annotations...');
 		    
 		    my $tmp_annot = $io->open_file('>', $ncRNAScan_final_trs . '.tmp');
@@ -528,6 +533,7 @@ sub run_ncRNAScan {
 		    pipeline_status($io, 'ERROR!', 'Cannot get annotation from Infernal run') if (!$infernal_run ||
 												  $infernal_run =~ m/could not capture/i);
 		    print $tmp_annot $infernal_run;
+		    close $tmp_annot;
 		    $io->c_time('Moving around files...');
 		    $io->execute_system_command("mv $ncRNAScan_final_trs" . '.tmp ' . $ncRNAScan_final_trs);
 		}
@@ -537,10 +543,18 @@ sub run_ncRNAScan {
 	      		    
 	    } if (defined $start_infernal);
 
-	    chomp (my $final_nc_tr_count = $io->execute_get_sys_cmd_output("grep -P '\ttranscript\t' $ncRNAScan_final_trs | wc -l"));
-	    $io->c_time('Final putative novel ncRNA count [ ' .
-			$io->file_basename($ncRNAScan_final_trs, 'suffix') .
-			' ]: ' . $final_nc_tr_count) if ($final_nc_tr_count);
+	    chomp (my $final_nc_tr_count = $io->execute_get_sys_cmd_output('grep -oP \'transcript_id\\s+\\".+?\\"\' ' . $ncRNAScan_final_trs .
+									   ' | grep -oP \'\\".+\\"\' | sed -e \'s/\\"//g\' | sort -n | uniq | wc -l'));
+
+	    if ($final_nc_tr_count) {
+		$io->c_time('Final putative novel ncRNA count [ ' .
+			    $io->file_basename($ncRNAScan_final_trs, 'suffix') .
+			    ' ]: ' . $final_nc_tr_count);
+	    }
+	    else {
+		$io->error("Could not get final putative ncRNA count.\n" .
+			   "Try re-running the final module. Take a look at --skip-cpc-core, --skip-rnafold-core and --skip-cmscan-core options.");
+	    }
 	    
 	    $cpu->finish if (defined $cpu);
 	}

@@ -276,7 +276,8 @@ while (my $line = <$c_fh>) {
 
 $io->end_timer($s_time, $quiet);
 
-$io->c_time('Total number of transcripts [ extracted from ' . $io->file_basename($cf, 'suffix') . ' ]: ' . $check_line);
+$io->c_time('Total number of transcripts [ extracted from ' . $io->file_basename($cf, 'suffix') . ' ]: ' . $check_line)
+    if ($check_line);
 
 close $s_fh;
 close $c_fh;
