@@ -478,7 +478,7 @@ sub run_ncRNAScan {
 		close RNAfold_pl;
 		
 		if (-e $CPC_out_file && -s $CPC_out_file) {
-		    $io->c_time('Filtering transcripts [ ' . $io->file_basename($unique_gtf, 'suffix') . ' ] ...\n');    
+		    $io->c_time('Filtering transcripts [ ' . $io->file_basename($unique_gtf, 'suffix') . ' ] ...');    
 		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | " .
 						"while read trid; do find $RNAfold_dir -type f -name \${trid//\\./\\\\.}\\* -exec mv -t $RNAfold_dir_final" . "/\ {} \\;; done;");
 		}
