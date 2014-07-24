@@ -428,7 +428,8 @@ sub run_ncRNAScan {
 	
 		if (!defined $skip_rnafold_core) {
 	
-		    $io->c_time('Running RNAfold with -p flag. This may take very long time ...');
+		    $io->c_time('Running RNAfold with -p flag [ on ' . $io->file_basename($ncRNAScan_unique_seq_file, 'suffix') .
+				' ]. This may take very long time ...');
 		    $io->execute_system_command($deps->{'RNAfold'} . 
 						' -p ' . $start_rnafold . ' < ' . $ncRNAScan_unique_seq_file . ' &> ' . $RNAfold_mfe,
 						"Command call:\n" .
@@ -442,7 +443,7 @@ sub run_ncRNAScan {
 		    $io->error("Cannot open directory $RNAfold_dir to generate plots");
 		
 		push my @RNA_relPlots, grep {/\_dp\.ps$/} readdir RNAfold_pl;
-
+				
 		$io->error('Cannot find _dp PostScript files. Bailing out!')
 		    if (scalar(@RNA_relPlots) == 0);
 
@@ -451,7 +452,7 @@ sub run_ncRNAScan {
 		    my $ss_ = $RNAfold_dir . '/' . $io->file_basename($dp_, 'suffix');
 		    $ss_ =~ s/\_dp\.ps$/\_ss\.ps/i;
 		    my $ps = $ss_;
-		    $ps =~ s/\_ss\.ps$/\.ps/;
+		    $ps =~ s/\_ss\.ps$/fstruct\.ps/;
 		    my $pre_ps = $ps;
 		    
 		    $io->error('Cannot find corresponding _dp or _ss PostScript file(s) [ for transcript ' .
@@ -474,22 +475,27 @@ sub run_ncRNAScan {
 		    
 		    $io->error('RNAfold prediction step failed. Cannot generate final PostScript file from _ss.ps and _dp.ps.' . "\nBailing out!") 
 			if (!-e $pre_ps || !-s $pre_ps);
+
+		    $io->execute_system_command("mv $ps $RNAfold_dir_final/.");
+
 		}
 		close RNAfold_pl;
 		
 		if (-e $CPC_out_file && -s $CPC_out_file) {
 		    $io->c_time('Filtering transcripts [ ' . $io->file_basename($unique_gtf, 'suffix') . ' ] ...');    
+		
 		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | " .
-						"while read trid; do find $RNAfold_dir -type f -name \${trid//\\./\\\\.}\\* -exec mv -t $RNAfold_dir_final" . "/\ {} \\;; done;");
+						"while read trid; do find $RNAfold_dir -type f -name \${trid//\\./\\\\.}\\*fstruct\\*" .
+						" -exec mv -t $RNAfold_dir_final" . "/\ {} \\;; done;");
 		}
 		else {
 		    $io->warning('CPC was not run! Will run RNAfold on all transcript models.');
-		    $io->execute_system_command("mv $RNAfold_dir/*.ps $RNAfold_dir_final/.");
+		    
 		}
 
 		$io->c_time('Moving around files and cleaning up directories ...');
-		$io->execute_system_command("mv $RNAfold_dir/*.mfe $RNAfold_dir_final/.");
-		$io->execute_system_command("mv $RNAfold_dir $RNAfold_dir_final/.");
+		$io->execute_system_command("mv $RNAfold_dir/*.mfe $RNAfold_dir_final/.")
+		    if (-e $RNAfold_mfe);
 
 	    } if (defined $start_rnafold);
 
@@ -623,6 +629,12 @@ sub setup_ncRNAScan {
     
     # mv
     check_util('mv');
+
+    # find
+    check_util('find');
+
+    # bc
+    check_util('bc');
 
     print "\n\nWe definetely need the custom module, IO::Routine.\n" .
       "We also need good grace of cpanm to install remaining modules.\n\n" .
@@ -1214,7 +1226,7 @@ To get help documentation about this module, run:
 
 =item 3. get_unique_features.pl (ncRNAScan Option: -get or --get--uq-feat)
     
-It then compares the putative list with supplied known ncRNAs in BED format to get features that do not overlap any known ncRNAs. To extract known ncRNAs from your assembled transcripts for downstream analysis, include --known with -get option of ncRNAscan.
+It then compares the putative list with supplied known ncRNAs in BED format to get features that do not overlap any known ncRNAs. To extract known ncRNAs from your assembled transcripts for downstream analysis, include --known with -get option of ncRNAscan (--known option with ncRNAScan is experimental).
 
 To get help documentation about this module, run:
 
@@ -1401,8 +1413,8 @@ Default: 75
 =item -cpu or --cpu
 
 ncRNAScan will attempt to run multiple processes on this may CPU cores.
-Mentioning number of CPUs equal to number of assembled transcript files 
-is strongly encouraged.
+Mentioning number of CPUs equal to or more than number of assembled 
+transcript files is strongly encouraged.
 
 =back
 

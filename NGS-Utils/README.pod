@@ -47,7 +47,7 @@ To get help documentation about this module, run:
 
 =item 3. get_unique_features.pl (ncRNAScan Option: -get or --get--uq-feat)
     
-It then compares the putative list with supplied known ncRNAs in BED format to get features that do not overlap any known ncRNAs. To extract known ncRNAs from your assembled transcripts for downstream analysis, include --known with -get option of ncRNAscan.
+It then compares the putative list with supplied known ncRNAs in BED format to get features that do not overlap any known ncRNAs. To extract known ncRNAs from your assembled transcripts for downstream analysis, include --known with -get option of ncRNAscan (--known option with ncRNAScan is experimental).
 
 To get help documentation about this module, run:
 
@@ -234,8 +234,8 @@ Default: 75
 =item -cpu or --cpu
 
 ncRNAScan will attempt to run multiple processes on this may CPU cores.
-Mentioning number of CPUs equal to number of assembled transcript files 
-is strongly encouraged.
+Mentioning number of CPUs equal to or more than number of assembled 
+transcript files is strongly encouraged.
 
 =back
 
