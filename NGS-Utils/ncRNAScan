@@ -50,9 +50,13 @@ my $USER_HOME = dirname(abs_path($0));
 my $num_cpu_by_2 = sprintf("%.0f", $num_cpu / 2) - 1 if (defined $num_cpu);
 $inf_cov = 75 if (!defined $inf_cov);
 
-setup_ncRNAScan(`pwd`) if (defined $setup);
-
-if (defined $out || (defined $help && $help eq '')) {
+if (!$is_valid_option) {
+    die "\nInvalid / No Option(s) Provided:$! See $0 -help for valid options.\n\n";
+}
+elsif (defined $setup) {
+    setup_ncRNAScan(`pwd`) 
+}
+elsif (defined $out || (defined $help && $help eq '')) {
     run_ncRNAScan();
 }
 elsif (defined $help && $help ne '') {
@@ -70,10 +74,14 @@ elsif (defined $help && $help ne '') {
     close $depconf_fh;
     close $pl_dep_paths_fh;
 }
-else {
-    die "\nInvalid / No Option(s) Provided:$! See $0 -help for valid options.\n\n";
-}
-		
+
+############################################################################################
+#                                                                                          #
+#                                     Main Functions                                       #
+#                                     ==============                                       #
+#                                                                                          #
+############################################################################################
+
 
 sub run_ncRNAScan {
     my $outdir;
@@ -86,7 +94,7 @@ sub run_ncRNAScan {
 
     my $io = IO::Routine->new($help, $quiet);
 
-    $io->verify_options([$out]) if (defined $help && $help eq '');
+    $io->verify_options([$out, $is_valid_option]) if (defined $help && $help eq '');
 
     if (!defined $out) {
 	$outdir = $io->validate_create_path($out, 'do not create',
