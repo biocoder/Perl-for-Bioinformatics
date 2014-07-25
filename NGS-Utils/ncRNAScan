@@ -94,10 +94,6 @@ sub run_ncRNAScan {
 
     my $io = IO::Routine->new($help, $quiet);
 
-    my $s_time = $io->start_timer;
-    binmode(STDOUT, ":utf8");
-    $io->c_time("Starting \x{2632}\x{2634} ncRNAScan Pipeline...");
-
     $io->verify_options([$out, $is_valid_option]) if (defined $help && $help eq '');
 
     if (!defined $out) {
@@ -108,6 +104,10 @@ sub run_ncRNAScan {
 	$outdir = $io->validate_create_path($out, 'create',
 					    'ncRNAScan pipeline output directory')
     }
+
+    my $s_time = $io->start_timer;
+    binmode(STDOUT, ":utf8");
+    $io->c_time("Starting \x{2632}\x{2634} ncRNAScan Pipeline...");
 
     my $dep_tools_fh = $io->open_file('<', $USER_HOME . '/.ncRNAScan.depconf');
     get_deps($dep_tools_fh);
