@@ -265,6 +265,8 @@ sub run_ncRNAScan {
 
 	    #print $is_failed;
 	    pipeline_status($io, $is_failed);
+	    disp_ncRNA_counts($io, $unique_ncRNAs);
+
 	    $cpu->finish if (defined $num_cpu);
 	}
 	
@@ -561,6 +563,8 @@ sub run_ncRNAScan {
 		$io->error("Could not get final putative ncRNA count.\n" .
 			   "Try re-running the final module. Take a look at --skip-cpc-core, --skip-rnafold-core and --skip-cmscan-core options.");
 	    }
+
+	    disp_ncRNA_counts($io, $unique_ncRNAs);
 	    
 	    $cpu->finish if (defined $cpu);
 	}
@@ -1173,6 +1177,36 @@ sub do_parallel {
     my $cpu = Parallel::ForkManager->new($num_cpu);
     $cpu->set_max_procs($num_cpu);
     return $cpu;
+}
+
+# Display ncRNA category counts
+sub disp_ncRNA_counts {
+    my $c_io = shift;
+    my $file = shift;
+
+    my ($num_ex_ov, $num_incs, $num_concs, $num_poncs, $num_lincs) = 0;
+
+    $num_lincs = $c_io->execute_get_sys_cmd_output("grep -iP 'ncRNA_type.+?lincrna' $file");
+    $num_poncs = $c_io->execute_get_sys_cmd_output("grep -iP 'ncRNA_type.+?conc' $file");
+    $num_concs = $c_io->execute_get_sys_cmd_output("grep -iP 'ncRNA_type.+?ponc' $file");
+    $num_incs = $c_io->execute_get_sys_cmd_output("grep -iP 'ncRNA_type.+?inc' $file");
+    $num_ex_ov = $c_io->execute_get_sys_cmd_output("grep -iP 'ncRNA_type.+?exonic\s+overlap' $file");
+
+    $c_io->c_time("\n\nncRNA Summary [" . $io->file_basename($file, 'suffix') . " ] :\n" .
+                    "----------------------------------------------------------------------\n" .
+                    "LincRNAs: $num_lincs\n" .
+                    "Intronic overlaps - concs: $num_concs\n" .
+                    "Intronic overlaps - poncs: $num_poncs\n" .
+                    "Intronic overlaps - incs: $num_incs\n" .
+                    "Exonic overlaps: $num_ex_ov\n" .
+                    "Total categorized: " . ($num_lincs +
+                                             $num_concs +
+                                             $num_incs +
+                                             $num_ex_ov +
+                                             $num_poncs) . 
+		"\n" );
+    return;
+
 }
 
 __END__
