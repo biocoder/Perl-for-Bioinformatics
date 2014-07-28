@@ -174,7 +174,7 @@ sub get_putative_ncRNAs {
     }
     
     while (my $line = <$cuffcmp_fh>) {
-	$cpu->start and next if (defined $num_cpu);
+	$cpu->start and next if (defined $non_calc_cpu);
 	chomp $line;
 	$line = $io->strip_leading_and_trailing_spaces($line);
 	my ($t_id, $loc_id, $loc_name, $class_code, @cols) = split/\t/, $line;
@@ -192,9 +192,9 @@ sub get_putative_ncRNAs {
 		}
 	    }
 	}
-	$cpu->finish if (defined $num_cpu);
+	$cpu->finish if (defined $non_calc_cpu);
     }
-    $cpu->wait_all_children if (defined $num_cpu);
+    $cpu->wait_all_children if (defined $non_calc_cpu);
     return;
 }
 
@@ -597,7 +597,7 @@ sub store_coords {
 	$exon_starts =~ s/\,$//;
 	$exon_ends =~ s/\,$//;
 
-	$chr = 'chr$chr' if ($line =~ m/^ens/i && $strand =~ m/^\+|\-|\.$/ && $num_exons =~ m/\d+/);
+	$chr = 'chr$chr' if ($line =~ m/^ens/i && $strand =~ m/^\+|\-|\.$/ && $num_exons =~ m/\d+/ && $chr !~ m/^chr/);
 
 	$io->error('Supplied file [ ' . $io->file_basename($f, 'suffix') . ' ] does not seem to be in gene prediction format...' .
 		   "\n\nError occured on line:\n\n$line\n")

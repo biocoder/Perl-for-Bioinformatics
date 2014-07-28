@@ -161,7 +161,7 @@ while (my $line = <$tmap_fh>) {
         next;
     }
     else {
-	print STDOUT "Querying $unique_seq_id against UCSC DAS ...\n" if ();
+	print STDOUT "Querying $unique_seq_id against UCSC DAS ...\n" if (!$quiet);
     }
 
     my $xml = get("http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=$cols[13]:$cols[14],$cols[15]");
