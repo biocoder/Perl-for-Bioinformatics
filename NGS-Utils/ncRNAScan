@@ -159,6 +159,9 @@ sub run_ncRNAScan {
 	    if (!-d $cat_dir);
 	
 	if (defined $cuffcmp_opts && $cuffcmp_opts ne '') {
+
+	    pipeline_status($io, 'ERROR!', "Required options not mentioned for -cat module.\nSee '" .
+			    "$0 -h cat" . "' for required options.") if ($categorize_sc_opts !~ m/sample/);
 	    
 	    my ($tr_files, $tr_size) = get_num_tr_files($cuffcmp_opts);
 	    my $annot = get_annot($cuffcmp_opts);
