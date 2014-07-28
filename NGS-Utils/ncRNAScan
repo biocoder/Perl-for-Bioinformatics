@@ -267,7 +267,7 @@ sub run_ncRNAScan {
 		'It just means that any putative ncRNAs that have been extracted from -cat module are all known ncRNAs.')
 		if (-e $unique_ncRNAs && !-s $unique_ncRNAs);
 	    
-	    disp_ncRNA_counts($io, $unique_ncRNAs, 'Total number of transcripts');
+	    disp_ncRNA_counts($io, $unique_ncRNAs, 'Total number of putative unique ncRNAs');
 	    $cpu->finish if (defined $num_cpu);
 	}
 	
@@ -372,7 +372,7 @@ sub run_ncRNAScan {
 
 	    do {
 		module_header($io, 'Module 5: Running CPC.sh' . ' [ on ' .  $io->file_basename($ncRNAScan_unique_seq_file, 'suffix') . ' ] ...');
-
+	
 		unlink $ncRNAScan_final_trs if (-e $ncRNAScan_final_trs);
 		
 		$ENV{'CPC_HOME'} = $deps->{'cpc_home'} if (!exists $ENV{'CPC_HOME'});
@@ -420,7 +420,7 @@ sub run_ncRNAScan {
 	    do {
 
 		module_header($io, 'Module 6: Running RNAfold predictions [ on ' . $io->file_basename($ncRNAScan_unique_seq_file, 'suffix') . ' ] ...');
-
+	
 		$io->execute_system_command("mkdir -p $RNAfold_dir") if (!-d $RNAfold_dir);
 
 		chdir $RNAfold_dir;
@@ -512,7 +512,7 @@ sub run_ncRNAScan {
 		    if (!-d $final_infernal);		
 
 		module_header($io, 'Module 7: Running cmscan from Infernal [ on ' . $io->file_basename($ncRNAScan_unique_seq_file, 'suffix') . ' ] ...');
-
+	
 		$deps->{'cmscan'} .= " --cpu $num_cpu_by_2" if (defined $num_cpu);
 
 		if (!defined $skip_cmscan_core) {
@@ -1029,11 +1029,12 @@ sub module_header {
     my $c_io = shift;
     my $heading = shift;
     
-    my $char_hash_len = 60 - length($heading);
-    $char_hash_len = 5 if ($char_hash_len < 0);
-    my $char_hash = '#' x $char_hash_len;
+    my $char_hash_len = 73 - length($heading);
+    $char_hash_len = 0 if ($char_hash_len < 0);
+    my $char_hash_fixed = '#' x 27;
+    my $char_hash_var = '#' x $char_hash_len;
 
-    my $heading_string = sprintf("%s%s%s", $char_hash, ' ' . $heading . ' ', $char_hash);
+    my $heading_string = sprintf("%s%s%s", $char_hash_fixed, ' ' . $heading . ' ', $char_hash_var);
     
     $c_io->c_time($heading_string);
     return;
@@ -1220,7 +1221,7 @@ sub disp_ncRNA_counts {
 	  "Intronic overlaps - poncs: $num_poncs\n" .
 	  "Intronic overlaps - incs: $num_incs\n" .
 	  "Exonic overlaps: $num_ex_ov\n" .
-	  $total_desc . ' : ' . ($num_lincs +
+	  $total_desc . ': ' . ($num_lincs +
 				 $num_concs +
 				 $num_incs +
 				 $num_ex_ov +

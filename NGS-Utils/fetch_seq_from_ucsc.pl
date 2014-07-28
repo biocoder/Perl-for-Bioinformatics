@@ -59,7 +59,7 @@ $io->verify_files([$tmap],
 
 $output = $io->validate_create_path($output, 'create', 'Output');
 
-$io->c_time("Chromosome files will be stored at $output ...");
+$io->c_time("FASTA files will be stored at $output ...");
 $io->c_time('Fetching Sequences ...');
 
 if (defined $seq_desc) {
