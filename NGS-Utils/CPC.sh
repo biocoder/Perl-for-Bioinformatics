@@ -4,7 +4,7 @@
 # 10/30/2013
 # CommitHash: 63539213c8805a94fb7070c08b80c941d02c69aa
 # LastModifiedDate: Tue Jul 29 07:56:22 2014 -0500
-# LastModifiedBy: github.com/AUTHORNAME
+# LastModifiedBy: github.com/<AUTHORNAME>
 
 usage() {
 cat <<EOF
