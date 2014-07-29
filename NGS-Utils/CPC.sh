@@ -2,6 +2,8 @@
 
 # Kranti Konganti
 # 10/30/2013
+# Commit Hash <COMMITHASH>
+# Last Modified: <COMMITTERDATE>
 
 usage() {
 cat <<EOF
