@@ -8,7 +8,12 @@
 # Kranti Konganti
 # Adding legend text for use with ncRNAScan
 # 01/28/2013
- 
+#
+# $LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
+# $LastChangedDate: 2013-10-09 12:46:11 -0500 (Wed, 09 Oct 2013) $ =~ m/.+?\:(.+)/;
+# $LastChangedRevision: 64 $ =~ m/.+?(\d+)/;
+# $AUTHORFULLNAME = 'Kranti Konganti';
+
 use strict;
 use Getopt::Std;
 $main::VERSION = 1.3;

@@ -3,10 +3,10 @@
 # Kranti Konganti
 # 10/30/2013
 
-# $LastChangedRevision:  adf$
-# $LastChangedDate: Tue Jul 29 07:56:22 2014 -0500 $
-# $LastChangedBy: github.com/biocoder $
-# $ChangeLog: $
+# $LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
+# $LastChangedDate: 2013-10-09 12:46:11 -0500 (Wed, 09 Oct 2013) $ =~ m/.+?\:(.+)/;
+# $LastChangedRevision: 64 $ =~ m/.+?(\d+)/;
+# $AUTHORFULLNAME = 'Kranti Konganti';
 
 usage() {
 cat <<EOF
