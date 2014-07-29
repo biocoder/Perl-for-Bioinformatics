@@ -2,9 +2,9 @@
 
 # Kranti Konganti
 # 10/30/2013
-# CommitHash: $63539213c8805a94fb7070c08b80c941d02c69aa$
-# LastModifiedDate: $Tue Jul 29 07:56:22 2014 -0500$
-# LastModifiedBy: $AUTHORNAME$
+# $LastChangedRevision: 63539213c8805a94fb7070c08b80c941d02c69aa $
+# $LastChangedDate: Tue Jul 29 07:56:22 2014 -0500 $
+# $LastChangedBy: github.com/biocoder $
 
 usage() {
 cat <<EOF
