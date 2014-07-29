@@ -1214,7 +1214,7 @@ sub disp_ncRNA_counts {
     $num_ex_ov = 0 if ($num_lincs =~ m/^could not capture/i);
 
 
-    print("\n\nncRNA Summary [" . $c_io->file_basename($file, 'suffix') . " ] :\n" .
+    print("\n\nncRNA Summary [ " . $c_io->file_basename($file, 'suffix') . " ] :\n" .
 	  "---------------------------------------------------------------------------------------\n" .
 	  "LincRNAs: $num_lincs\n" .
 	  "Intronic overlaps - concs: $num_concs\n" .
