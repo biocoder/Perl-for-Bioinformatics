@@ -271,7 +271,7 @@ sub class_ncRNAs {
 	$io->c_time('Categorizing ncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 	
-	$io->c_time("\n\nncRNA Summary [" . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . " ] :\n" . 
+	$io->c_time("\n\nncRNA Summary [ " . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . " ] :\n" . 
 		    "----------------------------------------------------------------------\n" .
 		    "Total number of input transcripts: $total_nc_trs_before_cat\n" .
 		    "LincRNAs: $num_lincs\n" . 
