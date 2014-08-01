@@ -17,11 +17,11 @@ my $s_time = $io->start_timer();
 my ($help, $quiet, $sc1, $sc2, $cc1, $cc2,
     $sf, $cf, $chr_s, $chr_c,
     %seen_coord, %store_s_coords, %seen_s,
-    %seen_cat_tr, $extract4pipeline,
+    %seen_cat_tr, $extract4pipeline, %logFoldCuff,
     $unique, $known, $pipe2stdout, $j_fh, $overlap, 
     $tr_coords, $tr_start_col,
     $tr_end_col, $trans_bd_on_chr, $keyword, $keyword_col,
-    $sff, $cff);
+    $sff, $cff, $logfold4cuff);
 
 my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'source-column-2|sc-2|s2=s'  => \$sc2,
@@ -42,7 +42,8 @@ my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'keyword-col|kc=i'           => \$keyword_col,
 				 'source-file-format|sff=s'   => \$sff,
 				 'compare-file-format|cff=s'  => \$cff,
-				 'extract'                    => \$extract4pipeline
+				 'extract'                    => \$extract4pipeline,
+				 'fpkm-logfold'               => \$logfold4cuff
 				);
 
 # Check if sff or cff is defined
@@ -97,7 +98,7 @@ if (defined $pipe2stdout ) {
     $j_fh = *STDOUT;
 }
 else {
-    my $new_f = $path . $io->file_basename($sf) . '_' . $cf_filename . $suffix;
+    my $new_f = $path . $io->file_basename($cf) . $suffix;
     $j_fh = $io->open_file('>', $new_f);
     $io->execute_system_command(0,
 				"New file will be $new_f",
@@ -119,7 +120,15 @@ elsif (defined($tr_coords) &&
     $io->error('Transcript coordinates must be numeric and be separated by a comma');
 }
 elsif ($is_valid_option eq '') {
-    $io->error('Transcript coordinates not defined');
+    $io->error("Invalid options. See $0 -h for help." );
+}
+
+if ((defined $logfold4cuff &&
+    $sff !~ m/^gtf$/i &&
+    $cff !~ m/^gtf$/) ||
+    defined $unique) {
+    $io->error('Source and compare files must be in GTF format for log fold change of FPKM / RPKM values to be calcualted.' . 
+	"\nAlso, this option can only be used when -unique option is not mentioned.");
 }
 
 # Store source coordinates in memory.
@@ -152,6 +161,10 @@ while (my $line = <$s_fh>) {
 	if (!exists $seen_s{$cols[$chr_s] . $left_coords->[$_] . $right_coords->[$_]}) {
 	    $seen_s{$cols[$chr_s] . $left_coords->[$_] . $right_coords->[$_]} = 1;
 	    push @{$store_s_coords{$cols[$chr_s]}{$left_coords->[$_]}}, $right_coords->[$_];
+	    
+	    if ($logfold4cuff && !defined($unique)) {
+		$logFoldCuff{$cols[$chr_s] . $left_coords->[$_] . $right_coords->[$_]} = $cols[$#cols];
+	    }
 	}
     }
 
@@ -162,7 +175,11 @@ while (my $line = <$s_fh>) {
 	push @{$trans_bd_on_chr->{$cols[$chr_s]}}, "$cols[$tr_start_col]|$cols[$tr_end_col]";
     }
 }
-# Now, extract either common or unique features.
+
+# Now, extract either common or unique features. First print header if user wants log fold change values
+print $j_fh "# GeneID\tTranscriptID\tLocus\tFPKM_S\tGeneID\tTranscriptID\tLocus\tFPKM_C\tlog2(FPKM_C/FPKM_S)\n"
+    if (defined $logfold4cuff);
+
 my $check_line = 0;
 while (my $line = <$c_fh>) {
     chomp $line;
@@ -191,6 +208,14 @@ while (my $line = <$c_fh>) {
 		my $s_ex_len = $right_coord -  $left_coord;
 		my $c_ex_len = $cols[$cc2] - $cols[$cc1];
 		my $ex_ov_per = ($s_ex_len / $c_ex_len) * 100 if ($c_ex_len > 0);
+
+		if (defined $logfold4cuff && !defined($unique)) {
+		    my ($s_fpkm_line, $c_fpkm_line) = get_cuff_values($logFoldCuff{$cols[$chr_c] . $left_coord . $right_coord}, $cols[$#cols]);
+		    $line = "$s_fpkm_line->[0]\t$s_fpkm_line->[1]\t$cols[$chr_c]:$left_coord-$right_coord\t" .
+		    "$s_fpkm_line->[2]\t$c_fpkm_line->[0]\t$c_fpkm_line->[1]\t$cols[$chr_c]:$cols[$cc1]-$cols[$cc2]\t$c_fpkm_line->[2]\t" .
+		    sprintf('%.5f', log($c_fpkm_line->[2] / $s_fpkm_line->[2]) / log(2));
+		}
+		
 
                 if ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
 		    if (defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line) && !defined($unique)) {
@@ -255,10 +280,20 @@ while (my $line = <$c_fh>) {
 	    my $tr_intersect = $tr_tree->fetch($cols[$cc1], $cols[$cc2]);
 	    	    
 	    if (scalar(@$tr_intersect) > 0) {
-		print $j_fh $line, "\ti\n";
+		if (defined $extract4pipeline) {
+		    extract_tr($from_cat_ncRNA_tr_id);
+		}
+		else {
+		    print $j_fh $line, "\ti\n";
+		}
 	    }
 	    elsif (scalar(@$tr_intersect) == 0) {
-		print $j_fh $line, "\tu\n";
+		if (defined $extract4pipeline) {
+		    extract_tr($from_cat_ncRNA_tr_id);
+		}
+		else {
+		    print $j_fh $line, "\ti\n";
+		}
 	    }
 	}
 
@@ -295,6 +330,19 @@ sub extract_tr {
  
     $io->execute_system_command("grep -P \"$tr_id\" $cf");
     return;
+}
+
+sub get_cuff_values {
+    my $line1 = shift;
+    my $line2 = shift;
+    
+    my ($s_gene_id, $s_tr_id, $s_fpkm) = ($line1 =~ m/gene_id\s+\"(.+?)\".*?transcript_id\s+\"(.+?)\".+?[F|R]PKM\s+\"(.+?)\"/i);
+    my ($c_gene_id, $c_tr_id, $c_fpkm) = ($line2 =~ m/gene_id\s+\"(.+?)\".*?transcript_id\s+\"(.+?)\".+?[F|R]PKM\s+\"(.+?)\"/i);
+    
+    return([$s_gene_id, $s_tr_id, $s_fpkm], [$c_gene_id, $c_tr_id, $c_fpkm]);
+    #return "$s_gene_id\t$s_tr_id\t$cols[$chr_c]:$left_coord-$right_coord\t" .
+	#"$s_fpkm\t$c_gene_id\t$c_tr_id\t$cols[$chr_c]:$cols[$cc1]-$cols[$cc2]\t$c_fpkm\t" .
+	#sprintf('%.5f', log($c_fpkm / $s_fpkm) / log(2)) . "\n";
 }
 
 # Avoid duplicates
@@ -456,6 +504,15 @@ get_unique_features.pl takes the following arguments:
 =item -extract
 
  Extract unique or common features using grep from the compare file.
+
+=item -fpkm-logfold
+
+ This is a special case option and works only on assembled transcripts' file in GTF format from
+ Cufflinks since it contains proper gene_id, transcript_id and FPKM description values in the last
+ column. Any GTF file that has this information can be used as input with this option. Using this 
+ option will extract common features between 2 input GTF files and outputs a file similar to output
+ from cuffdiff program excluding the test_statistic, p_value and q_value. This option was designed
+ to be used with ncRNAScan pipeline. 
 
 =back
 
