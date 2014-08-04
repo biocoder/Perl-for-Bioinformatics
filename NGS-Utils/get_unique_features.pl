@@ -123,12 +123,13 @@ elsif ($is_valid_option eq '') {
     $io->error("Invalid options. See $0 -h for help." );
 }
 
-if ((defined $logfold4cuff &&
-    $sff !~ m/^gtf$/i &&
-    $cff !~ m/^gtf$/) ||
-    defined $unique) {
-    $io->error('Source and compare files must be in GTF format for log fold change of FPKM / RPKM values to be calcualted.' . 
-	"\nAlso, this option can only be used when -unique option is not mentioned.");
+if (( defined $logfold4cuff &&
+      $sff !~ m/^gtf$/i &&
+      $cff !~ m/^gtf$/) ||
+    ( defined $unique && 
+      defined $logfold4cuff )) {
+    $io->error('Source and compare files must be in GTF format for log fold change of FPKM / RPKM values to be calculated between 2 files.' . 
+	       "\nAlso, this option (-fpkm-logfold) can only be used when -unique option is not mentioned.");
 }
 
 # Store source coordinates in memory.
