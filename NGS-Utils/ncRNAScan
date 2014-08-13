@@ -455,7 +455,7 @@ sub run_ncRNAScan {
 		    my $ss_ = $RNAfold_dir . '/' . $io->file_basename($dp_, 'suffix');
 		    $ss_ =~ s/\_dp\.ps$/\_ss\.ps/i;
 		    my $ps = $ss_;
-		    $ps =~ s/\_ss\.ps$/fstruct\.ps/;
+		    $ps =~ s/\_ss\.ps$/\_fstruct\.ps/;
 		    my $pre_ps = $ps;
 		    
 		    $io->error('Cannot find corresponding _dp or _ss PostScript file(s) [ for transcript ' .
