@@ -20,5 +20,6 @@
 ##############################
 *.depconf
 *.PERLLIBS
-/NGS-Utils/.ncRNAScan.depbin/Rfam*
-/NGS-Utils/.ncRNAScan.depbin/Rfam*
+/NGS-Utils/.lncRNApipe.depbin/Rfam*
+/NGS-Utils/.lncRNApipe.depbin/Rfam*
+/NGS-Utils/PERLLIBS
