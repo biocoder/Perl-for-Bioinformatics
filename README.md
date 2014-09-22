@@ -12,7 +12,7 @@ IO::Routine [![Build Status](https://api.travis-ci.org/biocoder/Perl-for-Bioinfo
 
 ☲☴ lncRNApipe [![Build Status](https://api.travis-ci.org/biocoder/Perl-for-Bioinformatics.png?branch=master)](https://travis-ci.org/biocoder/Perl-for-Bioinformatics)
 --------------------------
-* A pipeline to extract putative novel ncRNAs ab initio, given a list of transcripts in GTF format assembled from deep sequencing data (ex: RNA-Seq) and annotation data.
+* A pipeline to extract putative novel lncRNAs ab initio, given a list of transcripts in GTF format assembled from deep sequencing data (ex: RNA-Seq) and annotation data.
 
 * Head on to [NGS-Utils](https://github.com/biocoder/Perl-for-Bioinformatics/tree/master/NGS-Utils) directory for script list.
 
