@@ -10,7 +10,7 @@ use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
 my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-09-22 12:46:11 -0500 (Mon, 22 Sep 2014) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.5.3 $ =~ m/.+?(\d+.*?\d+)/;
+my ($VERSION) = q$LastChangedRevision: 0.5.4 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
