@@ -80,7 +80,7 @@ elsif (defined $help && $help ne '') {
 ####################### lncRNApipe Version Info ############################################
 
 if (defined $lncRNApipe_ver_info) {
-    my $io = run_lncRNApipe(0);
+    my $io = run_lncRNApipe('version');
     $io->this_script_info('lncRNApipe',
 			  $VERSION,
 			  $AUTHORFULLNAME,
@@ -108,7 +108,7 @@ sub run_lncRNApipe {
 
     my $io = IO::Routine->new($help, $quiet);
 
-    return $io if (!$shall_I_run);
+    return $io if ($shall_I_run eq 'version');
 
     $io->verify_options([$out, $is_valid_option]) if (defined $help && $help eq '');
 
