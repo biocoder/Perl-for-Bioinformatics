@@ -3,7 +3,7 @@
 # (C) Kranti Konganti
 # This program is distributed as Artistic License 2.0
 # 06/18/2014
-# Coordinate with ncRNAscan output to parse out and add Infernal annotation to final ncRNA transcripts.
+# Coordinate with lncRNApipe output to parse out and add Infernal annotation to final ncRNA transcripts.
 
 # $LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
 # $LastChangedDate: 2013-10-09 12:46:11 -0500 (Wed, 09 Oct 2013) $ =~ m/.+?\:(.+)/;

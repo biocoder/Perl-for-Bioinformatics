@@ -513,7 +513,7 @@ get_unique_features.pl takes the following arguments:
  column. Any GTF file that has this information can be used as input with this option. Using this 
  option will extract common features between 2 input GTF files and outputs a file similar to output
  from cuffdiff program excluding the test_statistic, p_value and q_value. This option was designed
- to be used with ncRNAScan pipeline. 
+ to be used with lncRNApipe pipeline. 
 
 =back
 

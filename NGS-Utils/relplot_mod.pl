@@ -6,7 +6,7 @@
 # from positional entropy
 #
 # Kranti Konganti
-# Adding legend text for use with ncRNAScan
+# Adding legend text for use with lncRNApipe
 # 01/28/2013
 #
 # $LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
