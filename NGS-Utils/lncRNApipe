@@ -1251,12 +1251,14 @@ sub disp_ncRNA_counts {
 __END__
 
 =head1 NAME
+
  _            ____  _   _    _          _            
 | |_ __   ___|  _ \| \ | |  / \   _ __ (_)_ __   ___ 
 | | '_ \ / __| |_) |  \| | / _ \ | '_ \| | '_ \ / _ \
 | | | | | (__|  _ <| |\  |/ ___ \| |_) | | |_) |  __/
 |_|_| |_|\___|_| \_|_| \_/_/   \_| .__/|_| .__/ \___|
                                  |_|     |_|         
+
 =head1 SYNOPSIS
 
 lncRNApipe is a pipeline to extract putative novel lncRNAs ab initio, given a list of transcripts in GTF format assembled from deep sequencing data (ex: RNA-Seq).
