@@ -9,6 +9,6 @@ perl:
 install: 
  - "cd ./IO-Routine; perl Makefile.PL && make && make test"
 script:
- - "cd ../NGS-Utils; perl ncRNAScan -setup"
+ - "cd ../NGS-Utils; perl lncRNApipe -setup"
 notifications:
   email: false
