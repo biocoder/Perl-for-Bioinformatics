@@ -1283,7 +1283,7 @@ sub check_for_updates {
     my $is_upToDate = $io->check_sys_level_cmds(['lncRNApipe'],
 						["$newest_release"], 'warn'); 
     
-    $io->warning('You are using the latest version of the software.' .
+    $io->warning('You are using the latest version of the software which is v' . $newest_release . '.' .
 		 "\nUse -d option if you wish to disable update check.", 'OK!') if (!$is_upToDate);
     return;
 }
