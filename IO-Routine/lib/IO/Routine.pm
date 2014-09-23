@@ -23,13 +23,13 @@ IO::Routine - An attempt to provide a solution to avoid routine IO chores.
 
 =over 3
 
-Version 0.36
+Version 0.37
 
 =back
 
 =cut
 
-our $VERSION = '0.36';
+our $VERSION = '0.37';
 
 =head1 SYNOPSIS
 
@@ -716,6 +716,7 @@ sub execute_get_sys_cmd_output {
 sub error {
     my $self = shift;
     my $msg = shift;
+    
     print STDOUT "\nERROR!\n------\n$msg\n\n";
     #if ($podFilename &&
 	#-e $podFilename &&
@@ -737,7 +738,11 @@ sub error {
 sub warning {
     my $self = shift;
     my $msg = shift;
-    print STDOUT "\nWARNING!\n--------\n$msg\n\n";
+    my $custom_header = shift;
+
+    $custom_header = 'WARNING!' if (!defined $custom_header); 
+
+    print STDOUT "\n$custom_header\n--------\n$msg\n\n";
     return;
 }
 
@@ -769,18 +774,28 @@ sub open_file {
 # Subroutine to print SCRIPT Version. Print this script's info
 
 sub this_script_info {
-    my ($self, $PRGNAME, $VERSION, $AUTHORFULLNAME, $CHANGEDBY, $LASTCHANGEDDATE, $quiet) = @_;
+    my ($self, $PRGNAME, $VERSION, $AUTHORFULLNAME, $CHANGEDBY, $LASTCHANGEDDATE, $gnuStyle, $quiet) = @_;
 
     $quiet = $thisQuiet if (!$quiet);
     return if $quiet;
 
-    print "\n", '@ ', '*' x 78, ' @', "\n";
-    print "    Program Name       :  " , $PRGNAME, "\n";
-    print "    Version            :  $VERSION\n" if ($VERSION);
-    print "    Author             :  $AUTHORFULLNAME\n" if ($AUTHORFULLNAME);
-    print "    Last Changed By    : $CHANGEDBY\n" if ($CHANGEDBY);
-    print "    Last Changed Date  : $LASTCHANGEDDATE\n";
-    print '@ ', '*' x 78, ' @', "\n\n";
+    if (defined $gnuStyle && $gnuStyle =~ m/gnu/i) {
+	print "$PRGNAME $VERSION\n";
+	print "Copyright (C) ", +(split /\s+/, scalar(localtime()))[-1], " $AUTHORFULLNAME", ".\n";
+	print "License: Artistic License.\n";
+	print "This is free software: you are free to change and redistribute it.\n";
+	print "There is NO WARRANTY, to the extent permitted by law.\n\n";
+	print "Written by $AUTHORFULLNAME" . ".\n\n";
+    }
+    else {
+	print "\n", '@ ', '*' x 78, ' @', "\n";
+	print "    Program Name       :  " , $PRGNAME, "\n";
+	print "    Version            :  $VERSION\n" if ($VERSION);
+	print "    Author             :  $AUTHORFULLNAME\n" if ($AUTHORFULLNAME);
+	print "    Last Changed By    : $CHANGEDBY\n" if ($CHANGEDBY);
+	print "    Last Changed Date  : $LASTCHANGEDDATE\n";
+	print '@ ', '*' x 78, ' @', "\n\n";
+    }
     
     return;
 }
@@ -791,6 +806,7 @@ sub check_sys_level_cmds {
     my $self = shift;
     my $cmds = shift;
     my $versions = shift;
+    my $warn = shift;
     my ($curr_version_unf, $req_version);
     my $loop_limiter = 0;
 
@@ -817,8 +833,16 @@ sub check_sys_level_cmds {
 	    for (my $j=0; $j<=$loop_limiter; $j++) {
 		my $ver_diff = @$curr_version_parts[$j] - @$req_version_parts[$j];
 		if ($ver_diff < 0) {
-		    confess error($self,
-				  "At least Version @$versions[$i] required for system level command: @$cmds[$i]\nCurrent Version: $curr_version_unf\n");
+		    if (defined $warn) {
+			 warning($self,
+				 "New version [ @$versions[$i] ] of the software [ @$cmds[$i] ] is available.\n" .
+				 "Update your software as instructed by the developer.\n", 'INFO!!');
+			 return 1;
+		    }
+		    else {
+			confess error($self,
+				      "At least Version @$versions[$i] required for system level command: @$cmds[$i]\nCurrent Version: $curr_version_unf\n");
+		    }
 		}
 	    }
 	}

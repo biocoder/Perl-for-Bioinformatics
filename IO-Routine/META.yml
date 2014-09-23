@@ -21,4 +21,4 @@ requires:
   Time::HiRes: 0
   strict: 0
   warnings: 0
-version: 0.36
+version: 0.37
