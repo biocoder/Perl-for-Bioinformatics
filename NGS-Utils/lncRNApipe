@@ -1389,7 +1389,7 @@ The final output is a putative list of annotated lncRNAs in GTF format that can 
 
 =item * Cuffcompare output is stored in the directory called "cuffcompare". lncRNApipe uses 'lncRNApipe_cuffcmp.tracking' file from this folder for the next module.
 
-=item * categorize_ncRNAs.pl's output is stored in the directory called "categorize_lncRNAs". lncRNApipe uses files ending with suffix '.putative.class.lncRNAs.gtf' for the next module.
+=item * categorize_ncRNAs.pl's output is stored in the directory called "categorize_ncRNAs". lncRNApipe uses files ending with suffix '.putative.class.lncRNAs.gtf' for the next module.
 
 =item * get_unique_features.pl's output is stored in the directory called "get_unique_features". lncRNApipe uses files ending with suffix '.putative.class.lncRNAs.unique.gtf ' for the next module
 
@@ -1425,7 +1425,7 @@ The pipeline has the ability to run each of these individual modules if any of t
 
  perl lncRNApipe -run /data/lncRNApipe/ -cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 1.1 -min-exons 1 -fpkm 2 -antisense -sample-names "M0,M1,M2"' -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed' -fetch '-db mm10' -cpc
 
-=item * Run categorize_lncRNAs module of the pipeline:
+=item * Run categorize_ncRNAs module of the pipeline:
     
  perl lncRNApipe -run /data/lncRNApipe/ -cat '-clean -overlap 1.1 -len 200 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf'
 
