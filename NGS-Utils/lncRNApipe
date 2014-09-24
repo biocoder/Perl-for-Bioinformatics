@@ -1389,17 +1389,17 @@ The final output is a putative list of annotated lncRNAs in GTF format that can 
 
 =item * Cuffcompare output is stored in the directory called "cuffcompare". lncRNApipe uses 'lncRNApipe_cuffcmp.tracking' file from this folder for the next module.
 
-=item * categorize_ncRNAs.pl's output is stored in the directory called "categorize_ncRNAs". lncRNApipe uses files ending with suffix '.putative.class.lncRNAs.gtf' for the next module.
+=item * categorize_ncRNAs.pl's output is stored in the directory called "categorize_ncRNAs". lncRNApipe uses files ending with suffix '.putative.class.ncRNAs.gtf' for the next module.
 
-=item * get_unique_features.pl's output is stored in the directory called "get_unique_features". lncRNApipe uses files ending with suffix '.putative.class.lncRNAs.unique.gtf ' for the next module
+=item * get_unique_features.pl's output is stored in the directory called "get_unique_features". lncRNApipe uses files ending with suffix '.putative.class.ncRNAs.unique.gtf ' for the next module
 
 =item * fetch_seq_from_ucsc.pl's output is stored in the directory called "fetch_seq_from_ucsc". lncRNApipe uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules.
 
 =item * CPC predictions are stored in a directory called "CPC".
 
-=item * The final result files are stored in a directory called lncRNApipe.final and have a suffix '.putative.class.lncRNAs.unique.final.gtf'.
+=item * The final result files are stored in a directory called lncRNApipe.final and have a suffix '.putative.class.ncRNAs.unique.final.gtf'.
 
-=item * The RNAfold plots are stored in directories inside lncRNApipe.final directory ending in suffix '.putative.class.lncRNAs.unique.final.RNAfold'.
+=item * The RNAfold plots are stored in directories inside lncRNApipe.final directory ending in suffix '.putative.class.ncRNAs.unique.final.RNAfold'.
 
 =back
 
