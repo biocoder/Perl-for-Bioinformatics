@@ -30,6 +30,8 @@ grep noncoding $CPC_TXT_OUT | cut -d "|" -f 1 | sort -n | uniq | while read unet
 	calc_cov=$(echo "scale=2; $hitlen * 100 / $trlen" | bc);
     fi
     
+    per_symb='%';
+
     if [ -z "$annot" ] || [[ $(echo "$calc_cov < $COV" | bc) -eq 1 ]]; then 
 	annot='No Annotation'; 
     else
