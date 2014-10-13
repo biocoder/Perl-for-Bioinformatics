@@ -332,7 +332,6 @@ sub run_lncRNApipe {
 	push my @lncRNApipe_unique_files, grep {/$tr_feat_here_suffix$/} readdir lncRNApipe_get_unique_mod;
 
 	if ($#lncRNApipe_unique_files ==  0) {
-
             print "\nCannot find output in $cat_dir ...\n";
             pipeline_status($io, 'ERROR');
         }
@@ -341,7 +340,7 @@ sub run_lncRNApipe {
 	    
 	    $cpu->start and next if (defined $num_cpu);
 
-	    $lncRNApipe_unique_file = $outdir . 'get_unique_features/' . $lncRNApipe_unique_file;
+	    $lncRNApipe_unique_file = $outdir . $uq_tr_feat_dir . '/' . $lncRNApipe_unique_file;
 	    
 	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'fetch'} . ' ' .
 							 join('-', split(/\-|\--/, $fetch_sc_opts)) .
@@ -1323,7 +1322,7 @@ Examples:
 
  perl lncRNApipe -h
 
- perl lncRNApipe -run /data/lncRNApipe/ -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' -cat-ncRNAs "-sample-names 'M1,M2' -ov 1.1 -fpkm 2 -len 200 -min-exons 2 -antisense" -get-uq-feat '-sf known_lncRNAs.bed' -fetch-seq '-db mm10' -cpc -rna -inf
+ perl lncRNApipe -run /data/lncRNApipe/ -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' -cat-ncRNAs "-sample-names 'M1,M2' -ov 50 -fpkm 2 -len 200 -max-len 10000 -min-exons 1 -antisense" -get-uq-feat '-sf known_lncRNAs.bed' -fetch-seq '-db mm10' -cpc -rna -inf
 
 
 =head1 DESCRIPTION
@@ -1434,11 +1433,11 @@ The pipeline has the ability to run each of these individual modules if any of t
 
 =item * Run the complete pipeline:
 
- perl lncRNApipe -run /data/lncRNApipe/ -cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 1.1 -min-exons 1 -fpkm 2 -antisense -sample-names "M0,M1,M2"' -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed' -fetch '-db mm10' -cpc
+ perl lncRNApipe -run /data/lncRNApipe/ -cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 50 -len 200 -max-len 10000 -min-exons 1 -fpkm 2 -antisense -sample-names "M0,M1,M2"' -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed' -fetch '-db mm10' -cpc
 
 =item * Run categorize_ncRNAs module of the pipeline:
     
- perl lncRNApipe -run /data/lncRNApipe/ -cat '-clean -overlap 1.1 -len 200 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf'
+ perl lncRNApipe -run /data/lncRNApipe/ -cat '-clean -overlap 50 -len 200 -max-len 10000 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf'
 
 =item * Run get_unique_features module of the pipeline to extract novel lncRNAs:
     

@@ -19,7 +19,7 @@ Examples:
 
  perl lncRNApipe -h
 
- perl lncRNApipe -run /data/lncRNApipe/ -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' -cat-ncRNAs "-sample-names 'M1,M2' -ov 1.1 -fpkm 2 -len 200 -min-exons 2 -antisense" -get-uq-feat '-sf known_lncRNAs.bed' -fetch-seq '-db mm10' -cpc -rna -inf
+ perl lncRNApipe -run /data/lncRNApipe/ -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' -cat-ncRNAs "-sample-names 'M1,M2' -ov 50 -fpkm 2 -len 200 -max-len 10000 -min-exons 1 -antisense" -get-uq-feat '-sf known_lncRNAs.bed' -fetch-seq '-db mm10' -cpc -rna -inf
 
 
 =head1 DESCRIPTION
@@ -130,11 +130,11 @@ The pipeline has the ability to run each of these individual modules if any of t
 
 =item * Run the complete pipeline:
 
- perl lncRNApipe -run /data/lncRNApipe/ -cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 1.1 -min-exons 1 -fpkm 2 -antisense -sample-names "M0,M1,M2"' -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed' -fetch '-db mm10' -cpc
+ perl lncRNApipe -run /data/lncRNApipe/ -cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 50 -len 200 -max-len 10000 -min-exons 1 -fpkm 2 -antisense -sample-names "M0,M1,M2"' -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed' -fetch '-db mm10' -cpc
 
 =item * Run categorize_ncRNAs module of the pipeline:
     
- perl lncRNApipe -run /data/lncRNApipe/ -cat '-clean -overlap 1.1 -len 200 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf'
+ perl lncRNApipe -run /data/lncRNApipe/ -cat '-clean -overlap 50 -len 200 -max-len 10000 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf'
 
 =item * Run get_unique_features module of the pipeline to extract novel lncRNAs:
     
@@ -204,6 +204,13 @@ Run the get_unique_features.pl module with supplied options.
 =item -fetch or --fetch-seq
 
 Run the fetch_seq_from_ucsc.pl module with supplied options.
+
+=item --skip-get (--fetch-seq option required)
+
+Run the fetch_seq_from_ucsc.pl module without running get_unique_features.pl module.
+In some cases, you may not have a file of known non-coding RNAs. In such cases,
+you can skip get_unique_features.pl module, and directly fetch FASTA sequences for
+features from --categorize_ncRNAs.pl module.
 
 =item -cpc or --cpc
 
