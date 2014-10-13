@@ -10,7 +10,7 @@ use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
 my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-09-22 12:46:11 -0500 (Mon, 22 Sep 2014) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.5.5 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($VERSION) = q$LastChangedRevision: 0.5.6 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -19,7 +19,8 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $start_rnafold, $rm_int_plots, $start_infernal,
     $num_cpu, $local_lib, $inf_cov, $skip_cpc_core,
     $skip_rnafold_core, $skip_cmscan_core,
-    $lncRNApipe_ver_info, $no_update_check);
+    $lncRNApipe_ver_info, $no_update_check, 
+    $skip_get_uq);
 
 my $is_valid_option = GetOptions('help:s'                           => \$help,
                                  'quiet'                            => \$quiet,
@@ -40,7 +41,8 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'coverage-infernal|cov-inf=f'      => \$inf_cov,
 				 'local-lib=s'                      => \$local_lib,
 				 'version'                          => \$lncRNApipe_ver_info,
-				 'no-update-chk|noup|d'             => \$no_update_check);
+				 'no-update-chk|noup|d'             => \$no_update_check,
+				 'skip-get|skip-get-uq'             => \$skip_get_uq);
 
 # Initialize known defaults
 my $CAT_SC = 'categorize_ncRNAs.pl';
@@ -86,15 +88,16 @@ elsif (defined $help && $help ne '') {
     close $depconf_fh;
     close $pl_dep_paths_fh;
 }
+else {
 
 ################################################################################################
 #                                                                                              #
-#     Check for updates first unless disabled as some serious bugs may have been fixed         #
+#     Check for updates first unless, disabled as some serious bugs may have been fixed        #
 #     ================================================================================         #
 #                                                                                              #
 ################################################################################################
-check_for_updates();
-
+    check_for_updates();
+}
 
 ################################################################################################
 #                                                                                              #
@@ -305,6 +308,9 @@ sub run_lncRNApipe {
     do {
 
 	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
+	my $uq_tr_feat_dir = 'get_unique_features';
+	my $tr_feat_here_suffix = 'putative\.class\.ncRNAs\.unique\.gtf$';
+
 	module_header($io, 'Module 4: Running fetch_seq_from_ucsc.pl');
 	
 	my $is_failed = '';
@@ -313,12 +319,17 @@ sub run_lncRNApipe {
 	$io->execute_system_command("mkdir -p $cat_dir",
                                     'Making output directory for ' . $io->file_basename($deps->{'get'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
             if (!-d $cat_dir);
+
+	if (defined $skip_get_uq) {
+	    $uq_tr_feat_dir = 'categorize_ncRNAs';
+	    $tr_feat_here_suffix = 'putative\.class\.ncRNAs\.gtf$';
+	}
 	
-	opendir (lncRNApipe_get_unique_mod, $outdir . 'get_unique_features') ||
-	    $io->error("Cannot open directory $outdir" .
-		       'get_unique_features to read unique ncRNA features.');
+	opendir (lncRNApipe_get_unique_mod, $outdir . $uq_tr_feat_dir) ||
+	    $io->error("Cannot open directory $outdir" . $uq_tr_feat_dir .
+		       ' to read unique ncRNA features.');
 	
-	push my @lncRNApipe_unique_files, grep {/putative\.class\.ncRNAs\.unique\.gtf$/} readdir lncRNApipe_get_unique_mod;
+	push my @lncRNApipe_unique_files, grep {/$tr_feat_here_suffix$/} readdir lncRNApipe_get_unique_mod;
 
 	if ($#lncRNApipe_unique_files ==  0) {
 
@@ -1497,6 +1508,13 @@ Run the get_unique_features.pl module with supplied options.
 =item -fetch or --fetch-seq
 
 Run the fetch_seq_from_ucsc.pl module with supplied options.
+
+=item --skip-get (--fetch-seq option required)
+
+Run the fetch_seq_from_ucsc.pl module without running get_unique_features.pl module.
+In some cases, you may not have a file of known non-coding RNAs. In such cases,
+you can skip get_unique_features.pl module, and directly fetch FASTA sequences for
+features from --categorize_ncRNAs.pl module.
 
 =item -cpc or --cpc
 
