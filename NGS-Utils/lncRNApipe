@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-09-22 12:46:11 -0500 (Mon, 22 Sep 2014) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.5.6 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-15 09:32:11 -0500 (Wed, 15 Oct 2014) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.5.7 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -93,7 +93,7 @@ else {
 ################################################################################################
 #                                                                                              #
 #     Check for updates first unless, disabled as some serious bugs may have been fixed        #
-#     ================================================================================         #
+#     =================================================================================        #
 #                                                                                              #
 ################################################################################################
     check_for_updates();
@@ -1255,7 +1255,7 @@ sub disp_ncRNA_counts {
     $num_ex_ov = 0 if ($num_lincs =~ m/^could not capture/i);
 
 
-    print("\n\nncRNA Summary [ " . $c_io->file_basename($file, 'suffix') . " ] :\n" .
+    print("\n\nlncRNA Summary [ " . $c_io->file_basename($file, 'suffix') . " ] :\n" .
 	  "---------------------------------------------------------------------------------------\n" .
 	  "LincRNAs: $num_lincs\n" .
 	  "Intronic overlaps - concs: $num_concs\n" .
@@ -1568,6 +1568,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-September-22-2014
+October-15-2014
 
 =cut

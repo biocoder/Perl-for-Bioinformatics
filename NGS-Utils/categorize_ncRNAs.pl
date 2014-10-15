@@ -271,8 +271,8 @@ sub class_ncRNAs {
 	$io->c_time('Categorizing ncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 	
-	$io->c_time("\n\nncRNA Summary [ " . $io->file_basename($c_ncRNAs, 'suffix') . " ] :\n" . 
-		    "----------------------------------------------------------------------\n" .
+	$io->c_time("\n\nlncRNA Summary [ " . $io->file_basename($c_ncRNAs, 'suffix') . " ] :\n" . 
+		    "-----------------------------------------------------------------------\n" .
 		    "Total number of input transcripts: $total_nc_trs_before_cat\n" .
 		    "LincRNAs: $num_lincs\n" . 
 		    "Intronic overlaps - concs: $num_concs\n" .
@@ -325,7 +325,6 @@ sub calc_lincRNAs {
 
 	    $ref_gene_tree->insert($ref_tr_id, $ref_tr_start, $ref_tr_end);
 	} 
-
 	
 	foreach my $transfrag (values @{$p_ncRNAs->{$chr}}) {
 	    my ($nc_strand,
@@ -350,6 +349,7 @@ sub calc_lincRNAs {
 		$ncRNA_length <= $ncRNA_max_length) {
 		$found++;
 		$ncRNA_class->{$unique_key} = 1;
+
 		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; ncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
 	    }
 	    elsif (!exists $ncRNA_class->{$unique_key}) {
@@ -419,12 +419,11 @@ sub calc_overlaps {
                         $nc_tr_end > $ref_tr_end) {
 
 			my $ov_tr_found = $nc_int_tree->fetch($ref_tr_start ,$ref_tr_end);
-			my $is_ncRNA_Conc = 0;
-			$is_ncRNA_Conc = 1 if (scalar(@$ov_tr_found) >= 1);
 			my $is_ncRNA_Conc = is_intronicOverlap($ref_tr_start, $ref_tr_end, $nc_exon_starts, $nc_exon_ends);
 			
 			if ($is_ncRNA_Conc &&
 			    $is_strand_Antisense &&
+			    scalar(@$ov_tr_found) >= 1 &&
 			    !exists $ncRNA_class->{$unique_key}) {
 			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Antisense intronic overlap (Conc) with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
@@ -434,6 +433,7 @@ sub calc_overlaps {
 			}
 			elsif ($is_ncRNA_Conc &&
 			       !$is_strand_Antisense &&
+			       scalar(@$ov_tr_found) >= 1 &&
 			       !exists $ncRNA_class->{$unique_key}) {
 			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Sense intronic overlap (Conc) with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
@@ -441,8 +441,9 @@ sub calc_overlaps {
 			    $found++;
 			    last;
 			}
-			elsif (!$is_ncRNA_Conc &&
-			    !exists $ncRNA_class->{$unique_key}) {
+			elsif ($is_ncRNA_Conc &&
+			       scalar(@$ov_tr_found) >= 1 &&
+			       !exists $ncRNA_class->{$unique_key}) {
 			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Intronic overlap (Conc)\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
@@ -489,10 +490,14 @@ sub calc_overlaps {
 		    # Antisense and Sense partial reference intronic overlap.
 		    if ($mode =~ m/^ponc$/i &&
 			(( ($nc_tr_start > $ref_tr_start) &&
-			   ($nc_tr_end > $ref_tr_end) 
+			   ($nc_tr_end > $ref_tr_end) &&
+			   ($nc_tr_start < $ref_tr_end) &&
+			   ($nc_tr_end > $ref_tr_start)
 			 ) || 
 			 ( ($nc_tr_start < $ref_tr_start) &&
-			   ($nc_tr_end < $ref_tr_end)
+			   ($nc_tr_end < $ref_tr_end) &&
+			   ($nc_tr_start < $ref_tr_end) &&
+			   ($nc_tr_end > $ref_tr_start)
 			 ))
 			) {
 			 
@@ -504,7 +509,7 @@ sub calc_overlaps {
 			if (!$is_ncRNA_exonicOverlap &&
 			    $is_strand_Antisense &&
 			    !exists $ncRNA_class->{$unique_key} &&
-			    scalar(@$found_intron_ov >= 1)) {
+			    scalar(@$found_intron_ov) >= 1) {
 			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Antisense partial intronic overlap (Ponc) with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
@@ -514,7 +519,7 @@ sub calc_overlaps {
 			elsif (!$is_ncRNA_exonicOverlap &&
 			       !$is_strand_Antisense &&
 			       !exists $ncRNA_class->{$unique_key} &&
-			       scalar(@$found_intron_ov >= 1)) {
+			       scalar(@$found_intron_ov) >= 1) {
 			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Sense partial intronic overlap (Ponc) with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
@@ -523,7 +528,7 @@ sub calc_overlaps {
 			}
 			elsif (!$is_ncRNA_exonicOverlap &&
 			       !exists $ncRNA_class->{$unique_key} &&
-			       scalar(@$found_intron_ov >= 1)) {
+			       scalar(@$found_intron_ov) >= 1) {
 			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Partial intronic overlap (Ponc) with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
@@ -665,7 +670,7 @@ sub is_exonicOverlap {
     return 0;
 }
 
-# Calculate ncRNA intronic overlap with reference gene information, both Concs and Poncs.
+# Calculate ncRNA intronic overlap with reference gene information for Concs, Poncs and Incs.
 sub is_intronicOverlap {
     my ($tr_start, $tr_end, 
 	$ex_st, $ex_end) = @_;
