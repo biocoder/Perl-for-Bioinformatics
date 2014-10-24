@@ -1300,6 +1300,13 @@ sub check_for_updates {
     $last_commit_msg =~ s/^\s+|\"|\,$//g;
     $last_commit_msg =~ s/message:\s*/Last Commit: /;
     $last_commit_msg .= '.' if ($last_commit_msg !~ m/\.$/);
+
+    if (!$last_commit_msg) {
+	$io->warning('Unable to contact github.com for latest commit message ... May be we have reached the X-rate-limit! :-(' .
+		     "\nUse -d option if you wish to disable update check.");
+	return;
+    }
+
     
     $io->warning($last_commit_msg, 'COMMIT');
     return;
