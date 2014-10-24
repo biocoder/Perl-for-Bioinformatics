@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-15 09:32:11 -0500 (Wed, 15 Oct 2014) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.5.7 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-24 08:53:27 -0500 (Fri, 24 Oct 2014) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.5.8 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -1295,6 +1295,13 @@ sub check_for_updates {
     
     $io->warning('You are using the latest version of the software which is v' . $newest_release . '.' .
 		 "\nUse -d option if you wish to disable update check.", 'OK!') if (!$is_upToDate);
+
+    chomp(my $last_commit_msg = `curl -Lks https://api.github.com/repos/biocoder/Perl-for-Bioinformatics/commits?per_page=1 | grep 'message'`);
+    $last_commit_msg =~ s/^\s+|\"|\,$//g;
+    $last_commit_msg =~ s/message:\s*/Last Commit: /;
+    $last_commit_msg .= '.' if ($last_commit_msg !~ m/\.$/);
+    
+    $io->warning($last_commit_msg, 'COMMIT');
     return;
 }
 

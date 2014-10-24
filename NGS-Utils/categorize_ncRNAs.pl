@@ -256,19 +256,19 @@ sub class_ncRNAs {
 	my ($num_ex_ov, $num_incs, $num_concs, $num_poncs, $num_lincs, $noclass, $num_noSense,
 	    $discard) = 0;
 
-	$io->c_time('Categorizing ncRNAs (Exonic overlaps) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing lncRNAs (Exonic overlaps) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_ex_ov, $num_noSense) = calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 
-	$io->c_time('Categorizing ncRNAs (Intronic overlaps - incs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing lncRNAs (Intronic overlaps - incs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_incs, $discard) = calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing ncRNAs (Intronic overlaps - concs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing lncRNAs (Intronic overlaps - concs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_concs, $discard) = calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing ncRNAs (Intronic overlaps - poncs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing lncRNAs (Intronic overlaps - poncs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_poncs, $discard) = calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing ncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing lncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 	
 	$io->c_time("\n\nlncRNA Summary [ " . $io->file_basename($c_ncRNAs, 'suffix') . " ] :\n" . 
@@ -501,12 +501,14 @@ sub calc_overlaps {
 			 ))
 			) {
 			 
+			my $is_ncRNA_Inc = is_intronicOverlap($ref_tr_start, $ref_tr_end, $nc_exon_starts, $nc_exon_ends);
 			my $found_intron_ov = $nc_int_tree->fetch($ref_tr_start, $ref_tr_end);
 			my $is_ncRNA_exonicOverlap = is_exonicOverlap($ref_exon_starts, $ref_exon_ends, $nc_exon_starts, $nc_exon_ends);
 			my $retain_overlap = $overlap;
 			$overlap = 0;
 			
-			if (!$is_ncRNA_exonicOverlap &&
+			if ($is_ncRNA_Inc &&
+			    !$is_ncRNA_exonicOverlap &&
 			    $is_strand_Antisense &&
 			    !exists $ncRNA_class->{$unique_key} &&
 			    scalar(@$found_intron_ov) >= 1) {
@@ -516,7 +518,8 @@ sub calc_overlaps {
 			    $found++;
 			    last;
 			}
-			elsif (!$is_ncRNA_exonicOverlap &&
+			elsif ($is_ncRNA_Inc &&
+			       !$is_ncRNA_exonicOverlap &&
 			       !$is_strand_Antisense &&
 			       !exists $ncRNA_class->{$unique_key} &&
 			       scalar(@$found_intron_ov) >= 1) {
@@ -526,7 +529,8 @@ sub calc_overlaps {
 			    $found++;
 			    last;
 			}
-			elsif (!$is_ncRNA_exonicOverlap &&
+			elsif ($is_ncRNA_Inc &&
+			       !$is_ncRNA_exonicOverlap &&
 			       !exists $ncRNA_class->{$unique_key} &&
 			       scalar(@$found_intron_ov) >= 1) {
 			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Partial intronic overlap (Ponc) with $ref_tr_id\";";
