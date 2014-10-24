@@ -8,8 +8,8 @@ use Set::IntervalTree;
 use Parallel::ForkManager;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-10-09 12:46:11 -0500 (Wed, 09 Oct 2013) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 64 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-24 11:10:27 -0500 (Fri, 24 Oct 2014) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0510 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -337,16 +337,16 @@ sub calc_lincRNAs {
 	 
 	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" .
                 @$nc_exon_starts . @$nc_exon_ends;
-	    
+	  
+	    # Skip if non-coding transcript length is more than user defined max length
 	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
-	    $ncRNA_max_length = $ncRNA_length if ( (!defined $ncRNA_max_length) || ($ncRNA_max_length eq '') );
+	    next if ( (defined $ncRNA_max_length) && ($ncRNA_length > $ncRNA_max_length) );
 
 	    my $ov_found = $ref_gene_tree->fetch($nc_tr_start, $nc_tr_end);
 	    
 	    if (scalar(@$ov_found) == $ov_found_chk_flag &&
 		!exists $ncRNA_class->{$unique_key} &&
-		$ncRNA_length >= $length &&
-		$ncRNA_length <= $ncRNA_max_length) {
+		$ncRNA_length >= $length) {
 		$found++;
 		$ncRNA_class->{$unique_key} = 1;
 
@@ -391,8 +391,10 @@ sub calc_overlaps {
 	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" .
 		@$nc_exon_starts . @$nc_exon_ends;
 
+	    # Skip if non-coding transcript length is more than user defined max length
 	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
-	    $ncRNA_max_length = $ncRNA_length if ( (!defined $ncRNA_max_length) || ($ncRNA_max_length eq '') );
+	    next if ( (defined $ncRNA_max_length) && ($ncRNA_length > $ncRNA_max_length) );
+
 	    $nc_int_tree->insert($nc_tr_id, $nc_tr_start, $nc_tr_end) if ($mode =~ m/^ponc|conc$/i);
 
 	    foreach my $ref_gene (values @{$refAnnot->{$nc_chr}}) {
@@ -408,10 +410,8 @@ sub calc_overlaps {
 		my $is_strand_Antisense = is_Antisense($ref_strand, $nc_strand);
 
 		# Only lncRNAs, adjustable by user with -length and -min-exons parameters.
-		
 		if ($ncRNA_length >= $length &&
-		    $nc_exons >= $min_exons &&
-		    $ncRNA_length <= $ncRNA_max_length) { 
+		    $nc_exons >= $min_exons) { 
 
 		    # Complete overlap reference gene with ncRNA intron.
 		    if ($mode =~ m/^conc$/i &&

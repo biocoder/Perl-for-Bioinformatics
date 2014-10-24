@@ -7,7 +7,7 @@ use IO::Routine;
 use Set::IntervalTree;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2013-10-09 12:46:11 -0500 (Wed, 09 Oct 2013) $ =~ m/.+?\:(.+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-24 11:10:27 -0500 (Fri, 24 Oct 2014)  $ =~ m/.+?\:(.+)/;
 my ($VERSION) = q$LastChangedRevision: 64 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
@@ -527,6 +527,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Aug-30-2013
+Oct-24-2014
 
 =cut
