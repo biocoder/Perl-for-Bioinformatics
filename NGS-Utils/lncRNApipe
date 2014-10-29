@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-29 11:31:27 -0500 (Wed, 29 Oct 2014) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.5.11 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-29 15:12:27 -0500 (Wed, 29 Oct 2014) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.5.12 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -1258,9 +1258,9 @@ sub disp_ncRNA_counts {
     print("\n\nlncRNA Summary [ " . $c_io->file_basename($file, 'suffix') . " ] :\n" .
 	  "---------------------------------------------------------------------------------------\n" .
 	  "LincRNAs: $num_lincs\n" .
-	  "Intronic overlaps - concs: $num_concs\n" .
-	  "Intronic overlaps - poncs: $num_poncs\n" .
-	  "Intronic overlaps - incs: $num_incs\n" .
+	  "Intronic overlaps - Concs: $num_concs\n" .
+	  "Intronic overlaps - Poncs: $num_poncs\n" .
+	  "Intronic overlaps - Incs: $num_incs\n" .
 	  "Exonic overlaps: $num_ex_ov\n" .
 	  $total_desc . ': ' . ($num_lincs +
 				 $num_concs +

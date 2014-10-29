@@ -8,8 +8,8 @@ use Set::IntervalTree;
 use Parallel::ForkManager;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-29 11:19:27 -0500 (Wed, 29 Oct 2014) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0511 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-29 15:12:27 -0500 (Wed, 29 Oct 2014) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0512 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -261,13 +261,13 @@ sub class_ncRNAs {
 	$io->c_time('Categorizing lncRNAs (Exonic overlaps) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_ex_ov, $num_noSense) = calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 
-	$io->c_time('Categorizing lncRNAs (Intronic overlaps - incs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing lncRNAs (Intronic overlaps - Incs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_incs, $discard) = calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing lncRNAs (Intronic overlaps - concs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing lncRNAs (Intronic overlaps - Concs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_concs, $discard) = calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing lncRNAs (Intronic overlaps - poncs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing lncRNAs (Intronic overlaps - Poncs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_poncs, $discard) = calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
 	$io->c_time('Categorizing lncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
@@ -277,9 +277,9 @@ sub class_ncRNAs {
 		    "-----------------------------------------------------------------------\n" .
 		    "Total number of input transcripts: $total_nc_trs_before_cat\n" .
 		    "LincRNAs: $num_lincs\n" . 
-		    "Intronic overlaps - concs: $num_concs\n" .
-                    "Intronic overlaps - poncs: $num_poncs\n" . 
-		    "Intronic overlaps - incs: $num_incs\n" . 
+		    "Intronic overlaps - Concs: $num_concs\n" .
+                    "Intronic overlaps - Poncs: $num_poncs\n" . 
+		    "Intronic overlaps - Incs: $num_incs\n" . 
 		    "Exonic overlaps: $num_ex_ov\n" . 
 		    "Total categorized: " . ($num_lincs + 
 					     $num_concs + 
@@ -352,22 +352,12 @@ sub calc_lincRNAs {
 	    next if ( (defined $ncRNA_max_length) && ($ncRNA_length > $ncRNA_max_length) );
 	   
 	    my $ov_found = $ref_gene_tree->fetch($nc_tr_start, $nc_tr_end);
-	    
-	    if (scalar(@$ov_found) == 0 &&
-		!exists $ncRNA_class->{$unique_key} &&
-		$ncRNA_length >= $length &&
-		$nc_exons >= $min_exons) {
-		$found++;
-		$ncRNA_class->{$unique_key} = 1;
 
-		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
-	    }
-	    
 	    if (defined $linc_rna_prox &&
-		   $linc_rna_prox > 0) {
+		$linc_rna_prox > 0) {
 		
 		my $lincRNA_prox_ov_found = $lincRNA_prox_ref_gene_tree->fetch($nc_tr_start, $nc_tr_end);
-
+		
 		if (scalar(@$ov_found) == 0 &&
 		    scalar(@$lincRNA_prox_ov_found) == 1 &&
 		    !exists $ncRNA_class->{$unique_key} &&
@@ -378,16 +368,33 @@ sub calc_lincRNAs {
 		    
 		    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
 		}
+		elsif (!exists $ncRNA_class->{$unique_key} &&
+		       $ncRNA_length >= $length &&
+		       $nc_exons >= $min_exons) {
+		    $num_noClass++;
+		    $ncRNA_class->{$unique_key} = 1;
+		    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0);
+		}
+		next;
 	    }
+
 	    
-	    if (!exists $ncRNA_class->{$unique_key} &&
+	    if (scalar(@$ov_found) == 0 &&
+		!exists $ncRNA_class->{$unique_key} &&
+		$ncRNA_length >= $length &&
+		$nc_exons >= $min_exons) {
+		$found++;
+		$ncRNA_class->{$unique_key} = 1;
+
+		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
+	    }
+	    elsif (!exists $ncRNA_class->{$unique_key} &&
 		   $ncRNA_length >= $length &&
 		   $nc_exons >= $min_exons) {
 		$num_noClass++;
 		$ncRNA_class->{$unique_key} = 1;
 		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0);
 	    }
-	    
 	}
     }
     return ($found, $num_noClass);
