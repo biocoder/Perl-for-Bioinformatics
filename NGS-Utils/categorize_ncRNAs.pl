@@ -8,15 +8,16 @@ use Set::IntervalTree;
 use Parallel::ForkManager;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-24 11:10:27 -0500 (Fri, 24 Oct 2014) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0510 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-29 11:19:27 -0500 (Wed, 29 Oct 2014) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0511 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
     $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
     $antisense_only, $disp_anti_option, $gtf_bin, $num_cpu,
-    $linc_rna_prox, $non_calc_cpu, $ncRNA_max_length);
+    $linc_rna_prox, $non_calc_cpu, $ncRNA_max_length,
+    $ignore_genePred_err);
 
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 my $ncRNA_class = {};
@@ -43,7 +44,8 @@ my $is_valid_option = GetOptions('help|?'              => \$help,
 				 'cpu=i'               => \$num_cpu,
 				 'linc-rna-prox=i'     => \$linc_rna_prox,
 				 'full-read-support'   => \$full_read_supp,
-				 'non-calc-cpu=i'      => \$non_calc_cpu);
+				 'non-calc-cpu=i'      => \$non_calc_cpu,
+				 'ignore-genePred-err' => \$ignore_genePred_err);
 
 my $io = IO::Routine->new($help, $quiet);
 my $s_time = $io->start_timer;
@@ -201,7 +203,7 @@ sub get_putative_ncRNAs {
 # Convert GTF to gene prediction format.
 sub get_genePred {
     my $cpu = '';
-    $io->c_time('Converting putative ncRNAs list to Gene Prediction format using gtfToGenePred tool');
+    $io->c_time('Converting putative ncRNAs list to Gene Prediction format using gtfToGenePred tool...');
 
     my $exe_gtfToGenePred = 'gtfToGenePred';
     $exe_gtfToGenePred = $gtf_bin if (defined($gtf_bin) && $gtf_bin ne '');
@@ -220,7 +222,7 @@ sub get_genePred {
 	$cpu->start and next if (defined $num_cpu);
 	$io->verify_files([$p_file_names_gtf->[$_]], ['GTF']);
 	$io->execute_system_command("$exe_gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_] 2> /dev/null",
-	    "$exe_gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_] 2> /dev/null");
+	    "Command call:\n-------------\n$exe_gtfToGenePred -genePredExt -geneNameAsName2 $p_file_names_gtf->[$_] $p_file_names_txt->[$_] 2> /dev/null");
 	$cpu->finish if (defined $num_cpu);
     }
     $cpu->wait_all_children if (defined $num_cpu);
@@ -303,10 +305,11 @@ sub calc_lincRNAs {
     my $u_ncRNAs = shift;
     my $found = 0;
     my $num_noClass = 0;
-    my $ov_found_chk_flag = 0;
 
     foreach my $chr (keys %{$refAnnot}) {
 	my $ref_gene_tree = Set::IntervalTree->new();
+	my $lincRNA_prox_ref_gene_tree = Set::IntervalTree->new()
+	    if (defined $linc_rna_prox && $linc_rna_prox > 0);
 	   
 	foreach my $ref_gene (values @{$refAnnot->{$chr}}) {
 	    my ($ref_strand,
@@ -318,12 +321,18 @@ sub calc_lincRNAs {
 		$ref_tr_id) = get_parts($ref_gene);
 	    
 	    if (defined $linc_rna_prox && $linc_rna_prox > 0) {
-		$ref_tr_start += $linc_rna_prox;
-		$ref_tr_end += $linc_rna_prox;
-		$ov_found_chk_flag = 1;
+		if ($ref_tr_start != 0 ) {
+		    $lincRNA_prox_ref_gene_tree->insert($ref_tr_id . 'lincRNA_prox_st',
+							$ref_tr_start - $linc_rna_prox,
+							$ref_tr_start - 1);
+		}
+		$lincRNA_prox_ref_gene_tree->insert($ref_tr_id . 'lincRNA_prox_end',
+						    $ref_tr_end + 1,
+						    $ref_tr_end + $linc_rna_prox);
 	    }
-
-	    $ref_gene_tree->insert($ref_tr_id, $ref_tr_start, $ref_tr_end);
+	    else {
+		$ref_gene_tree->insert($ref_tr_id, $ref_tr_start, $ref_tr_end);
+	    }
 	} 
 	
 	foreach my $transfrag (values @{$p_ncRNAs->{$chr}}) {
@@ -341,22 +350,44 @@ sub calc_lincRNAs {
 	    # Skip if non-coding transcript length is more than user defined max length
 	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
 	    next if ( (defined $ncRNA_max_length) && ($ncRNA_length > $ncRNA_max_length) );
-
+	   
 	    my $ov_found = $ref_gene_tree->fetch($nc_tr_start, $nc_tr_end);
 	    
-	    if (scalar(@$ov_found) == $ov_found_chk_flag &&
+	    if (scalar(@$ov_found) == 0 &&
 		!exists $ncRNA_class->{$unique_key} &&
-		$ncRNA_length >= $length) {
+		$ncRNA_length >= $length &&
+		$nc_exons >= $min_exons) {
 		$found++;
 		$ncRNA_class->{$unique_key} = 1;
 
-		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; ncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
+		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
 	    }
-	    elsif (!exists $ncRNA_class->{$unique_key}) {
+	    
+	    if (defined $linc_rna_prox &&
+		   $linc_rna_prox > 0) {
+		
+		my $lincRNA_prox_ov_found = $lincRNA_prox_ref_gene_tree->fetch($nc_tr_start, $nc_tr_end);
+
+		if (scalar(@$ov_found) == 0 &&
+		    scalar(@$lincRNA_prox_ov_found) == 1 &&
+		    !exists $ncRNA_class->{$unique_key} &&
+		    $ncRNA_length >= $length &&
+		    $nc_exons >= $min_exons) {
+		    $found++;
+		    $ncRNA_class->{$unique_key} = 1;
+		    
+		    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
+		}
+	    }
+	    
+	    if (!exists $ncRNA_class->{$unique_key} &&
+		   $ncRNA_length >= $length &&
+		   $nc_exons >= $min_exons) {
 		$num_noClass++;
 		$ncRNA_class->{$unique_key} = 1;
-		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; ncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0);
+		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0);
 	    }
+	    
 	}
     }
     return ($found, $num_noClass);
@@ -425,7 +456,7 @@ sub calc_overlaps {
 			    $is_strand_Antisense &&
 			    scalar(@$ov_tr_found) >= 1 &&
 			    !exists $ncRNA_class->{$unique_key}) {
-			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Antisense intronic overlap (Conc) with $ref_tr_id\";";
+			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Conc - Antisense intronic overlap with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
@@ -435,7 +466,7 @@ sub calc_overlaps {
 			       !$is_strand_Antisense &&
 			       scalar(@$ov_tr_found) >= 1 &&
 			       !exists $ncRNA_class->{$unique_key}) {
-			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Sense intronic overlap (Conc) with $ref_tr_id\";";
+			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Conc - Sense intronic overlap with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
                             $ncRNA_line--;
 			    $found++;
@@ -444,7 +475,7 @@ sub calc_overlaps {
 			elsif ($is_ncRNA_Conc &&
 			       scalar(@$ov_tr_found) >= 1 &&
 			       !exists $ncRNA_class->{$unique_key}) {
-			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Intronic overlap (Conc)\";";
+			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Conc - Intronic overlap with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
@@ -462,7 +493,7 @@ sub calc_overlaps {
 			if ($is_ncRNA_Inc &&
 			    $is_strand_Antisense &&
 			    !exists $ncRNA_class->{$unique_key}) {
-			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Antisense intronic overlap (Inc) with $ref_tr_id\";";
+			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Inc - Antisense intronic overlap with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
@@ -471,7 +502,7 @@ sub calc_overlaps {
 			elsif ($is_ncRNA_Inc &&
 			       !$is_strand_Antisense &&
 			       !exists $ncRNA_class->{$unique_key}) {
-			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Sense intronic overlap (Inc) with $ref_tr_id\";";
+			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Inc - Sense intronic overlap with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
@@ -479,7 +510,7 @@ sub calc_overlaps {
 			}
 			elsif ($is_ncRNA_Inc &&
 			       !exists $ncRNA_class->{$unique_key}) {
-			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Intronic overlap (Inc) with $ref_tr_id\";";
+			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Inc - Intronic overlap with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
@@ -512,7 +543,7 @@ sub calc_overlaps {
 			    $is_strand_Antisense &&
 			    !exists $ncRNA_class->{$unique_key} &&
 			    scalar(@$found_intron_ov) >= 1) {
-			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Antisense partial intronic overlap (Ponc) with $ref_tr_id\";";
+			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Ponc - Antisense partial intronic overlap with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
@@ -523,7 +554,7 @@ sub calc_overlaps {
 			       !$is_strand_Antisense &&
 			       !exists $ncRNA_class->{$unique_key} &&
 			       scalar(@$found_intron_ov) >= 1) {
-			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Sense partial intronic overlap (Ponc) with $ref_tr_id\";";
+			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Ponc - Sense partial intronic overlap with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
@@ -533,7 +564,7 @@ sub calc_overlaps {
 			       !$is_ncRNA_exonicOverlap &&
 			       !exists $ncRNA_class->{$unique_key} &&
 			       scalar(@$found_intron_ov) >= 1) {
-			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Partial intronic overlap (Ponc) with $ref_tr_id\";";
+			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Ponc - Partial intronic overlap with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
@@ -550,7 +581,7 @@ sub calc_overlaps {
 			if ($is_ncRNA_exonicOverlap &&
 			    $is_strand_Antisense &&
 			    !exists $ncRNA_class->{$unique_key}) {
-			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Antisense exonic overlap with $ref_tr_id\";";
+			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Exonic - Antisense exonic overlap with $ref_tr_id\";";
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $found++;
@@ -562,10 +593,10 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--; 
 			    $num_noSense++,
-			    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; ncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0),
+			    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0),
 			    last if (defined($antisense_only) && $antisense_only);
 			    $found++;
-			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Sense exonic overlap with $ref_tr_id\";";
+			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Exonic - Sense exonic overlap with $ref_tr_id\";";
 			    last;
 			}
 			elsif ($is_ncRNA_exonicOverlap &&
@@ -573,18 +604,16 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $num_noSense++,
-			    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; ncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0),
-			    $ncRNA_class->{$unique_key} = "ncRNA_type \"No Class \(\?\)\"\;",
+			    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0),
 			    last if (defined($antisense_only) && $antisense_only);
 			    $found++;
-			    $ncRNA_class->{$unique_key} = "ncRNA_type \"Exonic overlap with $ref_tr_id\";";
+			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Exonic - Exonic overlap with $ref_tr_id\";";
 			    last;
 			}
 		    }
 		}
 	    }
-	    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; $ncRNA_class->{$unique_key}\/\' >> $c_ncRNAs", 0)
-		if ($ncRNA_class->{$unique_key} ne '');
+	    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; $ncRNA_class->{$unique_key}\/\' >> $c_ncRNAs", 0) if ($ncRNA_class->{$unique_key} ne '');
 	}
     }
     return ($found, $num_noSense);
@@ -597,7 +626,7 @@ sub store_coords {
     my $store = {};
 
     $io->c_time('Reading information from gene prediction format file [ ' . 
-		$io->file_basename($f, 'suffix') . ' ] ...');
+		$io->file_basename($f, 'suffix') . ' ]...');
     while (my $line = <$fh>) {
 	chomp $line;
 	$line = $io->strip_leading_and_trailing_spaces($line);
@@ -608,9 +637,11 @@ sub store_coords {
 
 	$chr = 'chr$chr' if ($line =~ m/^ens/i && $strand =~ m/^\+|\-|\.$/ && $num_exons =~ m/\d+/ && $chr !~ m/^chr/);
 
-	$io->error('Supplied file [ ' . $io->file_basename($f, 'suffix') . ' ] does not seem to be in gene prediction format...' .
-		   "\n\nError occured on line:\n\n$line\n")
-	    if ($chr !~ m/^(chr|ens|uc)/i || $strand !~ m/^\+|\-|\.$/ || $num_exons !~ m/\d+/);
+	if (!defined $ignore_genePred_err) {
+	    $io->error('Supplied file [ ' . $io->file_basename($f, 'suffix') . ' ] does not seem to be in gene prediction format...' .
+		       "\n\nError occured on line:\n\n$line\n\nUse --ignore-genePred-err option to skip this check if you think this is a valid line.\n")
+		if ($chr !~ m/^(chr|ens|uc)/i || $strand !~ m/^\+|\-|\.$/ || $num_exons !~ m/\d+/);
+	}
 	
 	push @{$store->{lc($chr)}}, "$strand|$tr_start|$tr_end|$cds_start|$cds_end|$num_exons|$exon_starts|$exon_ends|$t_id";
     }
@@ -880,6 +911,15 @@ categorize_ncRNAs.pl takes the following arguments:
     When reporting Long intergenic ncRNAs, report only those which are within this
     many number of bases upstream or downstream of the reference gene.
 
+=item --ignore-genePred-err (Optional)
+
+    Default: disabled
+
+    The program first stores the reference information from Gene Prediction format
+    into memory while verifying the validity of Gene Prediction format and exits
+    with an error if it cannot validate. Use this option if you think the Gene Prediction
+    format of the file you supplied is correct but in any case, this program thinks otherwise.
+
 =item -cpu or --cpu (Optional)
 
     Default: 1
@@ -898,6 +938,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Oct-09-2013
+Oct-29-2014
 
 =cut
