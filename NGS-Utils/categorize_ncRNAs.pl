@@ -795,6 +795,17 @@ in the OPTIONS' section.
 The final output is written to *.putative.class.gtf files and depends upon number of Cufflinks assembled transcript files
 supplied.
 
+=head2 WARNING
+
+The assembled transcripts' files supplied to this program must be in the exact order as supplied to Cuffcompare program
+while creating the *.tracking file. For example if this is your Cuffcompare call:
+
+cuffcompare -R -r reference.gtf -o lncRNApipe_cuffcompare transcripts1_input.gtf transcripts2_input.gtf
+
+then, the same order must be preserved while calling categorize_ncRNAs.pl. Example:
+
+categorize_ncRNAs.pl . . . . transcripts1_input.gtf transcripts2_input.gtf
+
 =head2 KNOWN ISSUES
 
 The annotation should be in the Gene Prediction format. When Gene Prediction format files for RefSeq
