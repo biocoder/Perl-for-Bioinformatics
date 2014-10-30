@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-29 15:12:27 -0500 (Wed, 29 Oct 2014) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.5.12 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-30 11:40:27 -0500 (Thu, 30 Oct 2014) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.5.13 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -839,6 +839,9 @@ sub setup_lncRNApipe {
 	succ_or_fail(1, 'wc');
     }
 
+    print "\n\nChecking for other required tools / modules...\n";
+    $io->exist_sys_cmd("perl -e 'use Fcntl;'");
+
     print "\n\nSetting up PERL5LIB paths...\n";
     unlink "$USER_HOME/.lncRNApipe.PERLLIBS" if (-e "$USER_HOME/.lncRNApipe.PERLLIBS");
     my $pl_dep_fh = $io->open_file('>', "$USER_HOME/.lncRNApipe.PERLLIBS");
@@ -1582,6 +1585,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-October-29-2014
+October-30-2014
 
 =cut

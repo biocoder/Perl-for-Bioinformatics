@@ -6,10 +6,11 @@ use Getopt::Long qw(:config pass_through);
 use IO::Routine;
 use Set::IntervalTree;
 use Parallel::ForkManager;
+use Fcntl qw / :flock /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-29 15:12:27 -0500 (Wed, 29 Oct 2014) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0512 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-30 11:40:27 -0500 (Thu, 30 Oct 2014) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0513 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -160,7 +161,7 @@ exit;
 # Get putative list of ncRNAs from Cuffcompare tracking file corresponding
 # to cufflinks assembled transcript fragments.
 sub get_putative_ncRNAs {
-    $io->c_time('Getting putative list of ncRNAs in GTF format...');
+    $io->c_time('Getting putative list of lncRNAs in GTF format...');
     my $cpu = '';
 
     if (defined $novel) {
@@ -176,22 +177,35 @@ sub get_putative_ncRNAs {
     }
     
     while (my $line = <$cuffcmp_fh>) {
-	$cpu->start and next if (defined $non_calc_cpu);
+	my $parallel_pid = $cpu->start and next if (defined $non_calc_cpu);
+	
 	chomp $line;
 	$line = $io->strip_leading_and_trailing_spaces($line);
 	my ($t_id, $loc_id, $loc_name, $class_code, @cols) = split/\t/, $line;
+
+	$io->error('Number of sample columns in Cuffcompare tracking file do not match number of assembled transcript files supplied')
+	    if ($#cols != $#ARGV);
+
 	if ($class_code =~ m/$extract_pat/i) {
 	    for (0 .. $#cols) {
 		my ($q_loc_id, $q_t_id, $discard) = split/\|/, $cols[$_];
 		next if (!$q_t_id || $q_t_id eq '');
 		$q_t_id =~ s/\./\\./g;
 		my $t_lines = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_]", 0);
+		my $p_lncRNAs = '';
 		if ($t_lines =~ m/.+?[FR]PKM.+?\"(.+?)\".+?cov.+?\"(.+?)\".+?full\_read\_support.+?\"(yes|no)\".*/i) {
-		    $io->execute_system_command("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/' >> $p_file_names_gtf->[$_]") if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff && $3 =~ m/$full_read_supp/i);
+		    $p_lncRNAs = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
+			if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff && $3 =~ m/$full_read_supp/i);
 		}
 		else {
-		    $io->execute_system_command("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/' >> $p_file_names_gtf->[$_]");
+		    $p_lncRNAs = $io->execute_system_command("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'");
 		}
+
+		my $p_file_names_gtf_fh = $io->open_file('>>', $p_file_names_gtf->[$_]);
+		flock $p_file_names_gtf_fh, LOCK_EX or $io->error('Parallel PID: [ ' . $$ . ' ]: File lock error!')
+		    if (defined $non_calc_cpu);
+		print $p_file_names_gtf_fh $p_lncRNAs or $io->error('Cannot write to [ ' . $p_file_names_gtf->[$_] . ' ]...');
+		close $p_file_names_gtf_fh;
 	    }
 	}
 	$cpu->finish if (defined $non_calc_cpu);
@@ -945,6 +959,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Oct-29-2014
+Oct-30-2014
 
 =cut
