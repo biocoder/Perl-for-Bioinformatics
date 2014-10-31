@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-30 11:40:27 -0500 (Thu, 30 Oct 2014) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0513 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-31 10:00:27 -0500 (Fri, 31 Oct 2014) $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0514 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -198,7 +198,7 @@ sub get_putative_ncRNAs {
 			if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff && $3 =~ m/$full_read_supp/i);
 		}
 		else {
-		    $p_lncRNAs = $io->execute_system_command("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'");
+		    $p_lncRNAs = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'");
 		}
 
 		my $p_file_names_gtf_fh = $io->open_file('>>', $p_file_names_gtf->[$_]);
@@ -970,6 +970,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Oct-30-2014
+Oct-31-2014
 
 =cut
