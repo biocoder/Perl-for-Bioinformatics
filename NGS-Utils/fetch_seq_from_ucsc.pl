@@ -10,26 +10,27 @@ use XML::XPath::XMLParser;
 use IO::Routine;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-24 11:10:27 -0500 (Fri, 24 Oct 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0510 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-03 11:44:27 -0500 (Mon, 03 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0515 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 # Declare initial global variables
 my ($quiet, $tmap, $output, $help, $dbkey, $print_seq_fh,
     $chr_coords, $chr_info, $id_re, $skip_re, $file_format,
-    $seq_desc, $seq_descs, $match_re);
+    $seq_desc, $seq_descs, $match_re, $ncbi_gi, $source_db);
 
-my $is_valid_option = GetOptions ('help|?'     => \$help,
-                                  'quiet'      => \$quiet,
-                                  'output=s'   => \$output,
-                                  'tmap=s'     => \$tmap,
-                                  'dbkey=s'    => \$dbkey,
-				  'chr-cols=s' => \$chr_coords,
-				  'id-re=s'    => \$id_re,
-				  'skip-re=s'  => \$skip_re,
-				  'match-re=s' => \$match_re,
-				  'ff=s'       => \$file_format,
-				  'seq-desc=s' => \$seq_desc
+my $is_valid_option = GetOptions ('help|?'          => \$help,
+                                  'quiet'           => \$quiet,
+                                  'output=s'        => \$output,
+                                  'tmap=s'          => \$tmap,
+                                  'dbkey=s'         => \$dbkey,
+				  'chr-cols=s'      => \$chr_coords,
+				  'id-re=s'         => \$id_re,
+				  'skip-re=s'       => \$skip_re,
+				  'match-re=s'      => \$match_re,
+				  'ff=s'            => \$file_format,
+				  'seq-desc=s'      => \$seq_desc,
+				  'ncbi-gi-list=s'  => \$ncbi_gi
                                   );
 
 # Print info if not quiet
@@ -40,13 +41,15 @@ $io->this_script_info($io->file_basename($0),
                       $VERSION,
                       $AUTHORFULLNAME,
                       $LASTCHANGEDBY,
-                      $LASTCHANGEDDATE);
+                      $LASTCHANGEDDATE, '',
+		      $quiet);
 		      
-
-
 # Check for the validity of options
-$io->verify_options([$is_valid_option, $dbkey,
+$io->verify_options([$is_valid_option,
 		     $tmap, $output]);
+
+$io->error('DBKEY or NCBI GI list file not provided')
+    if (!defined $dbkey && !defined $ncbi_gi);
 
 $io->c_time('Analysis started...');
 
@@ -96,7 +99,9 @@ $io->check_sys_level_cmds(['grep'],
                           ['2.6.3']);
 
 # For some clean output
-print STDOUT "\n";
+print STDOUT "\n" if (!defined $ncbi_gi);
+$io->c_time("Program will pause for 1 second(s) between queries to NCBI Entrez so that our IP address is not blocked by NCBI.\n")
+    if (defined $ncbi_gi);
 
 my $seqs_fetched =  0;
 while (my $line = <$tmap_fh>) {
@@ -156,19 +161,42 @@ while (my $line = <$tmap_fh>) {
     my $fetched_seq = $io->execute_get_sys_cmd_output("grep -A 1 \'$unique_seq_id\' $fa");
     chomp $fetched_seq;
 
+    if (defined $ncbi_gi) {
+	$source_db = 'NCBI Entrez';
+    }
+    else {
+	$source_db = 'UCSC DAS'; 
+    }
+
     if ($fetched_seq !~ m/STDERR/i) {
 	print STDOUT "Skipping $unique_seq_id ... Already fetched!\n" if (!$quiet);
         next;
     }
     else {
-	print STDOUT "Querying $unique_seq_id against UCSC DAS ...\n" if (!$quiet);
+	print STDOUT "Querying $unique_seq_id against $source_db ...\n" if (!$quiet);
     }
 
-    my $xml = get("http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=$cols[13]:$cols[14],$cols[15]");
-    my $xpath = XML::XPath->new(xml=>$xml);
-    my $xml_nodes = $xpath->find('/DASDNA/SEQUENCE/DNA/text()');
-    print_seq(\$xml_nodes, $unique_seq_id);
-    $seqs_fetched++;
+    if (defined $ncbi_gi) {
+	my $chr_gi = read_gi($ncbi_gi);
+	
+	$io->warning("GI ID does not exist for [ chr$cols[13] ] in the file [ " . $io->file_basename($ncbi_gi, 'suffix') . ' ] ...' .
+		     "\nWill not be able to fetch sequence and therefore the transcript will not appear in final list."),
+	    next if (!exists $chr_gi->{"chr$cols[13]"});
+	
+	my $seq = get('http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?&db=nuccore&id=' .
+		      $chr_gi->{"chr$cols[13]"} . "&seq_start=$cols[14]&seq_stop=$cols[15]&rettype=fasta&retmode=text");
+	$seq =~ s/^>(gi.+?\d+).+?\s+(.+)/>$unique_seq_id $1 $2/;
+	$seqs_fetched++;
+	print $print_seq_fh $seq;
+	sleep 1;
+    }
+    else {
+	my $xml = get("http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=$cols[13]:$cols[14],$cols[15]");
+	my $xpath = XML::XPath->new(xml=>$xml);
+	my $xml_nodes = $xpath->find('/DASDNA/SEQUENCE/DNA/text()');
+	print_seq(\$xml_nodes, $unique_seq_id);
+	$seqs_fetched++;
+    }
 }
 
 $io->c_time("$seqs_fetched sequences fetched...");
@@ -178,6 +206,23 @@ close $tmap_fh;
 close $print_seq_fh;
 
 ###################### Functions ###############################################
+
+# Store NCBI GI list
+sub read_gi {
+    my $gi_list = shift;
+    my $gi_list_fh = $io->open_file('<', $gi_list);
+    my %chr_gi;
+    while (my $line = <$gi_list_fh>) {
+	chomp $line;
+	$io->error('Supplied GI list file does not seem to be in correct format' .
+	    "\nIt should be a tab-separated file with chromosome ids in first column and corresponding NCBI GI ids in second column.\n\n" .
+		   "Example:\n--------\n\nchr1\t240254421\nchr3\t332640072\n")
+	    if ($line !~ m/^chr.+?\t\d+/i);
+	my ($chr, $gi_id) = split/\t+/, $line;
+	$chr_gi{lc($chr)} = $gi_id if (!exists $chr_gi{lc($chr)}); 
+    }
+    return \%chr_gi
+}
 
 # Print fasta sequences;
 sub print_seq {
@@ -262,6 +307,22 @@ fetch_seq_from_ucsc.pl takes the following arguments:
 
   Database to query (ex: rn4, mm9, hg19 etc...).
 
+=item -ncbi or --ncbi-gi-list (Required)
+
+  In some instances, reference genome sequence for organism of your interest may not be available
+  at UCSC. In such instances, you can use this option to retrieve DNA sequence from NCBI Entrez.
+  You need to provide a tab-delimited file of GI IDs corresponding to the chromosome information
+  of the GTF file.
+
+  Example (Arabidopsis Thaliana):
+  -------------------------------
+
+  chr1     240255421
+  chr2     330250293
+  chr3     332640072
+  chr4     240256243
+  chr5     240256493
+
 =item -o or --output (Required)
 
   Path to output directory .i.e where should the fasta files be stored?
@@ -312,6 +373,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Oct-24-2014
+Nov-03-2014
 
 =cut

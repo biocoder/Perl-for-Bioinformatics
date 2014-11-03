@@ -7,8 +7,8 @@ use IO::Routine;
 use Set::IntervalTree;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-24 11:10:27 -0500 (Fri, 24 Oct 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 64 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-03 11:44:27 -0500 (Mon, 03 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0515 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my $io = IO::Routine->new();
@@ -21,7 +21,7 @@ my ($help, $quiet, $sc1, $sc2, $cc1, $cc2,
     $unique, $known, $pipe2stdout, $j_fh, $overlap, 
     $tr_coords, $tr_start_col,
     $tr_end_col, $trans_bd_on_chr, $keyword, $keyword_col,
-    $sff, $cff, $logfold4cuff);
+    $sff, $cff, $logfold4cuff, $new_f);
 
 my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'source-column-2|sc-2|s2=s'  => \$sc2,
@@ -62,7 +62,7 @@ $io->this_script_info($io->file_basename($0),
 		      $VERSION,
 		      $AUTHORFULLNAME,
 		      $LASTCHANGEDBY,
-		      $LASTCHANGEDDATE,
+		      $LASTCHANGEDDATE, '',
 		      $quiet);
 
 # In Perl index starts at 0.
@@ -85,20 +85,20 @@ if (defined $unique) {
   $io->execute_system_command(0,
 			      'Getting unique features...',
 			      $quiet);
-  $suffix = '.unique.txt';
+  $suffix = '.unique.' . lc($cff);
 }
 else {
   $io->execute_system_command(0,
 			      'Getting common features...',
 			      $quiet);
-  $suffix = '.common.txt';
+  $suffix = '.common.' . lc($cff);
 }
-
+ 
 if (defined $pipe2stdout ) {
     $j_fh = *STDOUT;
 }
-else {
-    my $new_f = $path . $io->file_basename($cf) . $suffix;
+elsif (!defined $pipe2stdout && !defined $extract4pipeline) {
+    $new_f = $path . $io->file_basename($cf) . $suffix;
     $j_fh = $io->open_file('>', $new_f);
     $io->execute_system_command(0,
 				"New file will be $new_f",
@@ -133,7 +133,7 @@ if (( defined $logfold4cuff &&
 }
 
 # Store source coordinates in memory.
-
+my $tr_feat_num = 0;
 while (my $line = <$s_fh>) {
     
     chomp $line;
@@ -175,17 +175,28 @@ while (my $line = <$s_fh>) {
 	$tr_end_col--;
 	push @{$trans_bd_on_chr->{$cols[$chr_s]}}, "$cols[$tr_start_col]|$cols[$tr_end_col]";
     }
+    $tr_feat_num++;
 }
+
+$io->c_time('Known non-coding RNAs found [ ' . $io->file_basename($sf, 'suffix') . ' ]: ' . $tr_feat_num)
+    if ($tr_feat_num && !defined $extract4pipeline);
+
+# Check if file has correct transcript-exon features.
+my $is_correct_tr_exon_file = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t' $cf | wc -l");
+$io->warning('Correct transcript-exon features not present in the GTF file [ ' . $io->file_basename($cf, 'suffix') . 
+	     ' ]. This may cause erratic behaviour and incorrect predictions.')
+    if ($cff =~ m/gtf/i && $is_correct_tr_exon_file =~ m/STDERR/i);
 
 # Now, extract either common or unique features. First print header if user wants log fold change values
 print $j_fh "# GeneID\tTranscriptID\tLocus\tFPKM_S\tGeneID\tTranscriptID\tLocus\tFPKM_C\tlog2(FPKM_C/FPKM_S)\n"
     if (defined $logfold4cuff);
 
 my $check_line = 0;
+my $insert_line = 0;
 while (my $line = <$c_fh>) {
     chomp $line;
     $line = $io->strip_leading_and_trailing_spaces($line);
-
+    
     my @cols = split/\t/, $line;
     $io->error('Cannot find chromosome column in file [ ' . $cf . ' ]') if ($cols[$chr_c] !~ m/^chr/i);
     $cols[$chr_c] = lc($cols[$chr_c]);
@@ -195,20 +206,26 @@ while (my $line = <$c_fh>) {
 	defined($keyword_col) && ($keyword_col ne '')) {
 	next if ($cols[$keyword_col] ne $keyword);
     }
-    
-    
+       
     my ($from_cat_ncRNA_tr_id) = ($line =~ m/(transcript\_id\s+\".+?\")/);
     
     $overlap = 0 if (!defined($overlap) || $overlap eq '');
     #print $line, "\n";
 
     if (exists $store_s_coords{$cols[$chr_c]}) {
+	my $uq_tr_tree = Set::IntervalTree->new() if (defined($unique));
+	
         foreach my $left_coord (sort {$a <=> $b} keys %{$store_s_coords{$cols[$chr_c]}}) {
             foreach my $right_coord (sort {$a <=> $b} values @{$store_s_coords{$cols[$chr_c]}{$left_coord}}) {
 
 		my $s_ex_len = $right_coord -  $left_coord;
 		my $c_ex_len = $cols[$cc2] - $cols[$cc1];
 		my $ex_ov_per = ($s_ex_len / $c_ex_len) * 100 if ($c_ex_len > 0);
+
+		# Set new tree for "unique"
+		$uq_tr_tree->insert($cols[$chr_c] . ":$left_coord-$right_coord | $insert_line", $left_coord, $right_coord);
+		$insert_line++;
+
 
 		if (defined $logfold4cuff && !defined($unique)) {
 		    my ($s_fpkm_line, $c_fpkm_line) = get_cuff_values($logFoldCuff{$cols[$chr_c] . $left_coord . $right_coord}, $cols[$#cols]);
@@ -219,7 +236,7 @@ while (my $line = <$c_fh>) {
 		
 
                 if ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
-		    if (defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line) && !defined($unique)) {
+		    if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line)) {
 			if (defined $extract4pipeline) {
 			    extract_tr($from_cat_ncRNA_tr_id);
 			}
@@ -229,7 +246,7 @@ while (my $line = <$c_fh>) {
 		    }
 		}
                 elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
-                    if (defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line) && !defined($unique)) {
+                    if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line)) {
                         if (defined $extract4pipeline) {
 			    extract_tr($from_cat_ncRNA_tr_id);
 			}
@@ -239,7 +256,7 @@ while (my $line = <$c_fh>) {
                     }
                 }
                 elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord) {
-                    if (defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line) && !defined($unique)) {
+                    if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line)) {
                         if (defined $extract4pipeline) {
 			    extract_tr($from_cat_ncRNA_tr_id);
 			}
@@ -249,7 +266,7 @@ while (my $line = <$c_fh>) {
                     }
                 }
 		elsif ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord) {
-                    if (defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line) && !defined($unique)) {
+                    if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line)) {
                         if (defined $extract4pipeline) {
 			    extract_tr($from_cat_ncRNA_tr_id);
 			}
@@ -258,11 +275,33 @@ while (my $line = <$c_fh>) {
 			}
                     }
 		}
-            }
+	    }
         }
 
-
-	if (defined($unique) && defined($tr_coords) && !is_duplicate($line)) {
+	if (defined($unique)) {
+	    next if ($line !~ m/\ttranscript\t/i);
+	    my $is_unique_feat = $uq_tr_tree->fetch($cols[$cc1], $cols[$cc2]);
+	    
+	    #if (scalar(@$is_unique_feat) > 0) {
+	    #	my $this_chr = (split /\:/, $is_unique_feat->[0])[0];
+	    #	print @$is_unique_feat, "\t", "$cols[$chr_c]:$cols[$cc1]-$cols[$cc2]", "\n"
+	    #	    if($this_chr eq $cols[$chr_c]);
+	    #	exit 0;
+	    #}
+	    
+	    next if (scalar(@$is_unique_feat));
+	    $check_line++;
+	    
+	    if (defined $extract4pipeline) {
+		extract_tr($from_cat_ncRNA_tr_id);
+	    }
+	    else {
+		my $tr_lines = extract_tr($from_cat_ncRNA_tr_id, 'GET');
+		print $j_fh $$tr_lines;
+	    }
+	}     
+	
+	if (defined($unique) && defined($tr_coords)) {
 
 	    my $tr_tree = Set::IntervalTree->new();
 	    my $seen_tr_tree = {};
@@ -297,27 +336,17 @@ while (my $line = <$c_fh>) {
 		}
 	    }
 	}
-
-	if (defined($unique) && !is_duplicate($line)) {
-	    $check_line++;
-	    if (defined $extract4pipeline) {
-		extract_tr($from_cat_ncRNA_tr_id);
-	    }
-	    else {
-		print $j_fh $line, "\n";
-	    }
-        }
     }
 }
 
-$io->end_timer($s_time, $quiet);
+$io->c_time('Unique transcript features found [ ' . $io->file_basename($new_f, 'suffix') . ' ]: ' . $check_line)
+    if ($check_line && !defined $extract4pipeline);
 
-#$io->c_time('Total number of transcripts [ extracted from ' . $io->file_basename($cf, 'suffix') . ' ]: ' . $check_line)
-#    if ($check_line);
+$io->end_timer($s_time, $quiet);
 
 close $s_fh;
 close $c_fh;
-close $j_fh;
+close $j_fh if (defined $j_fh);
 
 
 #################################### Functions ##########################################
@@ -325,11 +354,18 @@ close $j_fh;
 # Get unique / common features from categorize_nRNAs module
 sub extract_tr {
     my $tr_id = shift;
+    my $get = shift;
     $tr_id =~ s/"/\\\"/g;
     $tr_id =~ s/\./\\\./g;
     #print "grep -P \"$tr_id\" $cf";
- 
-    $io->execute_system_command("grep -P \"$tr_id\" $cf");
+    
+    if ($get && $get eq 'GET') {
+	my $tr_lines = $io->execute_get_sys_cmd_output("grep -P \"$tr_id\" $cf");
+	return \$tr_lines;
+    }
+    else {
+	$io->execute_system_command("grep -P \"$tr_id\" $cf");
+    }
     return;
 }
 
@@ -527,6 +563,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Oct-24-2014
+Nov-03-2014
 
 =cut

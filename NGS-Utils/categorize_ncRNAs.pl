@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-31 10:00:27 -0500 (Fri, 31 Oct 2014) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0514 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-03 11:44:27 -0500 (Mon, 03 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0515 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -58,7 +58,8 @@ $io->this_script_info($io->file_basename($0),
 		      $VERSION,
 		      $AUTHORFULLNAME,
 		      $LASTCHANGEDBY,
-		      $LASTCHANGEDDATE);
+		      $LASTCHANGEDDATE, '', 
+		      $quiet);
 
 $io->c_time('Analysis started...');
 $io->c_time('Verifying options...');
@@ -970,6 +971,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Oct-31-2014
+Nov-03-2014
 
 =cut

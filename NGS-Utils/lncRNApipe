@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-10-31 10:00:27 -0500 (Fri, 31 Oct 2014) $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.5.14 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-03 11:44:27 -0500 (Mon, 03 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.5.15 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -261,7 +261,7 @@ sub run_lncRNApipe {
 	    
 	push my @lncRNApipe_class_files, grep {/putative\.class\.ncRNAs\.gtf$/} readdir lncRNApipe_categorize_mod;
 	
-	if ($#lncRNApipe_class_files ==  0) {
+	if ($#lncRNApipe_class_files <  0) {
 	    pipeline_status($io, 'ERROR', "\nCannot find output in $cat_dir ...\n");
 	}
 
@@ -331,7 +331,7 @@ sub run_lncRNApipe {
 	
 	push my @lncRNApipe_unique_files, grep {/$tr_feat_here_suffix$/} readdir lncRNApipe_get_unique_mod;
 
-	if ($#lncRNApipe_unique_files ==  0) {
+	if ($#lncRNApipe_unique_files <  0) {
             print "\nCannot find output in $cat_dir ...\n";
             pipeline_status($io, 'ERROR');
         }
@@ -1582,6 +1582,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-October-31-2014
+Nov-03-2014
 
 =cut
