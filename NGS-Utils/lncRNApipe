@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-06 07:39:27 -0500 (Thu, 06 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.5.19 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-06 09:39:27 -0500 (Thu, 06 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.5.29 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -1241,19 +1241,19 @@ sub disp_ncRNA_counts {
     my $file = shift;
     my $total_desc = shift;
 
-    chomp (my $num_lincs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?ncRNA_type.+?lincrna' $file | wc -l"));
+    chomp (my $num_lincs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?lincrna' $file | wc -l"));
     $num_lincs = 0 if ($num_lincs =~ m/^could not capture/i);
 
-    chomp (my $num_poncs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?ncRNA_type.+?conc' $file | wc -l"));
+    chomp (my $num_poncs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?conc' $file | wc -l"));
     $num_poncs = 0 if ($num_lincs =~ m/^could not capture/i);
     
-    chomp (my $num_concs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?ncRNA_type.+?ponc' $file | wc -l"));
+    chomp (my $num_concs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?ponc' $file | wc -l"));
     $num_concs = 0 if ($num_lincs =~ m/^could not capture/i);    
 
-    chomp (my $num_incs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?ncRNA_type.+?intronic.+?inc' $file | wc -l"));
+    chomp (my $num_incs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?inc.+?intronic' $file | wc -l"));
     $num_incs = 0 if ($num_lincs =~ m/^could not capture/i);
 
-    chomp (my $num_ex_ov = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?ncRNA_type.+?exonic\\s+overlap' $file | wc -l"));
+    chomp (my $num_ex_ov = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?exonic\\s+overlap' $file | wc -l"));
     $num_ex_ov = 0 if ($num_lincs =~ m/^could not capture/i);
 
 
@@ -1265,10 +1265,10 @@ sub disp_ncRNA_counts {
 	  "Intronic overlaps - Incs: $num_incs\n" .
 	  "Exonic overlaps: $num_ex_ov\n" .
 	  $total_desc . ': ' . ($num_lincs +
-				 $num_concs +
-				 $num_incs +
-				 $num_ex_ov +
-				 $num_poncs) . 
+				$num_concs +
+				$num_incs +
+				$num_ex_ov +
+				$num_poncs) . 
 	  "\n\n" );
     
     return;
