@@ -10,7 +10,7 @@ use Fcntl qw / :flock /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
 my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-05 16:39:27 -0500 (Wed, 05 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0516 $ =~ m/.+?(\d+)/;
+my ($VERSION) = q$LastChangedRevision: 0517 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -195,17 +195,17 @@ sub get_putative_ncRNAs {
 		$q_t_id =~ s/\./\\./g;
 		my $t_lines = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_]", 0);
 		
-		if (defined $cov_cutoff && $t_lines !~ m/.*cov.+?\"(.+?)\".*/i) {
+		if (defined $cov_cutoff && $t_lines !~ m/.*cov.+?\"(.+?)\".*/i && !$cov_cutoff_war_ann) {
 		    $cov_cutoff_war_ann = 1;
 		    $io->warning("Coverage information not present in input the transcript assemblies.\n" .
 				 'Transcripts will not be filtered based on coverage cutoff.');
 		}
-		if (defined $fpkm_cutoff && $t_lines !~ m/.*[FR]PKM.+?\"(.+?)\".*/i) {
+		if (defined $fpkm_cutoff && $t_lines !~ m/.*[FR]PKM.+?\"(.+?)\".*/i && !$cov_cutoff_war_ann) {
 		    $fpkm_cutoff_war_ann = 1;
 		    $io->warning("FPKM / RPKM information not present in the input transcript assemblies.\n" .
 				 'Transcripts will not be filtered based on coverage cutoff.');
 		}
-		if (defined $full_read_supp && $t_lines !~ m/.*full\_read\_support.+?\"(yes|no)\".*/i) {
+		if (defined $full_read_supp && $t_lines !~ m/.*full\_read\_support.+?\"(yes|no)\".*/i && !$cov_cutoff_war_ann) {
 		    $full_read_supp_war_ann = 1;
 		    $io->warning("Full read support information not present in the input transcript assemblies.\n" .
 				 'Transcripts will not be filtered based on coverage cutoff.');
