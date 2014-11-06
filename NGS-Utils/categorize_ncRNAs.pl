@@ -10,7 +10,7 @@ use Fcntl qw / :flock /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
 my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-05 16:39:27 -0500 (Wed, 05 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0517 $ =~ m/.+?(\d+)/;
+my ($VERSION) = q$LastChangedRevision: 0518 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -61,6 +61,9 @@ $io->this_script_info($io->file_basename($0),
 		      $LASTCHANGEDDATE, '', 
 		      $quiet);
 
+# Clean up warnings
+remove_warnings('Removing warnings from previous run, if any...');
+
 $io->c_time('Analysis started...');
 $io->c_time('Verifying options...');
 
@@ -71,7 +74,6 @@ $length = 200 if (!defined $length || $length eq '');
 $overlap = 0 if (!defined $overlap || $overlap eq '');
 $min_exons = 2 if (!defined $min_exons || $min_exons eq '');
 $full_read_supp = 'yes' if (defined $full_read_supp);
-my $full_read_supp_war_ann = my $cov_cutoff_war_ann = my $fpkm_cutoff_war_ann = 0;
 
 $io->c_time('Validating output path...');
 my $output = $io->validate_create_path($out, 'create', 
@@ -152,6 +154,9 @@ if (defined($no_tmp)) {
     }
 }
 
+# Clean up warnings
+remove_warnings('Removing warnings for this run...');
+
 $io->c_time('categorize_ncRNAs Finished!');
 $io->end_timer($s_time);
 exit;
@@ -195,20 +200,23 @@ sub get_putative_ncRNAs {
 		$q_t_id =~ s/\./\\./g;
 		my $t_lines = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_]", 0);
 		
-		if (defined $cov_cutoff && $t_lines !~ m/.*cov.+?\"(.+?)\".*/i && !$cov_cutoff_war_ann) {
-		    $cov_cutoff_war_ann = 1;
-		    $io->warning("Coverage information not present in input the transcript assemblies.\n" .
+		if (defined $cov_cutoff && $t_lines !~ m/.*cov.+?\"(.+?)\".*/i && !-e $output . '.cat_cov_cutoff.war') {
+		    my $local_fh = $io->open_file('>', $output . '.cat_cov_cutoff.war');
+		    $io->warning("Coverage information not present in the input transcript assemblies.\n" .
 				 'Transcripts will not be filtered based on coverage cutoff.');
+		    close $local_fh;
 		}
-		if (defined $fpkm_cutoff && $t_lines !~ m/.*[FR]PKM.+?\"(.+?)\".*/i && !$cov_cutoff_war_ann) {
-		    $fpkm_cutoff_war_ann = 1;
+		if (defined $fpkm_cutoff && $t_lines !~ m/.*[FR]PKM.+?\"(.+?)\".*/i && !-e $output . '.cat_fpkm_cutoff.war') {
+		    my $local_fh = $io->open_file('>', $output . '.cat_fpkm_cutoff.war');
 		    $io->warning("FPKM / RPKM information not present in the input transcript assemblies.\n" .
-				 'Transcripts will not be filtered based on coverage cutoff.');
+				 'Transcripts will not be filtered based on FPKM / RPKM cutoff.');
+		    close $local_fh;
 		}
-		if (defined $full_read_supp && $t_lines !~ m/.*full\_read\_support.+?\"(yes|no)\".*/i && !$cov_cutoff_war_ann) {
-		    $full_read_supp_war_ann = 1;
+		if (defined $full_read_supp && $t_lines !~ m/.*full\_read\_support.+?\"(yes|no)\".*/i && !-e $output . '.cat_full_read_supp.war') {
+		    my $local_fh = $io->open_file('>', $output . '.cat_full_read_supp.war');
 		    $io->warning("Full read support information not present in the input transcript assemblies.\n" .
-				 'Transcripts will not be filtered based on coverage cutoff.');
+				 'Transcripts will not be filtered if the transcript has full read support or not.');
+		    close $local_fh;
 		}
 
 		my $p_lncRNAs = '';
@@ -781,6 +789,16 @@ sub is_Antisense {
 	return 1;
     } 
     return 0;
+}
+
+# Remove warnings
+sub remove_warnings {
+    my $msg = shift;
+    $io->c_time($msg);
+    unlink $output . '.cat_fpkm_cutoff.war' if (-e $output . '.cat_fpkm_cutoff.war');
+    unlink $output . '.cat_cov_cutoff.war' if (-e $output . '.cat_cov_cutoff.war');
+    unlink $output . '.cat_full_read_supp.war' if (-e $output . '.cat_full_read_supp.war');
+    return;
 }
 
 __END__
