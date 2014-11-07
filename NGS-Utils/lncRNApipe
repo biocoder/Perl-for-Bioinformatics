@@ -192,8 +192,8 @@ sub run_lncRNApipe {
 	    
 	    my ($tr_files, $tr_size) = get_num_tr_files($cuffcmp_opts);
 	    my $annot = get_annot($cuffcmp_opts);
-	    $num_cpu_by_2 = sprintf("%.0f", $num_cpu / ($tr_size + 1)) - 1 if (defined $num_cpu);
-	    $num_cpu_by_2 = 1 if ($num_cpu_by_2 == 0);
+	    #$num_cpu_by_2 = sprintf("%.0f", $num_cpu / ($tr_size + 1)) - 1 if (defined $num_cpu);
+	    #$num_cpu_by_2 = 1 if ($num_cpu_by_2 == 0);
 	    
 	    $io->c_time('Converting annotation file supplied with cuffcompare to gene prediction format [ GTF -> genePred ]');
 	    my $annot_for_cat = $cat_dir . '/' . $io->file_basename($annot) . '.txt';
@@ -205,7 +205,7 @@ sub run_lncRNApipe {
 							 $deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
 							 $annot . ' ' . $annot_for_cat);
 
-	    $categorize_sc_opts .= " -cpu $num_cpu_by_2 --non-calc-cpu $num_cpu" if (defined $num_cpu);
+	    $categorize_sc_opts .= " -cpu $num_cpu" if (defined $num_cpu);
 	    
 	     $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
 							  join('-', split(/\-|\--/, $categorize_sc_opts)) .

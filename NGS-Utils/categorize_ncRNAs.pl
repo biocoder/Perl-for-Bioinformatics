@@ -17,7 +17,7 @@ my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
     $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
     $antisense_only, $disp_anti_option, $gtf_bin, $num_cpu,
-    $linc_rna_prox, $non_calc_cpu, $ncRNA_max_length,
+    $linc_rna_prox, $ncRNA_max_length,
     $ignore_genePred_err);
 
 my ($p_file_names_gtf, $p_file_names_txt) = [];
@@ -45,7 +45,6 @@ my $is_valid_option = GetOptions('help|?'              => \$help,
 				 'cpu=i'               => \$num_cpu,
 				 'linc-rna-prox=i'     => \$linc_rna_prox,
 				 'full-read-support'   => \$full_read_supp,
-				 'non-calc-cpu=i'      => \$non_calc_cpu,
 				 'ignore-genePred-err' => \$ignore_genePred_err);
 
 my $io = IO::Routine->new($help, $quiet);
@@ -182,13 +181,13 @@ sub get_putative_ncRNAs {
 	$extract_pat = 'i|o|u|x';
     }
 
-    if (defined $non_calc_cpu) {
-        $cpu = Parallel::ForkManager->new($non_calc_cpu);
-        $cpu->set_max_procs($non_calc_cpu);
+    if (defined $num_cpu) {
+        $cpu = Parallel::ForkManager->new($num_cpu);
+        $cpu->set_max_procs($num_cpu);
     }
     
     while (my $line = <$cuffcmp_fh>) {
-	my $parallel_pid = $cpu->start and next if (defined $non_calc_cpu);
+	my $parallel_pid = $cpu->start and next if (defined $num_cpu);
 	
 	chomp $line;
 	$line = $io->strip_leading_and_trailing_spaces($line);
@@ -242,7 +241,7 @@ sub get_putative_ncRNAs {
 
 		my $p_file_names_gtf_fh = $io->open_file('>>', $p_file_names_gtf->[$_]);
 
-		if (defined $non_calc_cpu) {
+		if (defined $num_cpu) {
 		    flock($p_file_names_gtf_fh, LOCK_EX) or $io->error('Parallel PID: [ ' . $$ . ' ]: File lock error!');
 		    seek($p_file_names_gtf_fh, 0, SEEK_END) or $io->error('Cannot seek to end of file after lock: File lock error!');
 		}
@@ -251,9 +250,9 @@ sub get_putative_ncRNAs {
 		close $p_file_names_gtf_fh;
 	    }
 	}
-	$cpu->finish if (defined $non_calc_cpu);
+	$cpu->finish if (defined $num_cpu);
     }
-    $cpu->wait_all_children if (defined $non_calc_cpu);
+    $cpu->wait_all_children if (defined $num_cpu);
     return;
 }
 
