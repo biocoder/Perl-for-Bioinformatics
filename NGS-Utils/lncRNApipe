@@ -207,33 +207,34 @@ sub run_lncRNApipe {
 
 	    $categorize_sc_opts .= " -cpu $num_cpu" if (defined $num_cpu);
 	    
-	     $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
-							  join('-', split(/\-|\--/, $categorize_sc_opts)) .
-							  " -cuffcmp $cuffcmp_dir/lncRNApipe_cuffcmp.tracking -out $cat_dir " .
-							  "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot_for_cat . ' ' .
-							  $tr_files, 
-							  "Command call:\n" .
+	    $is_failed = $io->execute_get_sys_cmd_output(0, 'perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
+							 join('-', split(/\-|\--/, $categorize_sc_opts)) .
+							 " -cuffcmp $cuffcmp_dir/lncRNApipe_cuffcmp.tracking -out $cat_dir " .
+							 "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot_for_cat . ' ' .
+							 $tr_files, 
+							 "Command call:\n" .
 							  "-------------\n" . $deps->{'cat'} . ' ' . 
-							  join('-', split(/\-|\--/, $categorize_sc_opts)) . 
-							  " -cuffcmp $cuffcmp_dir/lncRNApipe_cuffcmp.tracking -out $cat_dir " .
-							  "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot_for_cat . ' ' .
-							  $tr_files);
+							 join('-', split(/\-|\--/, $categorize_sc_opts)) . 
+							 " -cuffcmp $cuffcmp_dir/lncRNApipe_cuffcmp.tracking -out $cat_dir " .
+							 "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot_for_cat . ' ' .
+							 $tr_files);
 	}
 	else {
 	    		        
 	    pipeline_status($io, 'ERROR!', "Required options not mentioned for -cat module.\nSee '" .
 			    "$0 -h cat" . "' for required options.") if ($categorize_sc_opts !~ m/cuff|annot|out|sample/);
 	    
+	    $categorize_sc_opts = "-cpu $num_cpu " . $categorize_sc_opts if (defined $num_cpu);
 	    
 	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
+							 join('-', split(/\-|\--/, $categorize_sc_opts)) .
 							 " -cuffcmp $cuffcmp_dir/lncRNApipe_cuffcmp.tracking -out $cat_dir " .
-							 "-bin $deps->{'bin-gtfToGenePred'} " .
-							 join('-', split(/\-|\--/, $categorize_sc_opts)),
+							 "-bin $deps->{'bin-gtfToGenePred'} ",
 							 "Command call:\n" .
-							 "-------------\n" . $deps->{'cat'} . ' ' . 
+							 "-------------\n" . $deps->{'cat'} . ' ' .
+							 join('-', split(/\-|\--/, $categorize_sc_opts)) .
 							 " -cuffcmp $cuffcmp_dir/lncRNApipe_cuffcmp.tracking -out $cat_dir " .
-							 "-bin $deps->{'bin-gtfToGenePred'} " .
-							 join('-', split(/\-|\--/, $categorize_sc_opts)));
+							 "-bin $deps->{'bin-gtfToGenePred'} ");
 	}
 
 	print $is_failed;
