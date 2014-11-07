@@ -6,11 +6,11 @@ use Getopt::Long qw(:config pass_through);
 use IO::Routine;
 use Set::IntervalTree;
 use Parallel::ForkManager;
-use Fcntl qw / :flock /;
+use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-05 16:39:27 -0500 (Wed, 05 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0518 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-07 09:00:27 -0500 (Fri, 07 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0521 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -99,12 +99,16 @@ $sample_names =~ s/\s+/\_/g;
 $sample_names =~ s/\,$//;
 my @lables = split/\,/, $sample_names;
 
-$io->error("Number of Sample Names is not equal to Number of transcripts' files provided")
+$io->error("Number of Sample Names [ $#lables + 1 ] is not equal to Number of transcripts' files [ $#ARGV + 1 ] provided")
     if ($#lables != $#ARGV);
+
+# Check validity of attribute column of GTF file
+$io->c_time('Checking the validity of attribute column [ 9th column ] for supplied transcript assembly [ GTF ] file(s)...');
 
 for (0 .. $#ARGV) {
     $io->verify_files([$ARGV[$_]],
                       ["Cufflinks assembled transcript"]);
+    check_gtf_attributes($ARGV[$_]);
     push @{$p_file_names_gtf}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_ncRNAs.gtf';
     push @{$p_file_names_txt}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_ncRNAs.txt';
     unlink $p_file_names_gtf->[$_] if (-e $p_file_names_gtf->[$_] && !defined($genePred) && !defined($categorize));
@@ -237,8 +241,12 @@ sub get_putative_ncRNAs {
 		}
 
 		my $p_file_names_gtf_fh = $io->open_file('>>', $p_file_names_gtf->[$_]);
-		flock $p_file_names_gtf_fh, LOCK_EX or $io->error('Parallel PID: [ ' . $$ . ' ]: File lock error!')
-		    if (defined $non_calc_cpu);
+
+		if (defined $non_calc_cpu) {
+		    flock($p_file_names_gtf_fh, LOCK_EX) or $io->error('Parallel PID: [ ' . $$ . ' ]: File lock error!');
+		    seek($p_file_names_gtf_fh, 0, SEEK_END) or $io->error('Cannot seek to end of file after lock: File lock error!');
+		}
+			
 		print $p_file_names_gtf_fh $p_lncRNAs or $io->error('Cannot write to [ ' . $p_file_names_gtf->[$_] . ' ]...');
 		close $p_file_names_gtf_fh;
 	    }
@@ -287,7 +295,6 @@ sub class_ncRNAs {
 	$cpu = Parallel::ForkManager->new($num_cpu);
 	$cpu->set_max_procs($num_cpu);
     }
-  
 
     for (0 .. $#ARGV) {
 
@@ -415,14 +422,14 @@ sub calc_lincRNAs {
 		    $found++;
 		    $ncRNA_class->{$unique_key} = 1;
 		    
-		    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
+		    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
 		}
 		elsif (!exists $ncRNA_class->{$unique_key} &&
 		       $ncRNA_length >= $length &&
 		       $nc_exons >= $min_exons) {
 		    $num_noClass++;
 		    $ncRNA_class->{$unique_key} = 1;
-		    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0);
+		    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0);
 		}
 		next;
 	    }
@@ -435,14 +442,14 @@ sub calc_lincRNAs {
 		$found++;
 		$ncRNA_class->{$unique_key} = 1;
 
-		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
+		$io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
 	    }
 	    elsif (!exists $ncRNA_class->{$unique_key} &&
 		   $ncRNA_length >= $length &&
 		   $nc_exons >= $min_exons) {
 		$num_noClass++;
 		$ncRNA_class->{$unique_key} = 1;
-		$io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0);
+		$io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0);
 	    }
 	}
     }
@@ -503,7 +510,9 @@ sub calc_overlaps {
 		    # Complete overlap reference gene with ncRNA intron.
 		    if ($mode =~ m/^conc$/i &&
                         $nc_tr_start < $ref_tr_start &&
-                        $nc_tr_end > $ref_tr_end) {
+			$nc_tr_start < $ref_tr_end &&
+                        $nc_tr_end > $ref_tr_start &&
+			$nc_tr_end > $ref_tr_end) {
 
 			my $ov_tr_found = $nc_int_tree->fetch($ref_tr_start ,$ref_tr_end);
 			my $is_ncRNA_Conc = is_intronicOverlap($ref_tr_start, $ref_tr_end, $nc_exon_starts, $nc_exon_ends);
@@ -541,8 +550,10 @@ sub calc_overlaps {
 		    		    
 		    # Complete overlap of ncRNA within reference intron	
 		    if ($mode =~ m/^inc$/i &&
-			$nc_tr_start >= $ref_tr_start &&
-                        $nc_tr_end <= $ref_tr_end) {
+			$nc_tr_start > $ref_tr_start &&
+			$nc_tr_start < $ref_tr_end &&
+                        $nc_tr_end < $ref_tr_end &&
+			$nc_tr_end > $ref_tr_start) {
 			
 			my $is_ncRNA_Inc = is_intronicOverlap($nc_tr_start, $nc_tr_end, $ref_exon_starts, $ref_exon_ends);
 			
@@ -649,7 +660,7 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--; 
 			    $num_noSense++,
-			    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0),
+			    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0),
 			    last if (defined($antisense_only) && $antisense_only);
 			    $found++;
 			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Exonic - Sense exonic overlap with $ref_tr_id\";";
@@ -660,7 +671,7 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $num_noSense++,
-			    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0),
+			    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0),
 			    last if (defined($antisense_only) && $antisense_only);
 			    $found++;
 			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Exonic - Exonic overlap with $ref_tr_id\";";
@@ -669,7 +680,7 @@ sub calc_overlaps {
 		    }
 		}
 	    }
-	    $io->execute_system_command("grep -iP \'$nc_tr_id\' $p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; $ncRNA_class->{$unique_key}\/\' >> $c_ncRNAs", 0) if ($ncRNA_class->{$unique_key} ne '');
+	    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; $ncRNA_class->{$unique_key}\/\' >> $c_ncRNAs", 0) if ($ncRNA_class->{$unique_key} ne '');
 	}
     }
     return ($found, $num_noSense);
@@ -798,6 +809,20 @@ sub remove_warnings {
     unlink $output . '.cat_fpkm_cutoff.war' if (-e $output . '.cat_fpkm_cutoff.war');
     unlink $output . '.cat_cov_cutoff.war' if (-e $output . '.cat_cov_cutoff.war');
     unlink $output . '.cat_full_read_supp.war' if (-e $output . '.cat_full_read_supp.war');
+    return;
+}
+
+# Check GTF attribute column
+sub check_gtf_attributes {
+    my $file = shift;
+    my $t_lines_tr = $io->execute_get_sys_cmd_output('grep -iP \'\ttranscript\t\' ' . $ARGV[$_] .' | head -n 1');
+    my $t_lines_ex = $io->execute_get_sys_cmd_output('grep -iP \'\texon\t\' ' . $ARGV[$_] .' | head -n 1');
+    if ( ($t_lines_tr !~ m/\".+?\"\;/ && $t_lines_ex !~ m/\".+?\"\;/) ||
+	 ($t_lines_tr =~ m/\'.+?\'/ || $t_lines_ex =~ m/\'.+?\'/) 
+	) {
+	$io->error('The attribute column of GTF file does not contain tag-value pairs between double quotes [ Ex: gene_id "CUFF.1"; ].' .
+	    "\nError occured on one of the following lines:\n\n$t_lines_tr\n\n$t_lines_ex");
+    }
     return;
 }
 
@@ -1015,6 +1040,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Nov-05-2014
+Nov-07-2014
 
 =cut
