@@ -103,7 +103,7 @@ $io->error("Number of Sample Names [ $#lables + 1 ] is not equal to Number of tr
     if ($#lables != $#ARGV);
 
 # Check validity of attribute column of GTF file
-$io->c_time('Checking the validity of attribute column [ 9th column ] for supplied transcript assembly [ GTF ] file(s)...');
+$io->c_time('Checking for the validity of attribute column [ 9th column ] in supplied transcript assembly [ GTF ] file(s)...');
 
 for (0 .. $#ARGV) {
     $io->verify_files([$ARGV[$_]],
@@ -815,13 +815,13 @@ sub remove_warnings {
 # Check GTF attribute column
 sub check_gtf_attributes {
     my $file = shift;
-    my $t_lines_tr = $io->execute_get_sys_cmd_output('grep -iP \'\ttranscript\t\' ' . $ARGV[$_] .' | head -n 1');
-    my $t_lines_ex = $io->execute_get_sys_cmd_output('grep -iP \'\texon\t\' ' . $ARGV[$_] .' | head -n 1');
+    my $t_lines_tr = $io->execute_get_sys_cmd_output('grep -iP \'\ttranscript\t\' ' . $file .' | head -n 1');
+    my $t_lines_ex = $io->execute_get_sys_cmd_output('grep -iP \'\texon\t\' ' . $file .' | head -n 1');
     if ( ($t_lines_tr !~ m/\".+?\"\;/ && $t_lines_ex !~ m/\".+?\"\;/) ||
 	 ($t_lines_tr =~ m/\'.+?\'/ || $t_lines_ex =~ m/\'.+?\'/) 
 	) {
 	$io->error('The attribute column of GTF file does not contain tag-value pairs between double quotes [ Ex: gene_id "CUFF.1"; ].' .
-	    "\nError occured on one of the following lines:\n\n$t_lines_tr\n\n$t_lines_ex");
+	    "\nError occured on one of the following lines [ in " . $file . " ]:\n\n$t_lines_tr\n\n$t_lines_ex");
     }
     return;
 }
