@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-07 09:00:27 -0500 (Fri, 07 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0521 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-10 10:05:27 -0500 (Mon, 10 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0600 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -50,9 +50,6 @@ my $is_valid_option = GetOptions('help|?'              => \$help,
 my $io = IO::Routine->new($help, $quiet);
 my $s_time = $io->start_timer;
 
-$io->verify_options([$is_valid_option, $sample_names, 
-		     $refGenePred, $out, $cuffcmp]);
-
 $io->this_script_info($io->file_basename($0),
 		      $VERSION,
 		      $AUTHORFULLNAME,
@@ -60,11 +57,14 @@ $io->this_script_info($io->file_basename($0),
 		      $LASTCHANGEDDATE, '', 
 		      $quiet);
 
-# Clean up warnings
-remove_warnings('Removing warnings from previous run, if any...');
-
 $io->c_time('Analysis started...');
 $io->c_time('Verifying options...');
+
+$io->verify_options([$is_valid_option, $sample_names, 
+		     $refGenePred, $out, $cuffcmp]);
+
+# Clean up warnings
+remove_warnings('Removing warnings from previous run, if any...');
 
 # Define Defaults
 $fpkm_cutoff = 0.0 if (!defined $fpkm_cutoff || $fpkm_cutoff eq '');
@@ -108,8 +108,8 @@ for (0 .. $#ARGV) {
     $io->verify_files([$ARGV[$_]],
                       ["Cufflinks assembled transcript"]);
     check_gtf_attributes($ARGV[$_]);
-    push @{$p_file_names_gtf}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_ncRNAs.gtf';
-    push @{$p_file_names_txt}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_ncRNAs.txt';
+    push @{$p_file_names_gtf}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_lncRNAs.gtf';
+    push @{$p_file_names_txt}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_lncRNAs.txt';
     unlink $p_file_names_gtf->[$_] if (-e $p_file_names_gtf->[$_] && !defined($genePred) && !defined($categorize));
 }
 
@@ -124,7 +124,6 @@ if (defined($categorize)) {
 				"Minimum number of exons per transcript : $min_exons\n" .
 				"Extract only Antisense exon overlaps   : $disp_anti_option");
     class_ncRNAs();
-    #sync_categories();
 }
 elsif (defined($genePred)) {
     $io->execute_system_command(0,
@@ -161,7 +160,7 @@ if (defined($no_tmp)) {
 # Clean up warnings
 remove_warnings('Removing warnings for this run...');
 
-$io->c_time('categorize_ncRNAs Finished!');
+$io->c_time('categorize_ncRNAs finished!');
 $io->end_timer($s_time);
 exit;
 
@@ -297,8 +296,6 @@ sub class_ncRNAs {
     }
 
     for (0 .. $#ARGV) {
-
-	#next if ($ARGV[$_] !~ m/\/3\//);
 
 	$cpu->start and next if (defined $num_cpu);
 
@@ -993,10 +990,10 @@ categorize_ncRNAs.pl takes the following arguments:
 
     The script first extracts transcripts that belong to the Cufflinks'
     class codes "x", "o", "i" and "u" or class codes "x", "o", "i", "u"
-    and "j" and generates the respective *putative_ncRNAs.gtf files.
+    and "j" and generates the respective *putative_lncRNAs.gtf files.
     If for any reason the script fails on moving forward, it can be 
     asked to skip the extraction step and resume from converting the 
-    *putative_ncRNAs.gtf files to Gene Prediction format and then 
+    *putative_lncRNAs.gtf files to Gene Prediction format and then 
     the categorization step with this option.
 
 =item -cat or --categorize (Optional)
@@ -1004,7 +1001,7 @@ categorize_ncRNAs.pl takes the following arguments:
     Default: disabled
 
     Providing this option skips the extraction and convertion steps and
-    continues the pipeline from categorizing putative ncRNAs.
+    continues the pipeline from categorizing putative lncRNAs.
 
 =item -len or --length (Optional)
 
@@ -1037,8 +1034,8 @@ categorize_ncRNAs.pl takes the following arguments:
 
     Default: disabled
 
-    Remove intermediate files. Specifically, *putative_ncRNAs.gtf and
-    *putative_ncRNAs.txt files are removed.
+    Remove intermediate files. Specifically, *putative_lncRNAs.gtf and
+    *putative_lncRNAs.txt files are removed.
 
 =item -anti or --antisense (Optional)
 

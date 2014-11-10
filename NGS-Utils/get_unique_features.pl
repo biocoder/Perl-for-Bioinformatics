@@ -7,8 +7,8 @@ use IO::Routine;
 use Set::IntervalTree;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-03 11:44:27 -0500 (Mon, 03 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0515 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-10 10:05:27 -0500 (Mon, 10 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0600 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my $io = IO::Routine->new();
@@ -216,6 +216,10 @@ while (my $line = <$c_fh>) {
 	defined($keyword_col) && ($keyword_col ne '')) {
 	next if ($cols[$keyword_col] ne $keyword);
     }
+    elsif (!defined $unique && !defined $keyword && !defined $keyword_col &&
+	   $cff eq 'gtf' && $sff eq 'bed') {
+	next if ($cols[2] ne 'transcript');
+    }
        
     my ($from_cat_ncRNA_tr_id) = ($line =~ m/(transcript\_id\s+\".+?\")/);
     
@@ -369,18 +373,19 @@ sub extract_tr {
     my $get = shift;
     $tr_id =~ s/"/\\\"/g;
     $tr_id =~ s/\./\\\./g;
-    #print "grep -P \"$tr_id\" $cf";
+    #print 'grep -P \'' . $tr_id . '\' ' . $cf, "\n";
     
     if ($get && $get eq 'GET') {
-	my $tr_lines = $io->execute_get_sys_cmd_output("grep -P \"$tr_id\" $cf");
+	my $tr_lines = $io->execute_get_sys_cmd_output('grep -P \'' . $tr_id . '\' ' . $cf);
 	return \$tr_lines;
     }
     else {
-	$io->execute_system_command("grep -P \"$tr_id\" $cf");
+	$io->execute_system_command('grep -P \'' . $tr_id . '\' ' . $cf);
     }
     return;
 }
 
+# Return FPKM / RPKM values for each transcript
 sub get_cuff_values {
     my $line1 = shift;
     my $line2 = shift;
@@ -395,7 +400,6 @@ sub get_cuff_values {
 }
 
 # Avoid duplicates
-
 sub is_duplicate {
   my $line = shift;
   if (!exists $seen_coord{$line}) {
@@ -406,7 +410,6 @@ sub is_duplicate {
 }
 
 # Return GTF or BED or GFF columns
-
 sub gtf_or_bed {
     my $format = shift;
     if (defined($format) && $format ne '' && $format =~ m/^bed$/i) {
@@ -580,6 +583,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Nov-03-2014
+Nov-10-2014
 
 =cut

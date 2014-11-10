@@ -6,8 +6,8 @@
 # Coordinate with lncRNApipe output to parse out and add Infernal annotation to final ncRNA transcripts.
 
 # $LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-# $LastChangedDate: 2013-10-09 12:46:11 -0500 (Wed, 09 Oct 2013) $ =~ m/.+?\:(.+)/;
-# $LastChangedRevision: 64 $ =~ m/.+?(\d+)/;
+# $LastChangedDate: 2014-11-10 10:05:27 -0500 (Mon, 10 Nov 2014)  $ =~ m/.+?\:(.+)/;
+# $LastChangedRevision: 0600 $ =~ m/.+?(\d+)/;
 # $AUTHORFULLNAME = 'Kranti Konganti';
 
 if [  -z "$FINAL_GTF" ]  ||

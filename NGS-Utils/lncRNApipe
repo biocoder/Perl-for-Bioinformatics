@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-07 09:00:27 -0500 (Fri, 07 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.5.21 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-10 10:05:27 -0500 (Mon, 10 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.6.0 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -20,7 +20,7 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $num_cpu, $local_lib, $inf_cov, $skip_cpc_core,
     $skip_rnafold_core, $skip_cmscan_core,
     $lncRNApipe_ver_info, $no_update_check, 
-    $skip_get_uq);
+    $skip_get_uq, $lncRNApipe_succ);
 
 my $is_valid_option = GetOptions('help:s'                           => \$help,
                                  'quiet'                            => \$quiet,
@@ -176,7 +176,7 @@ sub run_lncRNApipe {
 	if (!-e "$cuffcmp_dir/lncRNApipe_cuffcmp.tracking" || !-s "$cuffcmp_dir/lncRNApipe_cuffcmp.tracking") {
 	    
 	    print "\nCannot find Cuffcompare tracking [ $cuffcmp_dir/lncRNApipe_cuffcmp.tracking ] file...\n";
-	    pipeline_status($io, 'ERROR'); 
+	    $lncRNApipe_succ = pipeline_status($io, 'ERROR'); 
 	}
 	
 	$io->execute_system_command("mkdir -p $cat_dir",
@@ -187,8 +187,8 @@ sub run_lncRNApipe {
 	
 	if (defined $cuffcmp_opts && $cuffcmp_opts ne '') {
 
-	    pipeline_status($io, 'ERROR!', "Required options not mentioned for -cat module.\nSee '" .
-			    "$0 -h cat" . "' for required options.") if ($categorize_sc_opts !~ m/sample/);
+	    $lncRNApipe_succ = pipeline_status($io, 'ERROR!', "Required options not mentioned for -cat module.\nSee '" .
+					       "$0 -h cat" . "' for required options.") if ($categorize_sc_opts !~ m/sample/);
 	    
 	    my ($tr_files, $tr_size) = get_num_tr_files($cuffcmp_opts);
 	    my $annot = get_annot($cuffcmp_opts);
@@ -221,8 +221,8 @@ sub run_lncRNApipe {
 	}
 	else {
 	    		        
-	    pipeline_status($io, 'ERROR!', "Required options not mentioned for -cat module.\nSee '" .
-			    "$0 -h cat" . "' for required options.") if ($categorize_sc_opts !~ m/cuff|annot|out|sample/);
+	    $lncRNApipe_succ = pipeline_status($io, 'ERROR!', "Required options not mentioned for -cat module.\nSee '" .
+					       "$0 -h cat" . "' for required options.") if ($categorize_sc_opts !~ m/cuff|annot|out|sample/);
 	    
 	    $deps->{'cat'} .= " -cpu $num_cpu" if (defined $num_cpu);
 	    
@@ -237,8 +237,7 @@ sub run_lncRNApipe {
 							 join('-', split(/\-|\--/, $categorize_sc_opts)));
 	}
 
-	print $is_failed;
-	pipeline_status($io, $is_failed);
+	$lncRNApipe_succ = pipeline_status($io, $is_failed);
 	
     } if (defined($categorize_sc_opts) && $categorize_sc_opts ne '');
 
@@ -261,14 +260,14 @@ sub run_lncRNApipe {
 	    $io->error("Cannot open directory $outdir" .
 		       'categorize_ncRNAs to read lncRNApipe class files.');
 	    
-	push my @lncRNApipe_class_files, grep {/putative\.class\.ncRNAs\.gtf$/} readdir lncRNApipe_categorize_mod;
+	push my @lncRNApipe_class_files, grep {/putative\.class\.lncRNAs\.gtf$/} readdir lncRNApipe_categorize_mod;
 	
 	if ($#lncRNApipe_class_files <  0) {
-	    pipeline_status($io, 'ERROR', "\nCannot find output in $cat_dir ...\n");
+	    $lncRNApipe_succ = pipeline_status($io, 'ERROR', "Cannot find output in $cat_dir ...");
 	}
 
-        pipeline_status($io, 'ERROR!', "Required options not mentioned for -get module.\nSee '" .
-			"$0 -h get" . "' for required options.") if ($get_uq_sc_opts !~ m/sf|cf/);
+        $lncRNApipe_succ = pipeline_status($io, 'ERROR!', "Required options not mentioned for -get module.\nSee '" .
+					   "$0 -h get" . "' for required options.") if ($get_uq_sc_opts !~ m/sf|cf/);
 	
 	foreach my $lncRNApipe_class_file (@lncRNApipe_class_files) {
 	    	    
@@ -289,11 +288,10 @@ sub run_lncRNApipe {
 							 join('-', split(/\-|\--/, $get_uq_sc_opts)) .
 							 ' -unique -out ' .
 							 $unique_ncRNAs);
-
-	    #print $is_failed;
-	    pipeline_status($io, $is_failed);
-	    pipeline_status($io, 'ERROR', "No unique features found. In fact, this is not an error.\n" .
-		'It just means that any putative ncRNAs that have been extracted from -cat module are all known ncRNAs.')
+	    
+	    $lncRNApipe_succ = pipeline_status($io, $is_failed);
+	    $lncRNApipe_succ = pipeline_status($io, 'ERROR', "No unique features found. In fact, this is not an error.\n" .
+					       'It just means that any putative ncRNAs that have been extracted from -cat module are all known ncRNAs.')
 		if (-e $unique_ncRNAs && !-s $unique_ncRNAs);
 	    
 	    disp_ncRNA_counts($io, $unique_ncRNAs, 'Total number of putative unique ncRNAs');
@@ -311,7 +309,7 @@ sub run_lncRNApipe {
 
 	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
 	my $uq_tr_feat_dir = 'get_unique_features';
-	my $tr_feat_here_suffix = 'putative\.class\.ncRNAs\.unique\.gtf$';
+	my $tr_feat_here_suffix = 'putative\.class\.lncRNAs\.unique\.gtf$';
 
 	module_header($io, 'Module 4: Running fetch_seq_from_ucsc.pl');
 	
@@ -324,7 +322,7 @@ sub run_lncRNApipe {
 
 	if (defined $skip_get_uq) {
 	    $uq_tr_feat_dir = 'categorize_ncRNAs';
-	    $tr_feat_here_suffix = 'putative\.class\.ncRNAs\.gtf$';
+	    $tr_feat_here_suffix = 'putative\.class\.lncRNAs\.gtf$';
 	}
 	
 	opendir (lncRNApipe_get_unique_mod, $outdir . $uq_tr_feat_dir) ||
@@ -334,8 +332,7 @@ sub run_lncRNApipe {
 	push my @lncRNApipe_unique_files, grep {/$tr_feat_here_suffix$/} readdir lncRNApipe_get_unique_mod;
 
 	if ($#lncRNApipe_unique_files <  0) {
-            print "\nCannot find output in $cat_dir ...\n";
-            pipeline_status($io, 'ERROR');
+            $lncRNApipe_succ = pipeline_status($io, 'ERROR', "Cannot find output in $cat_dir ...");
         }
 	
 	foreach my $lncRNApipe_unique_file (@lncRNApipe_unique_files) {
@@ -353,8 +350,7 @@ sub run_lncRNApipe {
 							 join('-', split(/\-|\--/, $fetch_sc_opts)) .
 							 ' -tmap ' . $lncRNApipe_unique_file .
 							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t'");
-	    print $is_failed;
-	    pipeline_status($io, $is_failed);
+	    $lncRNApipe_succ = pipeline_status($io, $is_failed);
 	    $cpu->finish if (defined $num_cpu);
 	}
 	
@@ -372,7 +368,7 @@ sub run_lncRNApipe {
 	    $io->error("Cannot open directory $outdir" .
 		       'fetch_seq_from_ucsc to read unique ncRNA features.');
 	
-	push my @lncRNApipe_unique_seq_files, grep {/putative\.class\.ncRNAs\.unique\.fa$/} readdir lncRNApipe_fetch_seq_mod;
+	push my @lncRNApipe_unique_seq_files, grep {/putative\.class\.lncRNAs\.unique\.fa$/} readdir lncRNApipe_fetch_seq_mod;
 	my $blastall_path = sub {
 	    my @file_parts = $io->file_basename(shift, 'all');
 	    chop $file_parts[1] if ($file_parts[1] =~ m/\/$/);
@@ -576,8 +572,8 @@ sub run_lncRNApipe {
 								       " CM_TXT_OUT=$tbl CPC_TXT_OUT=$CPC_out_file COV=$inf_cov" .
                                                                        ' ' . $deps->{'ann-inf'});
 
-		    pipeline_status($io, 'ERROR!', 'Cannot get annotation from Infernal run') if (!$infernal_run ||
-												  $infernal_run =~ m/could not capture/i);
+		    $lncRNApipe_succ = pipeline_status($io, 'ERROR!', 'Cannot get annotation from Infernal run') if (!$infernal_run ||
+														     $infernal_run =~ m/could not capture/i);
 		    print $tmp_annot $infernal_run;
 		    close $tmp_annot;
 		    $io->c_time('Moving around files...');
@@ -611,7 +607,12 @@ sub run_lncRNApipe {
     close $pl_dep_paths_fh;
     
     # \x{2633}
-    $io->c_time("\x{2632}\x{2634} lncRNApipe Pipeline Finished!");
+    if ($lncRNApipe_succ) {
+	$io->c_time("\x{2632}\x{2634} lncRNApipe Pipeline finished!");
+    }
+    else {
+	$io->c_time("\x{2632}\x{2634} lncRNApipe Pipeline aborted(?)");
+    }
     $io->end_timer($s_time);
 }
 
@@ -1032,13 +1033,15 @@ sub pipeline_status {
 	if ($msg) {
 	    print "\nERROR!\n------\n$msg\n";
 	}
-	else {
-	    print "\nERROR!\n------\n$status\n";
+	elsif ($status !~ m/STDERR/i) {
+	    print "=>", $status;
 	}
-	$self->c_time("\x{2632}\x{2634} lncRNApipe pipeline aborted!");
-	die "\n";
+	return 0;
     }
-    return;
+    elsif ($status !~ m/STDERR/i) {
+	print $status;
+    }
+    return 1;
 }
 
 # Print success or failure with character length adjustments
@@ -1245,17 +1248,17 @@ sub disp_ncRNA_counts {
     chomp (my $num_lincs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?lincrna' $file | wc -l"));
     $num_lincs = 0 if ($num_lincs =~ m/^could not capture/i);
 
-    chomp (my $num_poncs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?conc' $file | wc -l"));
-    $num_poncs = 0 if ($num_lincs =~ m/^could not capture/i);
+    chomp (my $num_concs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?conc' $file | wc -l"));
+    $num_concs = 0 if ($num_concs =~ m/^could not capture/i);
     
-    chomp (my $num_concs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?ponc' $file | wc -l"));
-    $num_concs = 0 if ($num_lincs =~ m/^could not capture/i);    
+    chomp (my $num_poncs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?ponc' $file | wc -l"));
+    $num_poncs = 0 if ($num_poncs =~ m/^could not capture/i);    
 
     chomp (my $num_incs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?inc.+?intronic' $file | wc -l"));
-    $num_incs = 0 if ($num_lincs =~ m/^could not capture/i);
+    $num_incs = 0 if ($num_incs =~ m/^could not capture/i);
 
     chomp (my $num_ex_ov = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?exonic\\s+overlap' $file | wc -l"));
-    $num_ex_ov = 0 if ($num_lincs =~ m/^could not capture/i);
+    $num_ex_ov = 0 if ($num_ex_ov =~ m/^could not capture/i);
 
 
     print("\n\nlncRNA Summary [ " . $c_io->file_basename($file, 'suffix') . " ] :\n" .
@@ -1408,7 +1411,17 @@ To get help documentation about this module, run:
 
 =back
 
-=head1 Output
+=head1 CAVEATS
+
+The pipeline script uses a lot of inherent GNU core utils and has been only tested in BASH shell. Please use absolute full PATH names.
+
+=over 5
+
+=item * Instead of using lncRNApipe -run ./lncRNApipe_output ..., use lncRNApipe -run /data/lncRNApipe_output ...
+
+=back
+
+=head1 OUTPUT
 
 The final output is a putative list of annotated lncRNAs in GTF format that can be directly uploaded as custom tracks to Genome Browsers, such as UCSC etc... and predicted secondary structures by RNAfold. 
 
@@ -1585,6 +1598,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Nov-07-2014
+Nov-10-2014
 
 =cut

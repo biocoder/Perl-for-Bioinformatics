@@ -10,14 +10,15 @@ use XML::XPath::XMLParser;
 use IO::Routine;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-03 11:44:27 -0500 (Mon, 03 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0515 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-10 10:05:27 -0500 (Mon, 10 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0600 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 # Declare initial global variables
 my ($quiet, $tmap, $output, $help, $dbkey, $print_seq_fh,
     $chr_coords, $chr_info, $id_re, $skip_re, $file_format,
-    $seq_desc, $seq_descs, $match_re, $ncbi_gi, $source_db);
+    $seq_desc, $seq_descs, $match_re, $ncbi_gi, $source_db,
+    $pause_ncbi);
 
 my $is_valid_option = GetOptions ('help|?'          => \$help,
                                   'quiet'           => \$quiet,
@@ -30,7 +31,8 @@ my $is_valid_option = GetOptions ('help|?'          => \$help,
 				  'match-re=s'      => \$match_re,
 				  'ff=s'            => \$file_format,
 				  'seq-desc=s'      => \$seq_desc,
-				  'ncbi-gi-list=s'  => \$ncbi_gi
+				  'ncbi-gi-list=s'  => \$ncbi_gi,
+				  'pause-ncbi=i'    => \$pause_ncbi,
                                   );
 
 # Print info if not quiet
@@ -55,15 +57,15 @@ $io->c_time('Analysis started...');
 
 $io->c_time('Verifying file [ ' .
 	    $io->file_basename($tmap, 'suffix') .
-	    ' ] ...');
+	    ' ]...');
 
 $io->verify_files([$tmap],
 		  ['TMAP']);
 
 $output = $io->validate_create_path($output, 'create', 'Output');
 
-$io->c_time("FASTA files will be stored at $output ...");
-$io->c_time('Fetching Sequences ...');
+$io->c_time("FASTA files will be stored at $output");
+$io->c_time('Fetching Sequences...');
 
 if (defined $seq_desc) {
     $seq_descs = [split/\,/, $seq_desc]; 
@@ -100,7 +102,9 @@ $io->check_sys_level_cmds(['grep'],
 
 # For some clean output
 print STDOUT "\n" if (!defined $ncbi_gi);
-$io->c_time("Program will pause for 1 second(s) between queries to NCBI Entrez so that our IP address is not blocked by NCBI.\n")
+$pause_ncbi = 1 if (!defined $pause_ncbi && defined $ncbi_gi);
+$io->c_time("Program will pause for $pause_ncbi second(s) between queries to NCBI Entrez, " .
+	    "so that our IP address is not blocked by NCBI...\n")
     if (defined $ncbi_gi);
 
 my $seqs_fetched =  0;
@@ -146,7 +150,9 @@ while (my $line = <$tmap_fh>) {
 	}
 	chop $u_seq_desc if ($u_seq_desc =~ m/\|$/);
     }
+    
     $unique_seq_id .= " $u_seq_desc";
+    $unique_seq_id = $io->strip_leading_and_trailing_spaces($unique_seq_id);
 
     if ($cols[13] !~ m/^chr/i &&
 	$cols[14] !~ m/^\d+$/ &&
@@ -173,7 +179,7 @@ while (my $line = <$tmap_fh>) {
         next;
     }
     else {
-	print STDOUT "Querying $unique_seq_id against $source_db ...\n" if (!$quiet);
+	print STDOUT "Fetching $unique_seq_id from $source_db ...\n" if (!$quiet);
     }
 
     if (defined $ncbi_gi) {
@@ -185,10 +191,11 @@ while (my $line = <$tmap_fh>) {
 	
 	my $seq = get('http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?&db=nuccore&id=' .
 		      $chr_gi->{"chr$cols[13]"} . "&seq_start=$cols[14]&seq_stop=$cols[15]&rettype=fasta&retmode=text");
-	$seq =~ s/^>(gi.+?\d+).+?\s+(.+)/>$unique_seq_id $1 $2/;
+
+	$seq =~ s/^>(.+?)\s+(.+)/>$unique_seq_id $1 $2/;
 	$seqs_fetched++;
 	print $print_seq_fh $seq;
-	sleep 1;
+	sleep $pause_ncbi;
     }
     else {
 	my $xml = get("http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=$cols[13]:$cols[14],$cols[15]");
@@ -317,11 +324,18 @@ fetch_seq_from_ucsc.pl takes the following arguments:
   Example (Arabidopsis Thaliana):
   -------------------------------
 
-  chr1     240255421
+  chr1     240254421
   chr2     330250293
   chr3     332640072
   chr4     240256243
   chr5     240256493
+
+=item -p or --pause-ncbi (Optional)
+
+  If fetching from NCBI, pause for this many seconds between queries to NCBI,
+  so that our IP address is not blocked.
+
+  Default: 1 second
 
 =item -o or --output (Required)
 
@@ -373,6 +387,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Nov-03-2014
+Nov-10-2014
 
 =cut
