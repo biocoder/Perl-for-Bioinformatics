@@ -21,7 +21,7 @@ my ($help, $quiet, $sc1, $sc2, $cc1, $cc2,
     $unique, $known, $pipe2stdout, $j_fh, $overlap, 
     $tr_coords, $tr_start_col,
     $tr_end_col, $trans_bd_on_chr, $keyword, $keyword_col,
-    $sff, $cff, $logfold4cuff, $new_f);
+    $sff, $cff, $logfold4cuff, $new_f, $output);
 
 my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'source-column-2|sc-2|s2=s'  => \$sc2,
@@ -43,7 +43,8 @@ my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'source-file-format|sff=s'   => \$sff,
 				 'compare-file-format|cff=s'  => \$cff,
 				 'extract'                    => \$extract4pipeline,
-				 'fpkm-logfold'               => \$logfold4cuff
+				 'fpkm-logfold'               => \$logfold4cuff,
+				 'output=s'                   => \$output
 				);
 
 # Check if sff or cff is defined
@@ -97,6 +98,13 @@ else {
 if (defined $pipe2stdout ) {
     $j_fh = *STDOUT;
 }
+elsif (!defined $pipe2stdout && defined $output) {
+    $new_f = $output;
+    $j_fh = $io->open_file('>', $new_f);
+    $io->execute_system_command(0,
+                                "New file will be $new_f",
+                                $quiet);
+}
 elsif (!defined $pipe2stdout && !defined $extract4pipeline) {
     $new_f = $path . $io->file_basename($cf) . $suffix;
     $j_fh = $io->open_file('>', $new_f);
@@ -141,7 +149,8 @@ while (my $line = <$s_fh>) {
     
     $line = $io->strip_leading_and_trailing_spaces($line);
     my @cols = split/\t/, $line;
-    $io->error('Cannot find chromosome column in file [ ' . $sf . ' ]') if ($cols[$chr_s] !~ m/^chr/i);
+    $io->error('Cannot find chromosome column in file [ ' . $sf . ' ]' .
+	       "\nError occured on line:\n\n" . $line) if ($cols[$chr_s] !~ m/^chr/i);
 
     $cols[$chr_s] = lc ($cols[$chr_s]);
 
@@ -179,7 +188,7 @@ while (my $line = <$s_fh>) {
 }
 
 $io->c_time('Known non-coding RNAs found [ ' . $io->file_basename($sf, 'suffix') . ' ]: ' . $tr_feat_num)
-    if ($tr_feat_num && !defined $extract4pipeline);
+    if (!$quiet && $tr_feat_num && !defined $extract4pipeline);
 
 # Check if file has correct transcript-exon features.
 my $is_correct_tr_exon_file = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t' $cf | wc -l");
@@ -198,7 +207,8 @@ while (my $line = <$c_fh>) {
     $line = $io->strip_leading_and_trailing_spaces($line);
     
     my @cols = split/\t/, $line;
-    $io->error('Cannot find chromosome column in file [ ' . $cf . ' ]') if ($cols[$chr_c] !~ m/^chr/i);
+    $io->error('Cannot find chromosome column in file [ ' . $cf . ' ]' .
+	 "\nError occured on line:\n\n" . $line) if ($cols[$chr_c] !~ m/^chr/i);
     $cols[$chr_c] = lc($cols[$chr_c]);
     #print "$cols[$chr_c]\t$cols[$cc1]\t$cols[$cc2]\n";
 
@@ -342,7 +352,7 @@ while (my $line = <$c_fh>) {
 }
 
 $io->c_time('Unique transcript features found [ ' . $io->file_basename($new_f, 'suffix') . ' ]: ' . $check_line)
-    if ($check_line && !defined $extract4pipeline);
+    if (!$quiet && $check_line && !defined $extract4pipeline);
 
 $io->end_timer($s_time, $quiet);
 
@@ -520,6 +530,11 @@ get_unique_features.pl takes the following arguments:
 =item -ov or --overlap (Optional)
     
   Extract common features that overlap with source feature by at least this much percentage.
+
+=item -out or --output (Optional)
+    
+  Print output to this file. If not mentioned, new output file will be created in current
+  working directory.
 
 =item -no or --no-exon-match (Optional)
    

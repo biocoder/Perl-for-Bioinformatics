@@ -124,6 +124,7 @@ if (defined($categorize)) {
 				"Minimum number of exons per transcript : $min_exons\n" .
 				"Extract only Antisense exon overlaps   : $disp_anti_option");
     class_ncRNAs();
+    #sync_categories();
 }
 elsif (defined($genePred)) {
     $io->execute_system_command(0,
@@ -201,7 +202,7 @@ sub get_putative_ncRNAs {
 		my ($q_loc_id, $q_t_id, $discard) = split/\|/, $cols[$_];
 		next if (!$q_t_id || $q_t_id eq '');
 		$q_t_id =~ s/\./\\./g;
-		my $t_lines = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_]", 0);
+		my $t_lines = $io->execute_get_sys_cmd_output('grep -iP \'\"' . $q_t_id . '\"\' ' . $ARGV[$_], 0);
 		
 		if (defined $cov_cutoff && $t_lines !~ m/.*cov.+?\"(.+?)\".*/i && !-e $output . '.cat_cov_cutoff.war') {
 		    my $local_fh = $io->open_file('>', $output . '.cat_cov_cutoff.war');
@@ -218,25 +219,25 @@ sub get_putative_ncRNAs {
 		if (defined $full_read_supp && $t_lines !~ m/.*full\_read\_support.+?\"(yes|no)\".*/i && !-e $output . '.cat_full_read_supp.war') {
 		    my $local_fh = $io->open_file('>', $output . '.cat_full_read_supp.war');
 		    $io->warning("Full read support information not present in the input transcript assemblies.\n" .
-				 'Transcripts will not be filtered if the transcript has full read support or not.');
+				 'Transcripts will not be filtered based on full read support information.');
 		    close $local_fh;
 		}
 
 		my $p_lncRNAs = '';
 		if ($t_lines =~ m/.+?[FR]PKM.+?\"(.+?)\".+?cov.+?\"(.+?)\".+?full\_read\_support.+?\"(yes|no)\".*/i) {
-		    $p_lncRNAs = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
+		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -iP \'\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
 			if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff && $3 =~ m/$full_read_supp/i);
 		}
 		elsif ($t_lines =~ m/.+?[FR]PKM.+?\"(.+?)\".+?cov.+?\"(.+?)\".*/i) {
-		    $p_lncRNAs = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
+		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -iP \'\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
 			if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff);
 		}
 		elsif ($t_lines =~ m/.+?[FR]PKM.+?\"(.+?)\".*/i) {
-		    $p_lncRNAs = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
+		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -iP \'\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
 			if ($1 >= $fpkm_cutoff);
 		}
 		else {
-		    $p_lncRNAs = $io->execute_get_sys_cmd_output("grep -iP \'$q_t_id\' $ARGV[$_] | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'");
+		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -iP \'\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'");
 		}
 
 		my $p_file_names_gtf_fh = $io->open_file('>>', $p_file_names_gtf->[$_]);
@@ -297,6 +298,8 @@ sub class_ncRNAs {
 
     for (0 .. $#ARGV) {
 
+	next if ($ARGV[$_] !~ m/\/3\//);
+
 	$cpu->start and next if (defined $num_cpu);
 
         my $p_gtf = $p_file_names_gtf->[$_];
@@ -313,20 +316,22 @@ sub class_ncRNAs {
 	my ($num_ex_ov, $num_incs, $num_concs, $num_poncs, $num_lincs, $noclass, $num_noSense,
 	    $discard) = 0;
 
-	$io->c_time('Categorizing lncRNAs (Exonic overlaps) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing and syncing lncRNAs (Exonic overlaps) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_ex_ov, $num_noSense) = calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 
-	$io->c_time('Categorizing lncRNAs (Intronic overlaps - Incs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing and syncing lncRNAs (Intronic overlaps - Incs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_incs, $discard) = calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing lncRNAs (Intronic overlaps - Concs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing and syncing lncRNAs (Intronic overlaps - Concs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_concs, $discard) = calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing lncRNAs (Intronic overlaps - Poncs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing and syncing lncRNAs (Intronic overlaps - Poncs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_poncs, $discard) = calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing lncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing and syncing lncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
+
+	sync_categories();
 	
 	$io->c_time("\n\nlncRNA Summary [ " . $io->file_basename($c_ncRNAs, 'suffix') . " ] :\n" . 
 		    "-----------------------------------------------------------------------\n" .
@@ -821,6 +826,43 @@ sub check_gtf_attributes {
 	) {
 	$io->error('The attribute column of GTF file does not contain tag-value pairs between double quotes [ Ex: gene_id "CUFF.1"; ].' .
 	    "\nError occured on one of the following lines [ in " . $file . " ]:\n\n$t_lines_tr\n\n$t_lines_ex");
+    }
+    return;
+}
+
+# Remove categories that do not sync with cuffcompare
+sub sync_categories {
+    for (0 .. $#ARGV) {
+	my $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.class.ncRNAs.gtf';
+	my $c_no_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.noClass.ncRNAs.gtf';
+	my $c_ncRNAs_tmp = $c_ncRNAs . '.tosync';
+
+	$io->execute_system_command("cp $c_ncRNAs $c_ncRNAs_tmp") if (-e $c_ncRNAs);
+	$io->error('Cannot find *.tosync file while attempting to sync lncRNA categories')
+	    if (!-e $c_ncRNAs_tmp || !-s $c_ncRNAs_tmp);
+	
+	my $c_ncRNAs_tmp_fh = $io->open_file('<', $c_ncRNAs_tmp);
+	my $c_ncRNAs_fh = $io->open_file('>', $c_ncRNAs);
+	my $c_no_ncRNAs_fh = $io->open_file('>>', $c_no_ncRNAs);
+	
+	while (my $line = <$c_ncRNAs_tmp_fh>) {
+	    if ($line =~ m/.+?class_code\s*.+?[xo].+?exonic\s*overlap/i ||
+		$line =~ m/.+?class_code\s*.+?u.+?LincRNA/i ||
+		$line =~ m/.+?class_code\s*.+?i.+?\"Inc\s*\-/i ||
+		$line =~ m/.+?class_code\s*.+?[xo].+?Ponc/i ||
+		$line =~ m/.+?class_code\s*.+?[xo].+?Conc/i
+		) {
+		print $c_ncRNAs_fh $line;
+	    }
+	    else {
+		print $c_no_ncRNAs_fh $line;
+	    }
+	}
+
+	close $c_ncRNAs_tmp_fh;
+	close $c_ncRNAs_fh;
+	close $c_no_ncRNAs_fh;
+	unlink $c_ncRNAs_tmp if (-e $c_ncRNAs_tmp);
     }
     return;
 }

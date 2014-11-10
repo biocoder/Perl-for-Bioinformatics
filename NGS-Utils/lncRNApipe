@@ -224,17 +224,17 @@ sub run_lncRNApipe {
 	    pipeline_status($io, 'ERROR!', "Required options not mentioned for -cat module.\nSee '" .
 			    "$0 -h cat" . "' for required options.") if ($categorize_sc_opts !~ m/cuff|annot|out|sample/);
 	    
-	    $categorize_sc_opts = "-cpu $num_cpu " . $categorize_sc_opts if (defined $num_cpu);
+	    $deps->{'cat'} .= " -cpu $num_cpu" if (defined $num_cpu);
 	    
 	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
-							 join('-', split(/\-|\--/, $categorize_sc_opts)) .
-							 " -cuffcmp $cuffcmp_dir/lncRNApipe_cuffcmp.tracking -out $cat_dir " .
-							 "-bin $deps->{'bin-gtfToGenePred'} ",
+							 "-cuffcmp $cuffcmp_dir/lncRNApipe_cuffcmp.tracking -out $cat_dir " .
+							 "-bin $deps->{'bin-gtfToGenePred'} " .
+							 join('-', split(/\-|\--/, $categorize_sc_opts)),
 							 "Command call:\n" .
 							 "-------------\n" . $deps->{'cat'} . ' ' .
-							 join('-', split(/\-|\--/, $categorize_sc_opts)) .
-							 " -cuffcmp $cuffcmp_dir/lncRNApipe_cuffcmp.tracking -out $cat_dir " .
-							 "-bin $deps->{'bin-gtfToGenePred'} ");
+							 "-cuffcmp $cuffcmp_dir/lncRNApipe_cuffcmp.tracking -out $cat_dir " .
+							 "-bin $deps->{'bin-gtfToGenePred'} " .
+							 join('-', split(/\-|\--/, $categorize_sc_opts)));
 	}
 
 	print $is_failed;
@@ -281,13 +281,13 @@ sub run_lncRNApipe {
 	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'get'} . ' ' .
 							 '-q -cf ' . $lncRNApipe_class_file . ' -cff gtf -sff bed '.
 							 join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-							 ' -stdout -unique -kc 3 -ck transcript -extract > ' .
+							 ' -unique -out ' .
 							 $unique_ncRNAs,
 							 "Command call:\n" .
 							 "-------------\n" . $deps->{'get'} . ' ' .
 							 '-q -cf ' . $lncRNApipe_class_file . ' -cff gtf -sff bed '.
 							 join('-', split(/\-|\--/, $get_uq_sc_opts)) .
-							 ' -stdout -unique -kc 3 -ck transcript -extract > ' .
+							 ' -unique -out ' .
 							 $unique_ncRNAs);
 
 	    #print $is_failed;

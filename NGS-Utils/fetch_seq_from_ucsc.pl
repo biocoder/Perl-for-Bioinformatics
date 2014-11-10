@@ -54,7 +54,7 @@ $io->error('DBKEY or NCBI GI list file not provided')
 $io->c_time('Analysis started...');
 
 $io->c_time('Verifying file [ ' .
-	    $io->file_basename($tmap) .
+	    $io->file_basename($tmap, 'suffix') .
 	    ' ] ...');
 
 $io->verify_files([$tmap],
