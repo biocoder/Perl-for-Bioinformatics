@@ -53,7 +53,10 @@ or to get help documentation for individual modules, do:
             
             
 * Caveats:
-    * The pipeline script uses a lot of inherent Linux core utils and has been only tested in BASH shell. 
+    * The pipeline script uses a lot of inherent Linux core utils and has been only tested in BASH shell.
+    * Please use absolute full PATH names. Instead of using `lncRNApipe -run ./lncRNApipe_output ...`, use
+          `lncRNApipe -run /data/lncRNApipe_output ...`
+
  
            
 
