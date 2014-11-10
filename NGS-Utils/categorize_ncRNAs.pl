@@ -304,8 +304,8 @@ sub class_ncRNAs {
 
         my $p_gtf = $p_file_names_gtf->[$_];
         my $p_ncRNAs = store_coords($p_file_names_txt->[$_]);
-        my $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.class.ncRNAs.gtf';
-	my $u_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.noClass.ncRNAs.gtf';
+        my $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.class.lncRNAs.gtf';
+	my $u_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.noClass.lncRNAs.gtf';
 
 	chomp (my $total_nc_trs_before_cat = $io->execute_get_sys_cmd_output("grep -P '\ttranscript\t' $ARGV[$_] | wc -l"));
 	$total_nc_trs_before_cat = 'NA' if (!$total_nc_trs_before_cat);
@@ -833,8 +833,8 @@ sub check_gtf_attributes {
 # Remove categories that do not sync with cuffcompare
 sub sync_categories {
     for (0 .. $#ARGV) {
-	my $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.class.ncRNAs.gtf';
-	my $c_no_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.noClass.ncRNAs.gtf';
+	my $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.class.lncRNAs.gtf';
+	my $c_no_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.noClass.lncRNAs.gtf';
 	my $c_ncRNAs_tmp = $c_ncRNAs . '.tosync';
 
 	$io->execute_system_command("cp $c_ncRNAs $c_ncRNAs_tmp") if (-e $c_ncRNAs);
