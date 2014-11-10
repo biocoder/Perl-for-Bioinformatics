@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-10 10:05:27 -0500 (Mon, 10 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.6.0 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-10 10:44:27 -0500 (Mon, 10 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.6.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -245,6 +245,7 @@ sub run_lncRNApipe {
     do {
 
 	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
+	$lncRNApipe_succ = get_pipeline_status_code($cpu) if (defined $num_cpu);
 	module_header($io, 'Module 3: Running get_unique_features.pl');
 	
 	my $is_failed = '';
@@ -295,7 +296,7 @@ sub run_lncRNApipe {
 		if (-e $unique_ncRNAs && !-s $unique_ncRNAs);
 	    
 	    disp_ncRNA_counts($io, $unique_ncRNAs, 'Total number of putative unique ncRNAs');
-	    $cpu->finish if (defined $num_cpu);
+	    $cpu->finish(0, {'lncRNApipe_succ' => $lncRNApipe_succ}) if (defined $num_cpu);
 	}
 	
 	$cpu->wait_all_children if (defined $num_cpu);
@@ -308,6 +309,7 @@ sub run_lncRNApipe {
     do {
 
 	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
+	$lncRNApipe_succ = get_pipeline_status_code($cpu) if (defined $num_cpu);
 	my $uq_tr_feat_dir = 'get_unique_features';
 	my $tr_feat_here_suffix = 'putative\.class\.lncRNAs\.unique\.gtf$';
 
@@ -351,7 +353,7 @@ sub run_lncRNApipe {
 							 ' -tmap ' . $lncRNApipe_unique_file .
 							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t'");
 	    $lncRNApipe_succ = pipeline_status($io, $is_failed);
-	    $cpu->finish if (defined $num_cpu);
+	    $cpu->finish(0, {'lncRNApipe_succ' => $lncRNApipe_succ}) if (defined $num_cpu);
 	}
 	
 	$cpu->wait_all_children if (defined $num_cpu);
@@ -363,6 +365,7 @@ sub run_lncRNApipe {
     do {
 	
 	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
+	$lncRNApipe_succ = get_pipeline_status_code($cpu) if (defined $num_cpu);
 
 	opendir (lncRNApipe_fetch_seq_mod, $outdir . 'fetch_seq_from_ucsc') ||
 	    $io->error("Cannot open directory $outdir" .
@@ -444,6 +447,7 @@ sub run_lncRNApipe {
 		}
 		else {
 		    $io->error('CPC prediction step seems to have failed... Bailing out!');
+		    $lncRNApipe_succ = 0;
 		}
 	    } if (defined $start_cpc);
 	    
@@ -526,12 +530,14 @@ sub run_lncRNApipe {
 		}
 		else {
 		    $io->warning('CPC was not run! Will run RNAfold on all transcript models.');
-		    
 		}
 
 		$io->c_time('Moving around files and cleaning up directories ...');
 		$io->execute_system_command("mv $RNAfold_dir/*.mfe $RNAfold_dir_final/.")
 		    if (-e $RNAfold_mfe);
+
+		# All possible checks complete, RNAfold has finished.
+		$lncRNApipe_succ = 1;
 
 	    } if (defined $start_rnafold);
 
@@ -590,17 +596,21 @@ sub run_lncRNApipe {
 
 	    if ($final_nc_tr_count =~ m/^could not capture/i) {
 		$io->error("Could not get final putative ncRNA count.\n" .
-			   "Try re-running the final module. Take a look at --skip-cpc-core, --skip-rnafold-core and --skip-cmscan-core options.");
+			   "Try re-running the final module. Take a look at --skip-cpc-core, --skip-rnafold-core and --skip-cmscan-core options." .
+			   "\n\nOr this may also mean that the putative lncRNAs that were used with CPC may have all been flagged as \"coding\"");
 	    }
-	    
+	    else {
+		# Since we will have some transcripts by now that are filtered and passed all stages of the pipeline
+		$lncRNApipe_succ = 1;
+	    }
+
 	    disp_ncRNA_counts($io, $lncRNApipe_final_trs, 'Final putative novel ncRNA count');
-	    
-	    $cpu->finish if (defined $cpu);
+	    $cpu->finish(0, {'lncRNApipe_test' => $lncRNApipe_succ}) if (defined $num_cpu);
 	}
 	
 	$cpu->wait_all_children if (defined $cpu);
 	close lncRNApipe_fetch_seq_mod;
-    	
+	
     } if (defined $start_cpc || defined $start_rnafold || defined $start_infernal);
 
     close $dep_tools_fh;
@@ -1316,6 +1326,16 @@ sub check_for_updates {
     
     $io->warning($last_commit_msg, 'COMMIT');
     return;
+}
+
+# Get lncRNApipe pipeline status code after child exits
+sub get_pipeline_status_code {
+    my $cpu = shift;
+    return $cpu->run_on_finish( 
+	sub {
+	    my ($pid, $exit_code, $p_identifier, $exit_sig, $core_dump, $stat) = @_;
+	    return $stat->{'lncRNApipe_succ'};
+	});
 }
 
 
