@@ -298,7 +298,7 @@ sub class_ncRNAs {
 
     for (0 .. $#ARGV) {
 
-	next if ($ARGV[$_] !~ m/\/3\//);
+	#next if ($ARGV[$_] !~ m/\/3\//);
 
 	$cpu->start and next if (defined $num_cpu);
 
