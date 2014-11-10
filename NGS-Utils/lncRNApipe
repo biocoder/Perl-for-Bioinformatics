@@ -10,7 +10,7 @@ use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
 my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-10 10:44:27 -0500 (Mon, 10 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.6.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($VERSION) = q$LastChangedRevision: 0.6.2 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -595,7 +595,7 @@ sub run_lncRNApipe {
 									   ' | grep -oP \'\\".+\\"\' | sed -e \'s/\\"//g\' | sort -n | uniq | wc -l'));
 
 	    if ($final_nc_tr_count =~ m/^could not capture/i) {
-		$io->error("Could not get final putative ncRNA count.\n" .
+		$io->error("Could not get final putative lncRNA count.\n" .
 			   "Try re-running the final module. Take a look at --skip-cpc-core, --skip-rnafold-core and --skip-cmscan-core options." .
 			   "\n\nOr this may also mean that the putative lncRNAs that were used with CPC may have all been flagged as \"coding\"");
 	    }
@@ -604,7 +604,7 @@ sub run_lncRNApipe {
 		$lncRNApipe_succ = 1;
 	    }
 
-	    disp_ncRNA_counts($io, $lncRNApipe_final_trs, 'Final putative novel ncRNA count');
+	    disp_ncRNA_counts($io, $lncRNApipe_final_trs, 'Final putative novel lncRNA count');
 	    $cpu->finish(0, {'lncRNApipe_test' => $lncRNApipe_succ}) if (defined $num_cpu);
 	}
 	
@@ -1044,7 +1044,7 @@ sub pipeline_status {
 	    print "\nERROR!\n------\n$msg\n";
 	}
 	elsif ($status !~ m/STDERR/i) {
-	    print "=>", $status;
+	    print $status;
 	}
 	return 0;
     }
