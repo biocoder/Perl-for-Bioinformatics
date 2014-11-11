@@ -51,6 +51,9 @@ my $is_valid_option = GetOptions('help|?'              => \$help,
 my $io = IO::Routine->new($help, $quiet);
 my $s_time = $io->start_timer;
 
+$io->verify_options([$is_valid_option, $sample_names, 
+		     $refGenePred, $out, $cuffcmp]);
+
 $io->this_script_info($io->file_basename($0),
 		      $VERSION,
 		      $AUTHORFULLNAME,
@@ -60,9 +63,6 @@ $io->this_script_info($io->file_basename($0),
 
 $io->c_time('Analysis started...');
 $io->c_time('Verifying options...');
-
-$io->verify_options([$is_valid_option, $sample_names, 
-		     $refGenePred, $out, $cuffcmp]);
 
 # Clean up warnings
 remove_warnings('Removing warnings from previous run, if any...');
