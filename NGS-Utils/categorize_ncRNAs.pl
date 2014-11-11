@@ -45,7 +45,7 @@ my $is_valid_option = GetOptions('help|?'              => \$help,
 				 'cpu=i'               => \$num_cpu,
 				 'linc-rna-prox=i'     => \$linc_rna_prox,
 				 'full-read-support'   => \$full_read_supp,
-				 'ignore-genePred-err' => \$ignore_genePred_err
+				 'ignore-genePred-err' => \$ignore_genePred_err,
 				 'extract-pattern=s'   => \$extract_pat_user);
 
 my $io = IO::Routine->new($help, $quiet);
@@ -182,7 +182,10 @@ sub get_putative_ncRNAs {
 	$extract_pat = 'i|o|u|x';
     }
 
-    $extract_pat = $extract_pat_user if (defined $extract_pat_user && $extract_pat_user ne '');
+    if (defined $extract_pat_user && $extract_pat_user ne '') {
+	$extract_pat = $extract_pat_user;
+	$io->c_time('Using user defined pattern to extract transcripts belonging to the provided class codes [ ' . $extract_pat . ' ]...');
+    }
 
     if (defined $num_cpu) {
         $cpu = Parallel::ForkManager->new($num_cpu);
