@@ -9,15 +9,15 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-10 10:05:27 -0500 (Mon, 10 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0600 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-11 05:36:27 -0500 (Tue, 11 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0603 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $fpkm_cutoff, $cov_cutoff, $refGenePred, $length, $categorize,
     $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
     $antisense_only, $disp_anti_option, $gtf_bin, $num_cpu,
-    $linc_rna_prox, $ncRNA_max_length,
+    $linc_rna_prox, $ncRNA_max_length, $extract_pat_user,
     $ignore_genePred_err);
 
 my ($p_file_names_gtf, $p_file_names_txt) = [];
@@ -45,7 +45,8 @@ my $is_valid_option = GetOptions('help|?'              => \$help,
 				 'cpu=i'               => \$num_cpu,
 				 'linc-rna-prox=i'     => \$linc_rna_prox,
 				 'full-read-support'   => \$full_read_supp,
-				 'ignore-genePred-err' => \$ignore_genePred_err);
+				 'ignore-genePred-err' => \$ignore_genePred_err
+				 'extract-pattern=s'   => \$extract_pat_user);
 
 my $io = IO::Routine->new($help, $quiet);
 my $s_time = $io->start_timer;
@@ -180,6 +181,8 @@ sub get_putative_ncRNAs {
     else {
 	$extract_pat = 'i|o|u|x';
     }
+
+    $extract_pat = $extract_pat_user if (defined $extract_pat_user && $extract_pat_user ne '');
 
     if (defined $num_cpu) {
         $cpu = Parallel::ForkManager->new($num_cpu);
@@ -1060,6 +1063,19 @@ categorize_ncRNAs.pl takes the following arguments:
     with an error if it cannot validate. Use this option if you think the Gene Prediction
     format of the file you supplied is correct but in any case, this program thinks otherwise.
 
+=item --extract-pat (Optional)
+
+    Default: 'i|o|u|x'
+
+    The script first extracts transcripts that belong to the Cufflinks'
+    class codes "x", "o", "i" and "u" or class codes "x", "o", "i", "u"
+    and "j" and generates the respective *putative_lncRNAs.gtf files.
+    If you want to extract transcripts belonging to class codes
+    of your choice, use this option. For example, if you only
+    want trancripts belonging to class codes i and u, use:
+
+    --extract-pat 'i|u'
+
 =item -cpu or --cpu (Optional)
 
     Default: 1
@@ -1078,6 +1094,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Nov-07-2014
+Nov-11-2014
 
 =cut
