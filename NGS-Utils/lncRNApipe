@@ -207,7 +207,7 @@ sub run_lncRNApipe {
 
 	    $categorize_sc_opts .= " -cpu $num_cpu" if (defined $num_cpu);
 	    
-	    $is_failed = $io->execute_get_sys_cmd_output(0, 'perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
+	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
 							 join('-', split(/\-|\--/, $categorize_sc_opts)) .
 							 " -cuffcmp $cuffcmp_dir/lncRNApipe_cuffcmp.tracking -out $cat_dir " .
 							 "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot_for_cat . ' ' .
