@@ -7,8 +7,8 @@ use IO::Routine;
 use Set::IntervalTree;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-10 10:05:27 -0500 (Mon, 10 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0600 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-17 12:48:27 -0500 (Mon, 17 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0604 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my $io = IO::Routine->new();
@@ -87,6 +87,12 @@ if (defined $unique) {
 			      'Getting unique features...',
 			      $quiet);
   $suffix = '.unique.' . lc($cff);
+}
+elsif (defined $logfold4cuff) {
+    $io->execute_system_command(0,
+				'Getting log fold-change of FPKM / RPKM ...',
+				$quiet);
+    $suffix = '.logfold.txt';
 }
 else {
   $io->execute_system_command(0,
@@ -188,7 +194,7 @@ while (my $line = <$s_fh>) {
 }
 
 $io->c_time('Known non-coding RNAs found [ ' . $io->file_basename($sf, 'suffix') . ' ]: ' . $tr_feat_num)
-    if (!$quiet && $tr_feat_num && !defined $extract4pipeline);
+    if (!$quiet && $tr_feat_num && !defined $extract4pipeline && !$logfold4cuff);
 
 # Check if file has correct transcript-exon features.
 my $is_correct_tr_exon_file = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t' $cf | wc -l");
@@ -583,6 +589,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Nov-10-2014
+Nov-17-2014
 
 =cut
