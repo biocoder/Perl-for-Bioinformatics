@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-10 10:44:27 -0500 (Mon, 10 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.6.3 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-17-10 09:44:27 -0500 (Mon, 17 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.6.4 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -1618,6 +1618,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Nov-10-2014
+Nov-17-2014
 
 =cut

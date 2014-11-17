@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-11 05:36:27 -0500 (Tue, 11 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0603 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-17 09:41:27 -0500 (Mon, 17 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0604 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -18,11 +18,11 @@ my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
     $antisense_only, $disp_anti_option, $gtf_bin, $num_cpu,
     $linc_rna_prox, $ncRNA_max_length, $extract_pat_user,
-    $ignore_genePred_err);
+    $ignore_genePred_err, $full_read_supp);
 
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 my $ncRNA_class = {};
-my $full_read_supp = 'yes|no';
+my $full_read_supp_def = 'yes|no';
 
 my $is_valid_option = GetOptions('help|?'              => \$help,
 				 'quiet'               => \$quiet,
@@ -73,15 +73,15 @@ $cov_cutoff = 0.0 if (!defined $cov_cutoff || $cov_cutoff eq '');
 $length = 200 if (!defined $length || $length eq '');
 $overlap = 0 if (!defined $overlap || $overlap eq '');
 $min_exons = 2 if (!defined $min_exons || $min_exons eq '');
-$full_read_supp = 'yes' if (defined $full_read_supp);
+$full_read_supp_def = 'yes' if (defined $full_read_supp);
 
 $io->c_time('Validating output path...');
 my $output = $io->validate_create_path($out, 'create', 
 				       'Output directory');
 
 $io->c_time('Checking for required GNU core utils...');
-$io->check_sys_level_cmds(['grep', 'sed'], 
-			  ['2.6.3', '4.2.1']);
+$io->check_sys_level_cmds(['grep', 'sed', 'wc'], 
+			  ['2.6.3', '4.2.1', '0']);
 
 $io->c_time('Checking for annotation file in Gene Prediction format...');
 $io->verify_files([$refGenePred], ['Gene Prediction']);
@@ -99,7 +99,7 @@ $sample_names =~ s/\s+/\_/g;
 $sample_names =~ s/\,$//;
 my @lables = split/\,/, $sample_names;
 
-$io->error("Number of Sample Names [ $#lables + 1 ] is not equal to Number of transcripts' files [ $#ARGV + 1 ] provided")
+$io->error('Number of Sample Names [ ' . scalar(@lables) . " ] is not equal to Number of transcripts' files [ " . scalar(@ARGV) .' ] provided.')
     if ($#lables != $#ARGV);
 
 # Check validity of attribute column of GTF file
@@ -209,19 +209,19 @@ sub get_putative_ncRNAs {
 		$q_t_id =~ s/\./\\./g;
 		my $t_lines = $io->execute_get_sys_cmd_output('grep -iP \'\"' . $q_t_id . '\"\' ' . $ARGV[$_], 0);
 		
-		if (defined $cov_cutoff && $t_lines !~ m/.*cov.+?\"(.+?)\".*/i && !-e $output . '.cat_cov_cutoff.war') {
+		if (defined $cov_cutoff && $t_lines !~ m/.*?cov.+?\"(.+?)\".*/i && !-e $output . '.cat_cov_cutoff.war') {
 		    my $local_fh = $io->open_file('>', $output . '.cat_cov_cutoff.war');
 		    $io->warning("Coverage information not present in the input transcript assemblies.\n" .
 				 'Transcripts will not be filtered based on coverage cutoff.');
 		    close $local_fh;
 		}
-		if (defined $fpkm_cutoff && $t_lines !~ m/.*[FR]PKM.+?\"(.+?)\".*/i && !-e $output . '.cat_fpkm_cutoff.war') {
+		if (defined $fpkm_cutoff && $t_lines !~ m/.*?[FR]PKM.+?\"(.+?)\".*/i && !-e $output . '.cat_fpkm_cutoff.war') {
 		    my $local_fh = $io->open_file('>', $output . '.cat_fpkm_cutoff.war');
 		    $io->warning("FPKM / RPKM information not present in the input transcript assemblies.\n" .
 				 'Transcripts will not be filtered based on FPKM / RPKM cutoff.');
 		    close $local_fh;
 		}
-		if (defined $full_read_supp && $t_lines !~ m/.*full\_read\_support.+?\"(yes|no)\".*/i && !-e $output . '.cat_full_read_supp.war') {
+		if (defined $full_read_supp && $t_lines !~ m/.*?full\_read\_support.+?\"(yes|no)\".*/i && !-e $output . '.cat_full_read_supp.war') {
 		    my $local_fh = $io->open_file('>', $output . '.cat_full_read_supp.war');
 		    $io->warning("Full read support information not present in the input transcript assemblies.\n" .
 				 'Transcripts will not be filtered based on full read support information.');
@@ -231,7 +231,7 @@ sub get_putative_ncRNAs {
 		my $p_lncRNAs = '';
 		if ($t_lines =~ m/.+?[FR]PKM.+?\"(.+?)\".+?cov.+?\"(.+?)\".+?full\_read\_support.+?\"(yes|no)\".*/i) {
 		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -iP \'\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
-			if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff && $3 =~ m/$full_read_supp/i);
+			if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff && $3 =~ m/$full_read_supp_def/i);
 		}
 		elsif ($t_lines =~ m/.+?[FR]PKM.+?\"(.+?)\".+?cov.+?\"(.+?)\".*/i) {
 		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -iP \'\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
@@ -335,22 +335,42 @@ sub class_ncRNAs {
         ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 
 	sync_categories();
-	
+
+	# Numbers may have changed. Redo counts. Keep original found counts for future reference.
+
+	chomp (my $num_re_lincs = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?lincrna' $c_ncRNAs | wc -l"));
+	$num_lincs = 0 if ($num_lincs =~ m/^could not capture/i);
+
+	chomp (my $num_re_concs = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?conc' $c_ncRNAs | wc -l"));
+	$num_concs = 0 if ($num_concs =~ m/^could not capture/i);
+
+	chomp (my $num_re_poncs = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?ponc' $c_ncRNAs | wc -l"));
+	$num_poncs = 0 if ($num_poncs =~ m/^could not capture/i);
+
+	chomp (my $num_re_incs = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?inc.+?intronic' $c_ncRNAs | wc -l"));
+	$num_incs = 0 if ($num_incs =~ m/^could not capture/i);
+
+	chomp (my $num_re_ex_ov = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?exonic\\s+overlap' $c_ncRNAs | wc -l"));
+	$num_ex_ov = 0 if ($num_ex_ov =~ m/^could not capture/i);
+
+	chomp (my $re_no_class = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t' $u_ncRNAs | wc -l"));
+        $re_no_class = 0 if ($re_no_class =~ m/^could not capture/i);
+
 	$io->c_time("\n\nlncRNA Summary [ " . $io->file_basename($c_ncRNAs, 'suffix') . " ] :\n" . 
 		    "-----------------------------------------------------------------------\n" .
 		    "Total number of input transcripts: $total_nc_trs_before_cat\n" .
-		    "LincRNAs: $num_lincs\n" . 
-		    "Intronic overlaps - Concs: $num_concs\n" .
-                    "Intronic overlaps - Poncs: $num_poncs\n" . 
-		    "Intronic overlaps - Incs: $num_incs\n" . 
-		    "Exonic overlaps: $num_ex_ov\n" . 
-		    "Total categorized: " . ($num_lincs + 
-					     $num_concs + 
-					     $num_incs + 
-					     $num_ex_ov +
-					     $num_poncs) . 
+		    "LincRNAs: $num_re_lincs\n" . 
+		    "Intronic overlaps - Concs: $num_re_concs\n" .
+                    "Intronic overlaps - Poncs: $num_re_poncs\n" . 
+		    "Intronic overlaps - Incs: $num_re_incs\n" . 
+		    "Exonic overlaps: $num_re_ex_ov\n" . 
+		    "Total categorized: " . ($num_re_lincs + 
+					     $num_re_concs + 
+					     $num_re_incs + 
+					     $num_re_ex_ov +
+					     $num_re_poncs) . 
 		    "\nUncategorized: " . 
-		    ($noclass + $num_noSense) . "\n" );
+		    $re_no_class . "\n" );
 	
 	$cpu->finish if (defined $num_cpu);
     }
@@ -824,12 +844,22 @@ sub check_gtf_attributes {
     my $file = shift;
     my $t_lines_tr = $io->execute_get_sys_cmd_output('grep -iP \'\ttranscript\t\' ' . $file .' | head -n 1');
     my $t_lines_ex = $io->execute_get_sys_cmd_output('grep -iP \'\texon\t\' ' . $file .' | head -n 1');
+    
     if ( ($t_lines_tr !~ m/\".+?\"\;/ && $t_lines_ex !~ m/\".+?\"\;/) ||
-	 ($t_lines_tr =~ m/\'.+?\'/ || $t_lines_ex =~ m/\'.+?\'/) 
+	 ($t_lines_tr =~ m/\'.+?\'/ || $t_lines_ex =~ m/\'.+?\'/)
 	) {
 	$io->error('The attribute column of GTF file does not contain tag-value pairs between double quotes [ Ex: gene_id "CUFF.1"; ].' .
 	    "\nError occured on one of the following lines [ in " . $file . " ]:\n\n$t_lines_tr\n\n$t_lines_ex");
     }
+    
+    if (!$t_lines_tr || $t_lines_tr =~ m/^could/i || $t_lines_tr =~ m/STDERR/i) {
+	$io->error('Seems like the suppiled assembly [ ' . $file . ' ] does not contain proper transcript-exon features.' .
+		   "\nIt should have a transcript feature line followed by it's exon feature lines.\n\nExample:\n--------\n".
+		   qq/chr3\tCufflinks\ttranscript\t30549662\t30551349\t1000\t-\t.\tgene_id "CUFF.22498"; transcript_id "CUFF.22498.1"; FPKM "2.5052666329"; frac "1.000000"; conf_lo "1.676755"; conf_hi "3.353509"; cov "4.749121";\n/ .
+		   qq/chr3\tCufflinks\texon\t30549662\t30550273\t1000\t-\t.\tgene_id "CUFF.22498"; transcript_id "CUFF.22498.1"; exon_number "1"; FPKM "2.5052666329"; frac "1.000000"; conf_lo "1.676755"; conf_hi "3.353509"; cov "4.749121";\n/ .
+		   qq/chr3\tCufflinks\texon\t30551033\t30551349\t1000\t-\t.\tgene_id "CUFF.22498"; transcript_id "CUFF.22498.1"; exon_number "2"; FPKM "2.5052666329"; frac "1.000000"; conf_lo "1.676755"; conf_hi "3.353509"; cov "4.749121";\n/);
+    }
+
     return;
 }
 
@@ -841,9 +871,10 @@ sub sync_categories {
 	my $c_ncRNAs_tmp = $c_ncRNAs . '.tosync';
 
 	$io->execute_system_command("cp $c_ncRNAs $c_ncRNAs_tmp") if (-e $c_ncRNAs);
+
 	$io->error('Cannot find *.tosync file while attempting to sync lncRNA categories')
 	    if (!-e $c_ncRNAs_tmp || !-s $c_ncRNAs_tmp);
-	
+		
 	my $c_ncRNAs_tmp_fh = $io->open_file('<', $c_ncRNAs_tmp);
 	my $c_ncRNAs_fh = $io->open_file('>', $c_ncRNAs);
 	my $c_no_ncRNAs_fh = $io->open_file('>>', $c_no_ncRNAs);
@@ -1097,6 +1128,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Nov-11-2014
+Nov-17-2014
 
 =cut
