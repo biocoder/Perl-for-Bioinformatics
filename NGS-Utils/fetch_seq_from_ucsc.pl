@@ -10,15 +10,16 @@ use XML::XPath::XMLParser;
 use IO::Routine;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-10 10:05:27 -0500 (Mon, 10 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0600 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-18-11 01:05:27 -0500 (Tue, 18 Nov 2014)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0604 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 # Declare initial global variables
 my ($quiet, $tmap, $output, $help, $dbkey, $print_seq_fh,
     $chr_coords, $chr_info, $id_re, $skip_re, $file_format,
     $seq_desc, $seq_descs, $match_re, $ncbi_gi, $source_db,
-    $pause_ncbi);
+    $pause_ncbi, $local_ref_fa, @local_subseq_fa,
+    $ref_fa_in, $ref_fa_out, $contigs);
 
 my $is_valid_option = GetOptions ('help|?'          => \$help,
                                   'quiet'           => \$quiet,
@@ -33,6 +34,7 @@ my $is_valid_option = GetOptions ('help|?'          => \$help,
 				  'seq-desc=s'      => \$seq_desc,
 				  'ncbi-gi-list=s'  => \$ncbi_gi,
 				  'pause-ncbi=i'    => \$pause_ncbi,
+				  'local-ref-fa=s'  => \$local_ref_fa
                                   );
 
 # Print info if not quiet
@@ -50,8 +52,11 @@ $io->this_script_info($io->file_basename($0),
 $io->verify_options([$is_valid_option,
 		     $tmap, $output]);
 
-$io->error('DBKEY or NCBI GI list file not provided')
-    if (!defined $dbkey && !defined $ncbi_gi);
+$io->error('DBKEY or Local FASTA file or NCBI GI list file not provided')
+    if (!defined $dbkey && !defined $ncbi_gi && !defined $local_ref_fa);
+
+$io->error('Only one of the --dbkey, --local-ref-fa or --ncbi-gi-list options can be defined.')
+    if (defined $dbkey && (defined $ncbi_gi || defined $local_ref_fa));
 
 $io->c_time('Analysis started...');
 
@@ -99,6 +104,23 @@ else {
 $io->c_time('Checking for required GNU core utils...', $quiet);
 $io->check_sys_level_cmds(['grep'],
                           ['2.6.3']);
+
+if (defined $local_ref_fa) {
+    
+    require Bio::SeqIO;
+    Bio::SeqIO->import();
+
+    $io->error('FASTA reference does not exist.') if (!-e $local_ref_fa || !-s $local_ref_fa);
+
+    $ref_fa_in = Bio::SeqIO->new(-file => $local_ref_fa,
+				    -format => 'fasta');
+    $contigs = {};
+
+    while (my $seq_in = $ref_fa_in->next_seq) {
+	$io->c_time('Storing reference FASTA [ ID: ' . lc($seq_in->id) . ' ] in memory...');
+	$contigs->{lc($seq_in->id)} = $seq_in;
+    }
+}
 
 # For some clean output
 print STDOUT "\n" if (!defined $ncbi_gi);
@@ -162,6 +184,7 @@ while (my $line = <$tmap_fh>) {
 		   $line);
     }
 
+    my $unchanged_contig_id = $cols[13];
     $cols[13] =~ s/chr//;
 
     my $fetched_seq = $io->execute_get_sys_cmd_output("grep -A 1 \'$unique_seq_id\' $fa");
@@ -169,6 +192,9 @@ while (my $line = <$tmap_fh>) {
 
     if (defined $ncbi_gi) {
 	$source_db = 'NCBI Entrez';
+    }
+    elsif (defined $local_ref_fa) {
+	$source_db = 'Local FASTA file';
     }
     else {
 	$source_db = 'UCSC DAS'; 
@@ -185,20 +211,33 @@ while (my $line = <$tmap_fh>) {
     if (defined $ncbi_gi) {
 	my $chr_gi = read_gi($ncbi_gi);
 	
-	$io->warning("GI ID does not exist for [ chr$cols[13] ] in the file [ " . $io->file_basename($ncbi_gi, 'suffix') . ' ] ...' .
+	$io->warning("GI ID does not exist for [ $unchanged_contig_id ] in the file [ " . $io->file_basename($ncbi_gi, 'suffix') . ' ] ...' .
 		     "\nWill not be able to fetch sequence and therefore the transcript will not appear in final list."),
-	    next if (!exists $chr_gi->{"chr$cols[13]"});
+	    next if (!exists $chr_gi->{$unchanged_contig_id});
 	
 	my $seq = get('http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?&db=nuccore&id=' .
-		      $chr_gi->{"chr$cols[13]"} . "&seq_start=$cols[14]&seq_stop=$cols[15]&rettype=fasta&retmode=text");
+		      $chr_gi->{$unchanged_contig_id} . "&seq_start=$cols[14]&seq_stop=$cols[15]&rettype=fasta&retmode=text");
+	
+	$io->error('NCBI Entrez did not return any sequence from nuccore database.') if (!$seq || $seq eq '');
 
 	$seq =~ s/^>(.+?)\s+(.+)/>$unique_seq_id $1 $2/;
 	$seqs_fetched++;
 	print $print_seq_fh $seq;
 	sleep $pause_ncbi;
     }
+    elsif (defined $local_ref_fa) {
+	$io->error("Contig / Chromosome ID [ $unchanged_contig_id ] does not exist in supplied reference FASTA.\n".
+		   'Please make sure that the reference FASTA has those IDs.') if (!exists $contigs->{lc($unchanged_contig_id)});
+	my $subseq_obj = $contigs->{lc($unchanged_contig_id)};
+	my $subseq = $subseq_obj->subseq($cols[14], $cols[15]);
+	print $print_seq_fh ">$unique_seq_id\n$subseq\n";
+	$seqs_fetched++;
+    }
     else {
 	my $xml = get("http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=$cols[13]:$cols[14],$cols[15]");
+	$io->error('UCSC DAS did not return any sequence for database ' . $dbkey .
+		   ".\nQueried: http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=$cols[13]:$cols[14],$cols[15]")
+	    if (!$xml || $xml eq '');
 	my $xpath = XML::XPath->new(xml=>$xml);
 	my $xml_nodes = $xpath->find('/DASDNA/SEQUENCE/DNA/text()');
 	print_seq(\$xml_nodes, $unique_seq_id);
@@ -375,6 +414,11 @@ fetch_seq_from_ucsc.pl takes the following arguments:
   You can describe which column values should be concatenated together to form 
   fasta sequence description id.
 
+=item -local or --local-ref-fa
+
+  If you want to fetch sequences from a local reference FASTA instead of from UCSC or
+  NCBI, provide the reference FASTA with this option.
+
 =back
 
 =head1 AUTHOR
@@ -387,6 +431,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Nov-10-2014
+Nov-18-2014
 
 =cut
