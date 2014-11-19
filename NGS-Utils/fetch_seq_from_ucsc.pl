@@ -419,6 +419,8 @@ fetch_seq_from_ucsc.pl takes the following arguments:
   If you want to fetch sequences from a local reference FASTA instead of from UCSC or
   NCBI, provide the reference FASTA with this option.
 
+  ** Requires Bio::SeqIO module be installed and available **
+
 =back
 
 =head1 AUTHOR
