@@ -1319,6 +1319,13 @@ sub check_for_updates {
 
     chomp(my $last_commit_msg = $io->execute_get_sys_cmd_output("curl -Lks https://api.github.com/repos/biocoder/Perl-for-Bioinformatics/commits?per_page=1 | grep 'message'"));
     chomp(my $last_commit_date = $io->execute_get_sys_cmd_output("curl -Lks https://api.github.com/repos/biocoder/Perl-for-Bioinformatics/commits?per_page=1 | grep 'date' | head -n 1"));
+
+    if ($last_commit_msg =~ m/^could not/i) {
+	$io->warning('Unable to contact github.com for latest commit message ... May be we have reached the X-rate-limit! :-(' .
+		     "\nUse -d option if you wish to disable update check.");
+	return;
+    }
+
     $last_commit_msg =~ s/^\s+|\"|\,$//g;
     $last_commit_msg =~ s/message:\s*/Last Commit: /;
     $last_commit_msg .= '.' if ($last_commit_msg !~ m/\.$/);
@@ -1327,13 +1334,7 @@ sub check_for_updates {
     ($last_commit_date) = ($last_commit_date =~ m/\:(.+)/);
     $last_commit_date = $io->strip_leading_and_trailing_spaces($last_commit_date);
 
-    if (!$last_commit_msg) {
-	$io->warning('Unable to contact github.com for latest commit message ... May be we have reached the X-rate-limit! :-(' .
-		     "\nUse -d option if you wish to disable update check.");
-	return;
-    }
-
-    if ($VERSION ne $newest_release) {
+    if ($VERSION !~ m/$newest_release/) {
 	$io->warning($last_commit_msg .
 		     "\nVersion: v$VERSION\nCommit date: $last_commit_date\n\n".
 		     "\nMSG\n--------\nHowever, unreleased code has been commited on https://github.com/biocoder/Perl-for-Bioinformatics/commits/master\n" .
