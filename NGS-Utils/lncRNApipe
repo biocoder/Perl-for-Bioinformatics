@@ -10,7 +10,7 @@ use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
 my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-17-02 01:00:27 -0500 (Tue, 17 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.6.5 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($VERSION) = q$LastChangedRevision: 0.6.6 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -1336,10 +1336,8 @@ sub check_for_updates {
 
     if ($VERSION !~ m/$newest_release/) {
 	$io->warning($last_commit_msg .
-		     "\nVersion: v$VERSION\nCommit date: $last_commit_date\n\n".
-		     "\nMSG\n--------\nHowever, unreleased code has been commited on https://github.com/biocoder/Perl-for-Bioinformatics/commits/master\n" .
-		     'If you wish to use the functionality mentioned in the above commit message, do so, but it is untested and therefore not released.', 
-		     'COMMIT');
+		     "\nVersion: v$VERSION\nCommit date: $last_commit_date",
+		     'NEW!');
     }    
     else {
 	$io->warning($last_commit_msg, 'COMMIT');
