@@ -10,7 +10,7 @@ use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
 my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-17-02 01:00:27 -0500 (Tue, 17 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.6.6 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($VERSION) = q$LastChangedRevision: 0.6.7 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -1336,7 +1336,7 @@ sub check_for_updates {
 
     if ($VERSION !~ m/$newest_release/) {
 	$io->warning($last_commit_msg .
-		     "\nVersion: v$VERSION\nCommit date: $last_commit_date",
+		     "\nVersion: v$newest_release\nCommit date: $last_commit_date",
 		     'NEW!');
     }    
     else {
