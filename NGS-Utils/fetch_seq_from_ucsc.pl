@@ -10,8 +10,8 @@ use XML::XPath::XMLParser;
 use IO::Routine;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-17-02 01:00:27 -0500 (Tue, 17 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0605 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-17-02 01:56:27 -0500 (Tue, 17 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0608 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 # Declare initial global variables
@@ -240,9 +240,6 @@ foreach my $unique_seq_id (keys %$transcripts) {
 					
 	if (defined $ncbi_gi) {
 	    my $chr_gi = read_gi($ncbi_gi);
-	    
-	    print 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?&db=nuccore&id=' .
-		$chr_gi->{$unchanged_contig_id} . "&seq_start=$exon_start&seq_stop=$exon_end&rettype=fasta&retmode=text\n";
 	    
 	    $io->warning("GI ID does not exist for [ $unchanged_contig_id ] in the file [ " . $io->file_basename($ncbi_gi, 'suffix') . ' ] ...' .
 			 "\nWill not be able to fetch sequence and therefore the transcript will not appear in final list."),
