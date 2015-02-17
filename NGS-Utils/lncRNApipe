@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-17-10 09:44:27 -0500 (Mon, 17 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.6.4 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-17-02 01:00:27 -0500 (Tue, 17 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.6.5 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -346,12 +346,12 @@ sub run_lncRNApipe {
 	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'fetch'} . ' ' .
 							 join('-', split(/\-|\--/, $fetch_sc_opts)) .
 							 ' -tmap ' . $lncRNApipe_unique_file .
-							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t'",
+							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\ttranscript\\t'",
 							 "Command call:\n" .
 							 "-------------\n" . $deps->{'fetch'} . ' ' .
 							 join('-', split(/\-|\--/, $fetch_sc_opts)) .
 							 ' -tmap ' . $lncRNApipe_unique_file .
-							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\texon\\t'");
+							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\ttranscript\\t'");
 	    $lncRNApipe_succ = pipeline_status($io, $is_failed);
 	    $cpu->finish(0, {'lncRNApipe_succ' => $lncRNApipe_succ}) if (defined $num_cpu);
 	}
@@ -1637,6 +1637,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Nov-17-2014
+Feb-17-2015
 
 =cut

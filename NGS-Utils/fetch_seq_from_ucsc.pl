@@ -10,8 +10,8 @@ use XML::XPath::XMLParser;
 use IO::Routine;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-18-11 01:05:27 -0500 (Tue, 18 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0604 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-17-02 01:00:27 -0500 (Tue, 17 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0605 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 # Declare initial global variables
@@ -19,7 +19,8 @@ my ($quiet, $tmap, $output, $help, $dbkey, $print_seq_fh,
     $chr_coords, $chr_info, $id_re, $skip_re, $file_format,
     $seq_desc, $seq_descs, $match_re, $ncbi_gi, $source_db,
     $pause_ncbi, $local_ref_fa, @local_subseq_fa,
-    $ref_fa_in, $ref_fa_out, $contigs);
+    $ref_fa_in, $ref_fa_out, $contigs, $transcripts,
+    $strand, $contig_id);
 
 my $is_valid_option = GetOptions ('help|?'          => \$help,
                                   'quiet'           => \$quiet,
@@ -52,7 +53,7 @@ $io->this_script_info($io->file_basename($0),
 $io->verify_options([$is_valid_option,
 		     $tmap, $output]);
 
-$io->error('DBKEY or Local FASTA file or NCBI GI list file not provided')
+$io->error('DBKEY or Local FASTA file or NCBI GI list file not provided.')
     if (!defined $dbkey && !defined $ncbi_gi && !defined $local_ref_fa);
 
 $io->error('Only one of the --dbkey, --local-ref-fa or --ncbi-gi-list options can be defined.')
@@ -129,9 +130,10 @@ $io->c_time("Program will pause for $pause_ncbi second(s) between queries to NCB
 	    "so that our IP address is not blocked by NCBI...\n")
     if (defined $ncbi_gi);
 
-my $seqs_fetched =  0;
 while (my $line = <$tmap_fh>) {
-    my ($u_seq_id, $unique_seq_id) = '';
+
+    my $u_seq_id = my $unique_seq_id = my $u_seq_desc = '';
+    my $chr_id = my $chr_start = my $chr_end = my $chr_strand = '';
 
     next if ($line =~ m/^ref\_gene\_id/ ||
 	     $line =~ m/^$/);
@@ -148,24 +150,26 @@ while (my $line = <$tmap_fh>) {
       
     chomp $line;
     my @cols = split/\t/, $line;
-    
+
+
     if (ref($chr_info) eq 'ARRAY') {
-	$cols[13] = lc($cols[$chr_info->[0]]);
-	$cols[14] = $cols[$chr_info->[1]];
-	$cols[15] = $cols[$chr_info->[2]];
+	$chr_id = lc($cols[$chr_info->[0]]);
+	$chr_start = $cols[$chr_info->[1]];
+	$chr_end = $cols[$chr_info->[2]];
+	$chr_strand = $cols[$chr_info->[3]] if ($cols[$chr_info->[3]]);
+	
 	if ($u_seq_id) {
 	    $u_seq_id = $io->strip_leading_and_trailing_spaces($u_seq_id);
-	    $unique_seq_id = $u_seq_id . '|' . $cols[13] . ':' . $cols[14] . '-' . $cols[15]; 
+	    $unique_seq_id = $u_seq_id; 
 	}
 	else {
-	    $unique_seq_id = $cols[13] . ':' . $cols[14] . '-' . $cols[15]; 
+	    $io->error('Cannot create unique transcript ID with supplied regex ... Bailing out!');
 	}
     }
     else {
-	$unique_seq_id = $cols[4] . '|' . "class_code:$cols[2]" . '_' . lc($cols[13]) . ':' . $cols[14] . '-' . $cols[15];
+	$io->error('Cannot create unique transcript ID ... Bailing out!');
     }
 
-    my $u_seq_desc = '';
     if (defined $seq_desc) {
 	for (0 .. $#$seq_descs) {
 	    $u_seq_desc .= "$cols[$seq_descs->[$_]]|";
@@ -176,16 +180,32 @@ while (my $line = <$tmap_fh>) {
     $unique_seq_id .= " $u_seq_desc";
     $unique_seq_id = $io->strip_leading_and_trailing_spaces($unique_seq_id);
 
-    if ($cols[13] !~ m/^chr/i &&
-	$cols[14] !~ m/^\d+$/ &&
-	$cols[15] !~ m/^\d+$/) {
+
+    if ($chr_id !~ m/^chr/i &&
+	$chr_start !~ m/^\d+$/ &&
+	$chr_end !~ m/^\d+$/) {
 	$io->error("Cannot find chromosome information in columns...\n".
-		   "Encountered line is:\n" .
+		   "\nEncountered line is:\n" .
 		   $line);
     }
 
-    my $unchanged_contig_id = $cols[13];
-    $cols[13] =~ s/chr//;
+    if (!exists $transcripts->{$unique_seq_id}->{$chr_start}) {
+	$transcripts->{$unique_seq_id}->{$chr_start} = $chr_end;
+	$contig_id->{$unique_seq_id} = $chr_id;
+	$strand->{$unique_seq_id} = $chr_strand;
+    }
+    else {
+	$io->error('Duplicate recored found for transcript ID with same feature start position: ' . $unique_seq_id . 
+		   "\nCurrent recored for the same transcript ID: " . $line . "\n");
+    }
+}
+
+my $seqs_fetched =  0;
+foreach my $unique_seq_id (keys %$transcripts) {
+    my $seq = my $exon_str_id = '';
+    
+    my $unchanged_contig_id = $contig_id->{$unique_seq_id};
+    $contig_id->{$unique_seq_id} =~ s/chr//;
 
     my $fetched_seq = $io->execute_get_sys_cmd_output("grep -A 1 \'$unique_seq_id\' $fa");
     chomp $fetched_seq;
@@ -199,50 +219,75 @@ while (my $line = <$tmap_fh>) {
     else {
 	$source_db = 'UCSC DAS'; 
     }
-
+    
     if ($fetched_seq !~ m/STDERR/i) {
 	print STDOUT "Skipping $unique_seq_id ... Already fetched!\n" if (!$quiet);
-        next;
+	next;
     }
     else {
 	print STDOUT "Fetching $unique_seq_id from $source_db ...\n" if (!$quiet);
     }
 
-    if (defined $ncbi_gi) {
-	my $chr_gi = read_gi($ncbi_gi);
+    foreach my $exon_start (sort { $a <=> $b } keys %{$transcripts->{$unique_seq_id}}) {
+	my $exon_end = $transcripts->{$unique_seq_id}->{$exon_start};
 	
-	$io->warning("GI ID does not exist for [ $unchanged_contig_id ] in the file [ " . $io->file_basename($ncbi_gi, 'suffix') . ' ] ...' .
-		     "\nWill not be able to fetch sequence and therefore the transcript will not appear in final list."),
-	    next if (!exists $chr_gi->{$unchanged_contig_id});
-	
-	my $seq = get('http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?&db=nuccore&id=' .
-		      $chr_gi->{$unchanged_contig_id} . "&seq_start=$cols[14]&seq_stop=$cols[15]&rettype=fasta&retmode=text");
-	
-	$io->error('NCBI Entrez did not return any sequence from nuccore database.') if (!$seq || $seq eq '');
-
-	$seq =~ s/^>(.+?)\s+(.+)/>$unique_seq_id $1 $2/;
-	$seqs_fetched++;
-	print $print_seq_fh $seq;
-	sleep $pause_ncbi;
+	if ($strand->{$unique_seq_id} eq '-') {
+	    $exon_str_id .= "$exon_end-$exon_start, ";
+	}
+	else {
+	    $exon_str_id .= "$exon_start-$exon_end, ";
+	}
+					
+	if (defined $ncbi_gi) {
+	    my $chr_gi = read_gi($ncbi_gi);
+	    
+	    print 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?&db=nuccore&id=' .
+		$chr_gi->{$unchanged_contig_id} . "&seq_start=$exon_start&seq_stop=$exon_end&rettype=fasta&retmode=text\n";
+	    
+	    $io->warning("GI ID does not exist for [ $unchanged_contig_id ] in the file [ " . $io->file_basename($ncbi_gi, 'suffix') . ' ] ...' .
+			 "\nWill not be able to fetch sequence and therefore the transcript will not appear in final list."),
+		next if (!exists $chr_gi->{$unchanged_contig_id});
+	    
+	    my $get_ncbi_seq = get('http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?&db=nuccore&id=' .
+				  $chr_gi->{$unchanged_contig_id} . "&seq_start=$exon_start&seq_stop=$exon_end&rettype=fasta&retmode=text");
+	    
+	    $io->error('NCBI Entrez did not return any sequence from nuccore database.') if (!$get_ncbi_seq || $get_ncbi_seq eq '');
+	    
+	    $get_ncbi_seq =~ s/^>.+|\n*//g;
+	    $seq .= $get_ncbi_seq;
+	    sleep $pause_ncbi;
+	}
+	elsif (defined $local_ref_fa) {
+	    $io->error("Contig / Chromosome ID [ $unchanged_contig_id ] does not exist in supplied reference FASTA.\n".
+		       'Please make sure that the reference FASTA has those IDs.') if (!exists $contigs->{lc($unchanged_contig_id)});
+	    my $subseq_obj = $contigs->{lc($unchanged_contig_id)};
+	    my $subseq = $subseq_obj->subseq($exon_start, $exon_end);
+	    $seq .= $subseq;
+	}
+	else {
+	    my $xml = get("http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=" . $contig_id->{$unique_seq_id} . ":$exon_start,$exon_end");
+	    $io->error('UCSC DAS did not return any sequence for database ' . $dbkey .
+		       ".\nQueried: http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=" . $contig_id->{$unique_seq_id} . ":$exon_start,$exon_end")
+		if (!$xml || $xml eq '');
+	    my $xpath = XML::XPath->new(xml=>$xml);
+	    my $xml_nodes = $xpath->find('/DASDNA/SEQUENCE/DNA/text()');
+	    my $sub_seq = return_seq(\$xml_nodes, $unique_seq_id);
+	    $sub_seq =~ s/\n*//g;
+	    $seq .= $sub_seq;
+	}
     }
-    elsif (defined $local_ref_fa) {
-	$io->error("Contig / Chromosome ID [ $unchanged_contig_id ] does not exist in supplied reference FASTA.\n".
-		   'Please make sure that the reference FASTA has those IDs.') if (!exists $contigs->{lc($unchanged_contig_id)});
-	my $subseq_obj = $contigs->{lc($unchanged_contig_id)};
-	my $subseq = $subseq_obj->subseq($cols[14], $cols[15]);
-	print $print_seq_fh ">$unique_seq_id\n$subseq\n";
-	$seqs_fetched++;
+
+    $exon_str_id =~ s/\,\s+$//;
+    if ($strand->{$unique_seq_id} eq '-') {
+	$exon_str_id = '[-], ' . $exon_str_id;
+	$seq = revComp($seq);
     }
     else {
-	my $xml = get("http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=$cols[13]:$cols[14],$cols[15]");
-	$io->error('UCSC DAS did not return any sequence for database ' . $dbkey .
-		   ".\nQueried: http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=$cols[13]:$cols[14],$cols[15]")
-	    if (!$xml || $xml eq '');
-	my $xpath = XML::XPath->new(xml=>$xml);
-	my $xml_nodes = $xpath->find('/DASDNA/SEQUENCE/DNA/text()');
-	print_seq(\$xml_nodes, $unique_seq_id);
-	$seqs_fetched++;
+	$exon_str_id = '[' . $strand->{$unique_seq_id} . '], ' . $exon_str_id;
     }
+    
+    print $print_seq_fh ">$unique_seq_id $unchanged_contig_id: $exon_str_id\n$seq\n";
+    $seqs_fetched++;
 }
 
 $io->c_time("$seqs_fetched sequences fetched...");
@@ -271,17 +316,17 @@ sub read_gi {
 }
 
 # Print fasta sequences;
-sub print_seq {
+sub return_seq {
     my $xml_nodes = shift;
     my $seq_id = shift;
+    my $seq = '';
 
     foreach my $xml_node ($$xml_nodes->get_nodelist) {
-        my $seq = $xml_node->getValue;
+        $seq = $xml_node->getValue;
 	chomp $seq;
         $seq = $io->strip_leading_and_trailing_spaces($seq);
-        print $print_seq_fh ">$seq_id\n$seq\n";
     }
-    return;
+    return $seq;
 }
 
 # Return GTF or BED or GFF columns
@@ -291,13 +336,20 @@ sub gtf_or_bed {
         return ("1", "2", "3");
     }
     elsif (defined($format) && $format ne '' && $format =~ m/^gtf|gff$/i) {
-        return ("1", "4", "5");
+        return ("1", "4", "5", "7");
     }
     elsif (defined($format) && $format ne '' && $format =~ m/^gtf|gff|bed$/i) {
         $io->error('Invalid file format [ ' . $format . ' ] specified!' .
                    'Currently, only GTF, GFF or BED file format is supported.');
     }
-    return $chr_coords;
+    return;
+}
+
+# Reverse complement DNA
+sub revComp {
+    my $seq = shift;
+    $seq =~ tr/ACGTacgt/TGCAtgca/;
+    return scalar reverse $seq;
 }
 
 __END__
@@ -308,27 +360,24 @@ fetch_seq_from_ucsc.pl
 
 =head1 SYNOPSIS
 
-This script will fetch DNA seqeuences from UCSC database given a TMAP output
-file that contains chromosome information.
+This script will fetch DNA seqeuences from UCSC or NCBI database or from
+local FASTA genome sequence file, given a GTF file. The ID in the first column 
+of the GTF file should match the contig / chromosome ID of the local FASTA
+genome sequence file
 
 Examples:
 
     perl fetch_seq_from_ucsc.pl -h
 
-    perl fetch_seq_from_ucsc.pl --tmap proximal_vs_reference.cmp.transcripts.gtf.class_codes_u_and_i.tmap -out /home/konganti/fasta -dbkey rn4
+    perl fetch_seq_from_ucsc.pl --gtf transcripts.rat.putative.class.lncRNAs.unique.gtf -out /home/konganti/fasta -dbkey rn4
 
 =head1 DESCRIPTION
 
-This script uses the TMAP file, which is generally an ouput format from Cufflinks
-pipeline. This TMAP file must contain chromosome information in the last three
-columns, mainly chromosome number, chromosome start and chromosome end. It will
-use that information to query UCSC DAS to fetch DNA sequences.
-
-Example line from a modified TMAP file with chromosome information:
-
-ref_gene_id	ref_id	class_code	cuff_gene_id	cuff_id	FMI	FPKM	FPKM_conf_lo	FPKM_conf_hi	cov	len	major_iso_id	ref_match_len	chr	chr_start	chr_end
-
-Lrp11	NM_001106217	i	CUFF.20	CUFF.20.1	100	1.052506	0.742139	1.362874	2.091452	1080	CUFF.20.1	3114	chr1	2257123	2258202
+This script uses the GTF file from the lncRNApipe pipeline to create FASTA sequence for 
+each transcript with introns spliced out. The tool has the ability to fetch sequences
+from UCSC or NCBI databases or from local FASTA genome reference. If "-local" option is
+used, the ID in the first column of the GTF file should match the contig / chromosome ID 
+of the local FASTA genome sequence file.
 
 =head1 OPTIONS
 
@@ -345,13 +394,14 @@ fetch_seq_from_ucsc.pl takes the following arguments:
   Providing this option suppresses the log messages to the shell.
   Default: disabled
 
-=item -t or --tmap (Required)
+=item -tmap or --tmap (Required)
 
-  Modified TMAP file from Cufflinks pipeline that contains chromosome information.
+  Modified TMAP file from Cufflinks pipeline that contains chromosome information or
+  a GTF file wherein, for each transcript of the GTF file, intron sequence is spliced out.
 
-=item -d or --dbkey (Required)
+=item -d or --dbkey (Optional)
 
-  Database to query (ex: rn4, mm9, hg19 etc...).
+  Database to query (ex: rn4, mm9, hg19 etc...) if sequences should be fetched from UCSC.
 
 =item -ncbi or --ncbi-gi-list (Required)
 
@@ -433,6 +483,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Nov-18-2014
+Feb-17-2015
 
 =cut
