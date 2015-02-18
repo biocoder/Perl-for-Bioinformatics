@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-17-02 01:56:27 -0500 (Tue, 17 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.6.8 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-18-02 09:53:27 -0500 (Wed, 17 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.6.9 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -20,7 +20,7 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $num_cpu, $local_lib, $inf_cov, $skip_cpc_core,
     $skip_rnafold_core, $skip_cmscan_core,
     $lncRNApipe_ver_info, $no_update_check, 
-    $skip_get_uq, $lncRNApipe_succ);
+    $skip_get_uq, $lncRNApipe_succ, $num_cpu_by_2);
 
 my $is_valid_option = GetOptions('help:s'                           => \$help,
                                  'quiet'                            => \$quiet,
@@ -52,7 +52,12 @@ my $CPC_SH_SC = 'CPC.sh';
 my $ANN_INF_SC = 'annotate_final_ncRNAs.sh';
 my $RELPLOT_MOD_SC = 'relplot_mod.pl';
 my $USER_HOME = dirname(abs_path($0));
-my $num_cpu_by_2 = sprintf("%.0f", $num_cpu / 2) - 1 if (defined $num_cpu);
+if (defined $num_cpu) {
+    $num_cpu_by_2 = sprintf("%.0f", $num_cpu / 2) - 1;
+} 
+else {
+    $num_cpu_by_2 = 1;
+}
 $inf_cov = 75 if (!defined $inf_cov);
 
 if (!$is_valid_option) {
@@ -121,6 +126,7 @@ sub run_lncRNApipe {
 
     return $io if ($shall_I_run eq 'version');
 
+    $io->c_time('Validating options...');
     $io->verify_options([$out, $is_valid_option]) if (defined $help && $help eq '');
 
     if (!defined $out) {
@@ -139,8 +145,6 @@ sub run_lncRNApipe {
     my $dep_tools_fh = $io->open_file('<', $USER_HOME . '/.lncRNApipe.depconf');
     get_deps($dep_tools_fh);
 
-    $io->c_time('Validating options...');
-    $io->verify_options([$is_valid_option]);
     $io->exist_sys_cmd(['mkdir']);
 
     my $cuffcmp_dir = $outdir . 'cuffcompare';    
@@ -291,10 +295,15 @@ sub run_lncRNApipe {
 							 $unique_ncRNAs);
 	    
 	    $lncRNApipe_succ = pipeline_status($io, $is_failed);
-	    $lncRNApipe_succ = pipeline_status($io, 'ERROR', "No unique features found. In fact, this is not an error.\n" .
-					       'It just means that any putative ncRNAs that have been extracted from -cat module are all known ncRNAs.')
-		if (-e $unique_ncRNAs && !-s $unique_ncRNAs);
-	    
+	    if (-e $unique_ncRNAs && !-s $unique_ncRNAs) {
+		$lncRNApipe_succ = pipeline_status($io, 'ERROR', "No unique features found. In fact, this is not an error.\n" .
+						   'It just means that any putative lncRNAs that have been extracted from -cat module are all known ncRNAs.');
+		$io->warning("No unique features found. In fact, this is not an error.\n" .
+			     'It just means that any putative ncRNAs that have been extracted from -cat module are all known ncRNAs.');
+		$io->warning('Proceeding with files from "categorize_ncRNAs" module.', 'INFO!!');
+		$skip_get_uq = 1;
+	    }
+		
 	    disp_ncRNA_counts($io, $unique_ncRNAs, 'Total number of putative unique ncRNAs');
 	    $cpu->finish(0, {'lncRNApipe_succ' => $lncRNApipe_succ}) if (defined $num_cpu);
 	}
@@ -370,8 +379,8 @@ sub run_lncRNApipe {
 	opendir (lncRNApipe_fetch_seq_mod, $outdir . 'fetch_seq_from_ucsc') ||
 	    $io->error("Cannot open directory $outdir" .
 		       'fetch_seq_from_ucsc to read unique ncRNA features.');
-	
-	push my @lncRNApipe_unique_seq_files, grep {/putative\.class\.lncRNAs\.unique\.fa$/} readdir lncRNApipe_fetch_seq_mod;
+
+	push my @lncRNApipe_unique_seq_files, grep {/putative\.class\.lncRNAs\.*?\.fa$/} readdir lncRNApipe_fetch_seq_mod;
 	my $blastall_path = sub {
 	    my @file_parts = $io->file_basename(shift, 'all');
 	    chop $file_parts[1] if ($file_parts[1] =~ m/\/$/);
@@ -594,10 +603,13 @@ sub run_lncRNApipe {
 	    chomp (my $final_nc_tr_count = $io->execute_get_sys_cmd_output('grep -oP \'transcript_id\\s+\\".+?\\"\' ' . $lncRNApipe_final_trs .
 									   ' | grep -oP \'\\".+\\"\' | sed -e \'s/\\"//g\' | sort -n | uniq | wc -l'));
 
-	    if ($final_nc_tr_count =~ m/^could not capture/i) {
+	    if (!$final_nc_tr_count) {
+		$io->execute_system_command( "cat $cat_dir/*.CPC.predict.txt", 
+					     "Output from $cat_dir/*.CPC.predict.txt"); 
+					    
 		$io->error("Could not get final putative lncRNA count.\n" .
 			   "Try re-running the final module. Take a look at --skip-cpc-core, --skip-rnafold-core and --skip-cmscan-core options." .
-			   "\n\nOr this may also mean that the putative lncRNAs that were used with CPC may have all been flagged as \"coding\"");
+			   "\nThis may also mean that the putative lncRNAs that were used with CPC may have all been flagged as \"coding\".");
 	    }
 	    else {
 		# Since we will have some transcripts by now that are filtered and passed all stages of the pipeline
@@ -1635,6 +1647,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-17-2015
+Feb-18-2015
 
 =cut
