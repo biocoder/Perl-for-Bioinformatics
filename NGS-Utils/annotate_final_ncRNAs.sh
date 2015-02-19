@@ -6,8 +6,8 @@
 # Coordinate with lncRNApipe output to parse out and add Infernal annotation to final ncRNA transcripts.
 
 # $LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-# $LastChangedDate: 2014-11-10 10:05:27 -0500 (Mon, 10 Nov 2014)  $ =~ m/.+?\:(.+)/;
-# $LastChangedRevision: 0600 $ =~ m/.+?(\d+)/;
+# $LastChangedDate: 2015-19-02 15:45:27 -0500 (Wed, 19 Feb 2015)  $ =~ m/.+?\:(.+)/;
+# $LastChangedRevision: 0.7.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
 # $AUTHORFULLNAME = 'Kranti Konganti';
 
 if [  -z "$FINAL_GTF" ]  ||
@@ -18,7 +18,7 @@ if [  -z "$FINAL_GTF" ]  ||
     exit -1;
 fi
 
-grep noncoding $CPC_TXT_OUT | cut -d "|" -f 1 | sort -n | uniq | while read unetrid; do 
+grep noncoding $CPC_TXT_OUT | cut -f 1 | sort -n | uniq | while read unetrid; do 
     trid=${unetrid//\./\\.};
     trlen=`grep -P "$trid" $FINAL_GTF | grep -oP 'transcript_length \"\d+\"' | head -n 1 | perl -e '\$line = <>; if (\$line =~ m/.+?(\d+)/) {print \$1;}'`;
     hitlen=`grep -P "$trid" $CM_TXT_OUT | sort -k15,15nr | uniq | head -n 1 | awk '{if(\$10=="+") print \$9-\$8; else print \$8-\$9;}'`;

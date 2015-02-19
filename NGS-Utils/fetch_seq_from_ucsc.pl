@@ -10,8 +10,8 @@ use XML::XPath::XMLParser;
 use IO::Routine;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-17-02 01:56:27 -0500 (Tue, 17 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0608 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-19-02 15:45:27 -0500 (Wed, 19 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.7.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 # Declare initial global variables
@@ -202,7 +202,8 @@ while (my $line = <$tmap_fh>) {
 
 my $seqs_fetched =  0;
 foreach my $unique_seq_id (keys %$transcripts) {
-    my $seq = my $exon_str_id = '';
+    my $seq = my $exon_coords = '';
+    my @exon_str_id;
     
     my $unchanged_contig_id = $contig_id->{$unique_seq_id};
     $contig_id->{$unique_seq_id} =~ s/chr//;
@@ -232,10 +233,10 @@ foreach my $unique_seq_id (keys %$transcripts) {
 	my $exon_end = $transcripts->{$unique_seq_id}->{$exon_start};
 	
 	if ($strand->{$unique_seq_id} eq '-') {
-	    $exon_str_id .= "$exon_end-$exon_start, ";
+	    push @exon_str_id, "$exon_end-$exon_start";
 	}
 	else {
-	    $exon_str_id .= "$exon_start-$exon_end, ";
+	    push @exon_str_id, "$exon_start-$exon_end";
 	}
 					
 	if (defined $ncbi_gi) {
@@ -274,16 +275,16 @@ foreach my $unique_seq_id (keys %$transcripts) {
 	}
     }
 
-    $exon_str_id =~ s/\,\s+$//;
     if ($strand->{$unique_seq_id} eq '-') {
-	$exon_str_id = '[-], ' . $exon_str_id;
+	my @reverse_exon_coords = reverse @exon_str_id;
+	$exon_coords = '[-], ' . join(', ', @reverse_exon_coords);
 	$seq = revComp($seq);
     }
     else {
-	$exon_str_id = '[' . $strand->{$unique_seq_id} . '], ' . $exon_str_id;
+	$exon_coords = '[' . $strand->{$unique_seq_id} . '], ' . join(', ', @exon_str_id);
     }
     
-    print $print_seq_fh ">$unique_seq_id $unchanged_contig_id: $exon_str_id\n$seq\n";
+    print $print_seq_fh ">$unique_seq_id $unchanged_contig_id: $exon_coords\n$seq\n";
     $seqs_fetched++;
 }
 
@@ -480,6 +481,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-17-2015
+Feb-19-2015
 
 =cut

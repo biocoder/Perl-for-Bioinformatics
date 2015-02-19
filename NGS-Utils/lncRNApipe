@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-19-02 10:00:27 -0500 (Wed, 19 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.7.0 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-19-02 15:45:27 -0500 (Wed, 19 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.7.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -421,6 +421,10 @@ sub run_lncRNApipe {
 	    my $unique_gtf = $outdir . 'get_unique_features/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.gtf';
 	    my $pre_infernal = $lncRNApipe_final . '/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.pre.infernal';
 	    my $final_infernal = $lncRNApipe_final . '/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.final.infernal';
+
+	    if ($skip_get_uq || !-e $unique_gtf) {
+		$unique_gtf =  $outdir . 'categorize_ncRNAs/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.gtf';
+	    }
 	    
     	    # Run CPC ####################################################################################
 
@@ -456,12 +460,12 @@ sub run_lncRNApipe {
 		}
 
 		if (-e $CPC_out_file && -s $CPC_out_file) {
-		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | ".
-						"while read trid; do grep -P \"\${trid//\\./\\\\.}\" $unique_gtf; done &> $lncRNApipe_final_trs");
-
 		    $io->c_time('Getting noncoding "only" transcripts [ ' .
 				$io->file_basename($unique_gtf, 'suffix') .
 				" ] ...");
+				    
+		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -f 1 | ".
+						"while read trid; do grep -P \"\${trid//\\./\\\\.}\" $unique_gtf; done &> $lncRNApipe_final_trs");
 		}
 		else {
 		    $io->error('CPC prediction step seems to have failed... Bailing out!');
@@ -542,7 +546,7 @@ sub run_lncRNApipe {
 		if (-e $CPC_out_file && -s $CPC_out_file) {
 		    $io->c_time('Filtering transcripts [ ' . $io->file_basename($unique_gtf, 'suffix') . ' ] ...');    
 		
-		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -d \"|\" -f 1 | " .
+		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -f 1 | " .
 						"while read trid; do find $RNAfold_dir -type f -name \${trid//\\./\\\\.}\\*fstruct\\*" .
 						" -exec mv -t $RNAfold_dir_final" . "/\ {} \\;; done;");
 		}
@@ -613,8 +617,8 @@ sub run_lncRNApipe {
 									   ' | grep -oP \'\\".+\\"\' | sed -e \'s/\\"//g\' | sort -n | uniq | wc -l'));
 
 	    if (!$final_nc_tr_count) {
-		$io->execute_system_command( "cat $cat_dir/*.CPC.predict.txt", 
-					     "Output from $cat_dir/*.CPC.predict.txt"); 
+		$io->execute_system_command( "cat $cat_dir/*.CPC.predict.txt | head", 
+					     "Truncated output from  $cat_dir/*.CPC.predict.txt"); 
 					    
 		$io->error("Could not get final putative lncRNA count.\n" .
 			   "Try re-running the final module. Take a look at --skip-cpc-core, --skip-rnafold-core and --skip-cmscan-core options." .
