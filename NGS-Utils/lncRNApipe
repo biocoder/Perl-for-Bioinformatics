@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-18-02 18:03:27 -0500 (Wed, 18 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.6.10 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-19-02 10:00:27 -0500 (Wed, 19 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.7.0 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -157,7 +157,7 @@ sub run_lncRNApipe {
 	$io->execute_system_command("mkdir -p $cuffcmp_dir",
 				    'Making output directory for cuffcompare [ ' . $cuffcmp_dir . ' ]')
 	    if (!-d $cuffcmp_dir);
-	
+
 	$io->execute_system_command($deps->{'cuffcompare'} .
 				    " -T -o $cuffcmp_dir/lncRNApipe_cuffcmp " .
 				    join('-', split(/\-/, $cuffcmp_opts)),
@@ -313,7 +313,6 @@ sub run_lncRNApipe {
 		
     } if (defined($get_uq_sc_opts) && $get_uq_sc_opts ne '');
     
-	
     # Run fetch_seq_from_ucsc.pl ######################################################################
     do {
 
@@ -324,8 +323,16 @@ sub run_lncRNApipe {
 
 	module_header($io, 'Module 4: Running fetch_seq_from_ucsc.pl');
 	
-	my $is_failed = '';
+	my $is_failed = my $local_ref_seq = '';
         my $cat_dir = $outdir . 'fetch_seq_from_ucsc';
+
+	# Use local reference FASTA instead of fetching, if provided with cuffcompare
+	($local_ref_seq) = ($cuffcmp_opts =~ m/.*?-s\s+(.+?)\s+.*/);	
+	if ($local_ref_seq && -s $local_ref_seq && -e $local_ref_seq) {
+	    $io->warning('Using local FASTA reference [ ' . $io->file_basename($local_ref_seq, 'suffix') . ' ] to fetch sequences to maintain consistency.' .
+			 "\n** Requires Bio::SeqIO module to be installed and available **", 'INFO!!');
+	    $fetch_sc_opts = "-local $local_ref_seq";
+	}
         
 	$io->execute_system_command("mkdir -p $cat_dir",
                                     'Making output directory for ' . $io->file_basename($deps->{'get'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
@@ -1647,6 +1654,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-18-2015
+Feb-19-2015
 
 =cut

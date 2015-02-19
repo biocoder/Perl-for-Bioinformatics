@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-18-02 18:03:27 -0500 (Wed, 18 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 06010 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-19-02 10:00:27 -0500 (Wed, 19 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0700 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -879,11 +879,11 @@ sub sync_categories {
 	my $c_no_ncRNAs_fh = $io->open_file('>>', $c_no_ncRNAs);
 	
 	while (my $line = <$c_ncRNAs_tmp_fh>) {
-	    if ($line =~ m/.+?class_code\s*.+?[xo].+?exonic\s*overlap/i ||
-		$line =~ m/.+?class_code\s*.+?u.+?LincRNA/i ||
-		$line =~ m/.+?class_code\s*.+?i.+?\"Inc\s*\-/i ||
-		$line =~ m/.+?class_code\s*.+?[xo].+?Ponc/i ||
-		$line =~ m/.+?class_code\s*.+?[xo].+?Conc/i
+	    if ($line =~ m/.+?class_code\s+\W[jxo].+?exonic\s*overlap/i ||
+		$line =~ m/.+?class_code\s+\Wu.+?LincRNA/i ||
+		$line =~ m/.+?class_code\s+\Wi.+?\WInc\s*\-/i ||
+		$line =~ m/.+?class_code\s+\W[jxo].+?Ponc/i ||
+		$line =~ m/.+?class_code\s+\W[jxo].+?Conc/i
 		) {
 		print $c_ncRNAs_fh $line;
 	    }
@@ -895,7 +895,7 @@ sub sync_categories {
 	close $c_ncRNAs_tmp_fh;
 	close $c_ncRNAs_fh;
 	close $c_no_ncRNAs_fh;
-	unlink $c_ncRNAs_tmp if (-e $c_ncRNAs_tmp);
+	#unlink $c_ncRNAs_tmp if (-e $c_ncRNAs_tmp);
     }
     return;
 }
@@ -1127,6 +1127,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-18-2014
+Feb-19-2014
 
 =cut
