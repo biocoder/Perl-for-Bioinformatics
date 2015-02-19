@@ -126,7 +126,6 @@ sub run_lncRNApipe {
 
     return $io if ($shall_I_run eq 'version');
 
-    $io->c_time('Validating options...');
     $io->verify_options([$out, $is_valid_option]) if (defined $help && $help eq '');
 
     if (!defined $out) {
@@ -140,6 +139,9 @@ sub run_lncRNApipe {
 
     my $s_time = $io->start_timer;
     binmode(STDOUT, ":utf8");
+
+    # Validate options here after help documentation is printed
+    $io->c_time('Validating options...');
     $io->c_time("Starting \x{2632}\x{2634} lncRNApipe Pipeline...");
 
     my $dep_tools_fh = $io->open_file('<', $USER_HOME . '/.lncRNApipe.depconf');
