@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-18-02 09:53:27 -0500 (Wed, 17 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.6.9 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-18-02 18:03:27 -0500 (Wed, 18 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.6.10 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -380,7 +380,7 @@ sub run_lncRNApipe {
 	    $io->error("Cannot open directory $outdir" .
 		       'fetch_seq_from_ucsc to read unique ncRNA features.');
 
-	push my @lncRNApipe_unique_seq_files, grep {/putative\.class\.lncRNAs\.*?\.fa$/} readdir lncRNApipe_fetch_seq_mod;
+	push my @lncRNApipe_unique_seq_files, grep {/putative\.class\.lncRNAs.*?\.fa$/} readdir lncRNApipe_fetch_seq_mod;
 	my $blastall_path = sub {
 	    my @file_parts = $io->file_basename(shift, 'all');
 	    chop $file_parts[1] if ($file_parts[1] =~ m/\/$/);

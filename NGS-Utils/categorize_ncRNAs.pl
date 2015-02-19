@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2014-11-17 09:41:27 -0500 (Mon, 17 Nov 2014)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0604 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-18-02 18:03:27 -0500 (Wed, 18 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 06010 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -461,7 +461,6 @@ sub calc_lincRNAs {
 		next;
 	    }
 
-	    
 	    if (scalar(@$ov_found) == 0 &&
 		!exists $ncRNA_class->{$unique_key} &&
 		$ncRNA_length >= $length &&
@@ -508,7 +507,7 @@ sub calc_overlaps {
 		$nc_exon_starts,
 		$nc_exon_ends, 
 		$nc_tr_id) = get_parts($p_ncRNAs->{$nc_chr}->[$ncRNA_line]);
-	    
+
 	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" .
 		@$nc_exon_starts . @$nc_exon_ends;
 
@@ -687,7 +686,7 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--; 
 			    $num_noSense++,
-			    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0),
+			    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"Exonic - Sense exonic overlap with $ref_tr_id\";\/\' >> $u_ncRNAs", 0),
 			    last if (defined($antisense_only) && $antisense_only);
 			    $found++;
 			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Exonic - Sense exonic overlap with $ref_tr_id\";";
@@ -698,7 +697,7 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $num_noSense++,
-			    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0),
+			    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"Exonic - Exonic overlap with $ref_tr_id\";\/\' >> $u_ncRNAs", 0),
 			    last if (defined($antisense_only) && $antisense_only);
 			    $found++;
 			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Exonic - Exonic overlap with $ref_tr_id\";";
@@ -1128,6 +1127,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Nov-17-2014
+Feb-18-2014
 
 =cut
