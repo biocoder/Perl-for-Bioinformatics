@@ -9,7 +9,7 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-19-02 15:45:27 -0500 (Wed, 19 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-23-02 12:30:27 -0500 (Mon, 23 Feb 2015)  $ =~ m/.+?\:(.+)/;
 my ($VERSION) = q$LastChangedRevision: 0.7.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
@@ -412,9 +412,13 @@ sub run_lncRNApipe {
 	    $num_cpu_by_2 = 1 if ($num_cpu_by_2 == 0);
 
 	    $lncRNApipe_unique_seq_file = $outdir . 'fetch_seq_from_ucsc/' . $lncRNApipe_unique_seq_file;
+	    my $lncRNApipe_unique_seq_noncoding_file = $outdir . 'fetch_seq_from_ucsc/' . 
+		$io->file_basename($lncRNApipe_unique_seq_file) .
+		'.noncoding.FASTA';
 	    my $CPC_out_file = $cat_dir . '/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.CPC.predict.txt';
 	    my $cpc_work_dir = $cat_dir . '/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.CPC.out' ;
 	    my $lncRNApipe_final_trs = $lncRNApipe_final . '/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.final.gtf';
+	    my $lncRNApipe_allInfernal_trs = $lncRNApipe_final . '/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.allInfernalHits.gtf';
 	    my $RNAfold_dir = $lncRNApipe_final . '/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.pre.RNAfold';
 	    my $RNAfold_dir_final = $lncRNApipe_final . '/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.final.RNAfold';
 	    my $RNAfold_mfe = $RNAfold_dir . '/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.mfe';
@@ -458,21 +462,32 @@ sub run_lncRNApipe {
 						' "' . $lncRNApipe_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . ' ' . $cpc_work_dir . '" ' .
 						$blastall_path->($deps->{'blastall'}));
 		}
-
-		if (-e $CPC_out_file && -s $CPC_out_file) {
-		    $io->c_time('Getting noncoding "only" transcripts [ ' .
-				$io->file_basename($unique_gtf, 'suffix') .
-				" ] ...");
-				    
-		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -f 1 | ".
-						"while read trid; do grep -P \"\${trid//\\./\\\\.}\" $unique_gtf; done &> $lncRNApipe_final_trs");
-		}
-		else {
-		    $io->error('CPC prediction step seems to have failed... Bailing out!');
-		    $lncRNApipe_succ = 0;
-		}
 	    } if (defined $start_cpc);
 	    
+	    # To resume the remaining 2 modules, we need to check for CPC prediction file and adjust the file.
+	    
+	    if (-e $CPC_out_file && -s $CPC_out_file) {
+		$io->c_time('Getting noncoding "only" transcripts [ from ' .
+			    $io->file_basename($unique_gtf, 'suffix') .
+			    " ] ...");
+		
+		$io->execute_system_command("grep noncoding $CPC_out_file | cut -f 1 | " .
+					    'while read trid; do grep -P "${trid//\./\\\.}\W" ' .
+					    "$unique_gtf; done &> $lncRNApipe_final_trs");
+		
+		$io->c_time('Creating FASTA for noncoding "only" transcripts [ from ' .
+			    $io->file_basename($unique_gtf, 'suffix') .
+			    " ] ...");
+		
+		$io->execute_system_command("grep noncoding $CPC_out_file | cut -f 1 | ".
+					    'while read trid; do grep -A 1 -P "${trid//\./\\\.}\W" ' .
+					    "$lncRNApipe_unique_seq_file; done &> $lncRNApipe_unique_seq_noncoding_file");
+		$lncRNApipe_unique_seq_file = $lncRNApipe_unique_seq_noncoding_file;
+	    }
+	    else {
+		$io->error('CPC prediction step seems to have failed... Bailing out!');
+		$lncRNApipe_succ = 0;
+	    }
 
 	    # Do RNAfold and draw entropy plot ############################################################
 
@@ -590,18 +605,20 @@ sub run_lncRNApipe {
 		    $io->c_time('Updating final GTF file with Infernal annotations...');
 		    
 		    my $tmp_annot = $io->open_file('>', $lncRNApipe_final_trs . '.tmp');
+		    unlink $lncRNApipe_allInfernal_trs if (-e $lncRNApipe_allInfernal_trs);
 		    
-		    my $infernal_run = $io->execute_get_sys_cmd_output("FINAL_GTF=$lncRNApipe_final_trs" .
+		    my $infernal_run = $io->execute_get_sys_cmd_output("INF_GTF=$lncRNApipe_allInfernal_trs FINAL_GTF=$lncRNApipe_final_trs" .
 								       " CM_TXT_OUT=$tbl CPC_TXT_OUT=$CPC_out_file COV=$inf_cov" .
 								       ' ' . $deps->{'ann-inf'},
 								       "Command call:\n" .
 								       "-------------\n" .
-								       "FINAL_GTF=$lncRNApipe_final_trs" .
+								       "INF_GTF=$lncRNApipe_allInfernal_trs FINAL_GTF=$lncRNApipe_final_trs" .
 								       " CM_TXT_OUT=$tbl CPC_TXT_OUT=$CPC_out_file COV=$inf_cov" .
                                                                        ' ' . $deps->{'ann-inf'});
 
 		    $lncRNApipe_succ = pipeline_status($io, 'ERROR!', 'Cannot get annotation from Infernal run') if (!$infernal_run ||
-														     $infernal_run =~ m/could not capture/i);
+														     $infernal_run =~ m/could not capture/i ||
+														     !-e $tbl || !-e $raw || !-s $tbl || !-s $raw);
 		    print $tmp_annot $infernal_run;
 		    close $tmp_annot;
 		    $io->c_time('Moving around files...');
@@ -1495,13 +1512,15 @@ The final output is a putative list of annotated lncRNAs in GTF format that can 
 
 =item * get_unique_features.pl's output is stored in the directory called "get_unique_features". lncRNApipe uses files ending with suffix '.putative.class.lncRNAs.unique.gtf ' for the next module
 
-=item * fetch_seq_from_ucsc.pl's output is stored in the directory called "fetch_seq_from_ucsc". lncRNApipe uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules.
+=item * fetch_seq_from_ucsc.pl's output is stored in the directory called "fetch_seq_from_ucsc". lncRNApipe uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules. The file ending in suffix '.noncoding.FASTA' is used for the next modules.
 
 =item * CPC predictions are stored in a directory called "CPC".
 
-=item * The final result files are stored in a directory called lncRNApipe.final and have a suffix '.putative.class.ncRNAs.unique.final.gtf'.
+=item * The final result files are stored in a directory called lncRNApipe.final and have a suffix '.final.gtf'.
 
-=item * The RNAfold plots are stored in directories inside lncRNApipe.final directory ending in suffix '.putative.class.ncRNAs.unique.final.RNAfold'.
+=item * The RNAfold plots are stored in directories inside lncRNApipe.final directory ending in suffix '.final.RNAfold'.
+
+=item * The result files from cmscan (Infernal) are stored in directories inside lncRNApipe.final directory ending with suffix '.infernal'. The file ending in suffix '.allInfernalHits.gtf' contains all RNA hmm and cm model matches from cmscan (Infernal) and the best hit is applied to file ending in suffix '.final.gtf' based on the sequence coverage (--coverage-infernal) filter requested.
 
 =back
 
@@ -1660,6 +1679,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-19-2015
+Feb-23-2015
 
 =cut
