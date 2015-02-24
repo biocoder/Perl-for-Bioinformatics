@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-19-02 10:00:27 -0500 (Wed, 19 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0700 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-19-02 01:30:27 -0500 (Tue, 24 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0703 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -108,7 +108,7 @@ $io->c_time('Checking for the validity of attribute column [ 9th column ] in sup
 for (0 .. $#ARGV) {
     $io->verify_files([$ARGV[$_]],
                       ["Cufflinks assembled transcript"]);
-    check_gtf_attributes($ARGV[$_]);
+    $ARGV[$_] = check_gtf_attributes($ARGV[$_]);
     push @{$p_file_names_gtf}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_lncRNAs.gtf';
     push @{$p_file_names_txt}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_lncRNAs.txt';
     unlink $p_file_names_gtf->[$_] if (-e $p_file_names_gtf->[$_] && !defined($genePred) && !defined($categorize));
@@ -852,15 +852,51 @@ sub check_gtf_attributes {
     }
     
     if (!$t_lines_tr || $t_lines_tr =~ m/^could/i || $t_lines_tr =~ m/STDERR/i) {
-	$io->error('Seems like the suppiled assembly [ ' . $file . ' ] does not contain proper transcript-exon features.' .
+	$io->warning('Seems like the suppiled assembly [ ' . $io->file_basename($file, 'suffix') . ' ] does not contain proper transcript-exon features.' .
 		   "\nIt should have a transcript feature line followed by it's exon feature lines.\n\nExample:\n--------\n".
 		   qq/chr3\tCufflinks\ttranscript\t30549662\t30551349\t1000\t-\t.\tgene_id "CUFF.22498"; transcript_id "CUFF.22498.1"; FPKM "2.5052666329"; frac "1.000000"; conf_lo "1.676755"; conf_hi "3.353509"; cov "4.749121";\n/ .
 		   qq/chr3\tCufflinks\texon\t30549662\t30550273\t1000\t-\t.\tgene_id "CUFF.22498"; transcript_id "CUFF.22498.1"; exon_number "1"; FPKM "2.5052666329"; frac "1.000000"; conf_lo "1.676755"; conf_hi "3.353509"; cov "4.749121";\n/ .
-		   qq/chr3\tCufflinks\texon\t30551033\t30551349\t1000\t-\t.\tgene_id "CUFF.22498"; transcript_id "CUFF.22498.1"; exon_number "2"; FPKM "2.5052666329"; frac "1.000000"; conf_lo "1.676755"; conf_hi "3.353509"; cov "4.749121";\n/);
+		   qq/chr3\tCufflinks\texon\t30551033\t30551349\t1000\t-\t.\tgene_id "CUFF.22498"; transcript_id "CUFF.22498.1"; exon_number "2"; FPKM "2.5052666329"; frac "1.000000"; conf_lo "1.676755"; conf_hi "3.353509"; cov "4.749121";\n/ .
+		     qq/\nYour File:\n----------\n/ . $io->execute_get_sys_cmd_output("head -n 3 $file"), 'INFO!');
+	$io->warning('Sit back and relax. We got it covered ... Formatting the GTF file to process with lncRNApipe.', 'INFO!');
+	$file = format_gtf($file);
     }
-
-    return;
+    return $file;
 }
+
+# Format all the exon "only" features to "transcript-exon" in the GTF file.
+sub format_gtf {
+    my $gtf = shift;
+    my $gtf_fh = $io->open_file('<', $gtf);
+    my $formatted_gtf = $output . $io->file_basename($gtf) . '.formatted.gtf';
+    my $formatted_gtf_fh = $io->open_file('>', $formatted_gtf);
+    my $tr_ids = {};
+    my $tr_lines = {};
+
+    while (my $line = <$gtf_fh>) {
+	chomp $line;
+	$io->error('Did not find "transcript_id" tag-value pair in the GTF file [ ' . $io->file_basename($gtf) . ' ].' .
+		   "\nError occured on the following line:\n\n" . $line . "\n")
+	    if ($line !~ m/.+?transcript_id\s+\".+?\"/i);
+	$line =~ s/class_code\s+\W.+?\W+//;
+	(my $transcript_id) = ($line =~ m/.+?transcript_id\s+\"(.+?)\"/i);
+	my @gtf_cols = split/\t/, $line;
+	push @{$tr_ids->{$transcript_id}}, $gtf_cols[3];
+	push @{$tr_ids->{$transcript_id}}, $gtf_cols[4];
+	push @{$tr_lines->{$transcript_id}}, "$line\n";
+    }
+    close $gtf_fh;
+
+    foreach my $tr_id (keys %$tr_ids) {
+	my @bounds = sort { $a <=> $b } @{$tr_ids->{$tr_id}};
+	my $tr_line = @{$tr_lines->{$tr_id}}[0];
+	$tr_line =~ s/(.+?\t.+?\t)exon(\t)\d+\t\d+(.+?)exon_number\s+\W\d+\W+(.*)/$1transcript$2$bounds[0]\t$bounds[$#bounds]$3$4/;
+	print $formatted_gtf_fh $tr_line;
+	print $formatted_gtf_fh @{$tr_lines->{$tr_id}};
+    }
+    return $formatted_gtf;
+}
+
 
 # Remove categories that do not sync with cuffcompare
 sub sync_categories {
@@ -1127,6 +1163,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-19-2014
+Feb-24-2014
 
 =cut

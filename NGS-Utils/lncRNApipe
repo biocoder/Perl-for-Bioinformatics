@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-24-02 07:30:27 -0500 (Tue, 24 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.7.2 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-24-02 01:30:27 -0500 (Tue, 24 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.7.3 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -197,32 +197,39 @@ sub run_lncRNApipe {
 					       "$0 -h cat" . "' for required options.") if ($categorize_sc_opts !~ m/sample/);
 	    
 	    my ($tr_files, $tr_size) = get_num_tr_files($cuffcmp_opts);
-	    my $annot = get_annot($cuffcmp_opts);
-	    #$num_cpu_by_2 = sprintf("%.0f", $num_cpu / ($tr_size + 1)) - 1 if (defined $num_cpu);
-	    #$num_cpu_by_2 = 1 if ($num_cpu_by_2 == 0);
-	    
-	    $io->c_time('Converting annotation file supplied with cuffcompare to gene prediction format [ GTF -> genePred ]');
-	    my $annot_for_cat = $cat_dir . '/' . $io->file_basename($annot) . '.txt';
-	    
-	    $is_failed = $io->execute_get_sys_cmd_output($deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
-							 $annot . ' ' . $annot_for_cat,
-							 "Command call:\n" .
-							 "-------------\n" .
-							 $deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
-							 $annot . ' ' . $annot_for_cat);
 
+	    my $annot_for_cat = '';
+	    if ($categorize_sc_opts !~ m/-ann.*?\s+.+/) { 
+		my $annot = get_annot($cuffcmp_opts);
+		
+		$io->c_time('Converting annotation file supplied with cuffcompare to gene prediction format [ GTF -> genePred ]');
+		$annot_for_cat = '-annot ' . $cat_dir . '/' . $io->file_basename($annot) . '.txt';
+		
+		my $gtfToGenePred_failed = $is_failed = $io->execute_get_sys_cmd_output($deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
+											$annot . ' ' . $cat_dir . '/' . $io->file_basename($annot) . '.txt',
+											"Command call:\n" .
+											"-------------\n" .
+											$deps->{'bin-gtfToGenePred'} . ' -genePredExt -geneNameAsName2 ' .
+											$annot . ' ' . $cat_dir . '/' . $io->file_basename($annot) . '.txt');
+		
+		$gtfToGenePred_failed =~ s/[\s\r\n]+//g;
+		$io->error('gtfToGenePred quit with the following error:' . "\n\n$is_failed\nBailing out!"),
+		$lncRNApipe_succ = 0
+		    if ($gtfToGenePred_failed =~ m/invalid|error|not/i);
+	    }
+	    
 	    $categorize_sc_opts .= " -cpu $num_cpu" if (defined $num_cpu);
 	    
 	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'cat'} . ' ' .
 							 join('-', split(/\-|\--/, $categorize_sc_opts)) .
 							 " -cuffcmp $cuffcmp_dir/lncRNApipe_cuffcmp.tracking -out $cat_dir " .
-							 "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot_for_cat . ' ' .
+							 "-bin $deps->{'bin-gtfToGenePred'} " . $annot_for_cat . ' ' .
 							 $tr_files, 
 							 "Command call:\n" .
 							  "-------------\n" . $deps->{'cat'} . ' ' . 
 							 join('-', split(/\-|\--/, $categorize_sc_opts)) . 
 							 " -cuffcmp $cuffcmp_dir/lncRNApipe_cuffcmp.tracking -out $cat_dir " .
-							 "-bin $deps->{'bin-gtfToGenePred'} " . '-annot ' . $annot_for_cat . ' ' .
+							 "-bin $deps->{'bin-gtfToGenePred'} " . $annot_for_cat . ' ' .
 							 $tr_files);
 	}
 	else {
@@ -1201,7 +1208,9 @@ sub get_num_trs {
 sub get_annot {
     my $cmd_args = shift;
     my $annot_file = '';
+    
     ($annot_file) = ($cmd_args =~ m/.*?-r\s+(.+?)\s+.*/i);
+    
     return $annot_file;
 }
 
