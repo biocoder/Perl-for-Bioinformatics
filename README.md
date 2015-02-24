@@ -10,6 +10,8 @@ IO::Routine [![Build Status](https://api.travis-ci.org/biocoder/Perl-for-Bioinfo
 
 * If you are installing **lncRNApipe** Pipeline, `IO::Routine` module is automatically installed.
 
+* Requires `Bio::SeqIO` module be installed and available.
+
 ☲☴ lncRNApipe [![Build Status](https://api.travis-ci.org/biocoder/Perl-for-Bioinformatics.png?branch=master)](https://travis-ci.org/biocoder/Perl-for-Bioinformatics)
 --------------------------
 * A pipeline to extract putative novel lncRNAs ab initio, given a list of transcripts in GTF format assembled from deep sequencing data (ex: RNA-Seq) and annotation data.
