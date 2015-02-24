@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-23-02 12:30:27 -0500 (Mon, 23 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.7.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-24-02 07:30:27 -0500 (Tue, 24 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.7.2 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -58,7 +58,7 @@ if (defined $num_cpu) {
 else {
     $num_cpu_by_2 = 1;
 }
-$inf_cov = 75 if (!defined $inf_cov);
+$inf_cov = 10 if (!defined $inf_cov);
 
 if (!$is_valid_option) {
     die "\nInvalid / No Option(s) Provided:$! See $0 -help for valid options.\n\n";
@@ -562,7 +562,7 @@ sub run_lncRNApipe {
 		    $io->c_time('Filtering transcripts [ ' . $io->file_basename($unique_gtf, 'suffix') . ' ] ...');    
 		
 		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -f 1 | " .
-						"while read trid; do find $RNAfold_dir -type f -name \${trid//\\./\\\\.}\\*fstruct\\*" .
+						"while read trid; do find $RNAfold_dir -type f -name \${trid//\\./\\\\.}_fstruct.ps" .
 						" -exec mv -t $RNAfold_dir_final" . "/\ {} \\;; done;");
 		}
 		else {
@@ -1516,11 +1516,11 @@ The final output is a putative list of annotated lncRNAs in GTF format that can 
 
 =item * CPC predictions are stored in a directory called "CPC".
 
-=item * The final result files are stored in a directory called lncRNApipe.final and have a suffix '.final.gtf'.
+=item * The final result files are stored in a directory called "lncRNApipe.final" and have a suffix '.final.gtf'.
 
-=item * The RNAfold plots are stored in directories inside lncRNApipe.final directory ending in suffix '.final.RNAfold'.
+=item * The RNAfold plots are stored in directories inside "lncRNApipe.final" directory ending in suffix '.final.RNAfold'.
 
-=item * The result files from cmscan (Infernal) are stored in directories inside lncRNApipe.final directory ending with suffix '.infernal'. The file ending in suffix '.allInfernalHits.gtf' contains all RNA hmm and cm model matches from cmscan (Infernal) and the best hit is applied to file ending in suffix '.final.gtf' based on the sequence coverage (--coverage-infernal) filter requested.
+=item * The result files from cmscan (Infernal) are stored in directories inside "lncRNApipe.final" directory ending with suffix '.infernal'. The file ending in suffix '.allInfernalHits.gtf' contains all RNA hmm and cm model matches from cmscan (Infernal) and the best hit is applied to file ending in suffix '.final.gtf' based on the sequence coverage (--coverage-infernal) filter requested.
 
 =back
 
@@ -1659,7 +1659,7 @@ annotation from infernal and attempt to annotate putative novel lncRNAs.
 =item -cov-inf or --coverage-infernal
 
 Only annotate final putative lncRNAs which have cmscan match over this much percentage of sequence.
-Default: 75
+Default: 10
 
 =item -cpu or --cpu
 
@@ -1679,6 +1679,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-23-2015
+Feb-24-2015
 
 =cut
