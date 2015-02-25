@@ -9,7 +9,7 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-24-02 01:30:27 -0500 (Tue, 24 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-25-02 15:45:27 -0500 (Wed, 25 Feb 2015)  $ =~ m/.+?\:(.+)/;
 my ($VERSION) = q$LastChangedRevision: 0.7.3 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
@@ -336,7 +336,7 @@ sub run_lncRNApipe {
         my $cat_dir = $outdir . 'fetch_seq_from_ucsc';
 
 	# Use local reference FASTA instead of fetching, if provided with cuffcompare
-	($local_ref_seq) = ($cuffcmp_opts =~ m/.*?-s\s+(.+?)\s+.*/);	
+	($local_ref_seq) = ($cuffcmp_opts =~ m/.*?-s\s+(.+?)\s+.*/) if ($cuffcmp_opts);	
 	if ($local_ref_seq && -s $local_ref_seq && -e $local_ref_seq) {
 	    $io->warning('Using local FASTA reference [ ' . $io->file_basename($local_ref_seq, 'suffix') . ' ] to fetch sequences to maintain consistency.' .
 			 "\n** Requires Bio::SeqIO module to be installed and available **", 'INFO!!');
@@ -1688,6 +1688,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-24-2015
+Feb-25-2015
 
 =cut

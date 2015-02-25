@@ -10,8 +10,8 @@ use XML::XPath::XMLParser;
 use IO::Routine;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-19-02 15:45:27 -0500 (Wed, 19 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.7.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-25-02 15:45:27 -0500 (Wed, 25 Feb 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0704 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 # Declare initial global variables
@@ -266,7 +266,7 @@ foreach my $unique_seq_id (keys %$transcripts) {
 	    my $xml = get("http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=" . $contig_id->{$unique_seq_id} . ":$exon_start,$exon_end");
 	    $io->error('UCSC DAS did not return any sequence for database ' . $dbkey .
 		       ".\nQueried: http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=" . $contig_id->{$unique_seq_id} . ":$exon_start,$exon_end")
-		if (!$xml || $xml eq '');
+		if (!$xml || $xml eq '' || $xml !~ m/.*?<\/DNA>/i);
 	    my $xpath = XML::XPath->new(xml=>$xml);
 	    my $xml_nodes = $xpath->find('/DASDNA/SEQUENCE/DNA/text()');
 	    my $sub_seq = return_seq(\$xml_nodes, $unique_seq_id);
@@ -481,6 +481,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-19-2015
+Feb-25-2015
 
 =cut
