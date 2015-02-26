@@ -1,7 +1,8 @@
-Bioinformatics tools written in Perl
+Bioinformatics tools written in Perl 
 ====================================
 
 [![Join the chat at https://gitter.im/biocoder/Perl-for-Bioinformatics](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/biocoder/Perl-for-Bioinformatics?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Most of the scripts here were written while I was working on different projects, which I think will be useful to others and can be extended / modified per there needs.
 
 IO::Routine [![Build Status](https://api.travis-ci.org/biocoder/Perl-for-Bioinformatics.png?branch=master)](https://travis-ci.org/biocoder/Perl-for-Bioinformatics)
