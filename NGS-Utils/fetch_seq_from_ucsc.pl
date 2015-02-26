@@ -116,11 +116,13 @@ if (defined $local_ref_fa) {
     $ref_fa_in = Bio::SeqIO->new(-file => $local_ref_fa,
 				    -format => 'fasta');
     $contigs = {};
+    $io->c_time("Storing reference FASTA in memory...\n");
 
     while (my $seq_in = $ref_fa_in->next_seq) {
-	$io->c_time('Storing reference FASTA [ ID: ' . lc($seq_in->id) . ' ] in memory...');
 	$contigs->{lc($seq_in->id)} = $seq_in;
+	print STDOUT 'FASTA record for ' . lc($seq_in->id) . " stored in memory... \n" if (!$quiet);
     }
+    $io->c_time('Now fetching FASTA for transcripts...');
 }
 
 # For some clean output
@@ -180,12 +182,10 @@ while (my $line = <$tmap_fh>) {
     $unique_seq_id .= " $u_seq_desc";
     $unique_seq_id = $io->strip_leading_and_trailing_spaces($unique_seq_id);
 
-
-    if ($chr_id !~ m/^chr/i &&
-	$chr_start !~ m/^\d+$/ &&
+    if ($chr_start !~ m/^\d+$/ ||
 	$chr_end !~ m/^\d+$/) {
 	$io->error("Cannot find chromosome information in columns...\n".
-		   "\nEncountered line is:\n" .
+		   "\nEncountered line is:\n\n" .
 		   $line);
     }
 
