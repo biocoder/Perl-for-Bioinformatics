@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-16-04 19:45:27 -0500 (Thu, 16 Apr 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.7.5 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-17-04 12:45:27 -0500 (Fri, 17 Apr 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.7.6 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -28,7 +28,7 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'run=s'                            => \$out, 
 				 'cuffcompare|cuffcmp=s'            => \$cuffcmp_opts,
 				 'cat-ncRNAs=s'                     => \$categorize_sc_opts,
-				 'fetch-seq=s'                      => \$fetch_sc_opts,
+				 'fetch-seq:s'                      => \$fetch_sc_opts,
 				 'get-uq-feat=s'                    => \$get_uq_sc_opts,
 				 'cpc'                              => \$start_cpc,
 				 'rnafold:s'                        => \$start_rnafold,
@@ -59,6 +59,7 @@ else {
     $num_cpu_by_2 = 1;
 }
 $inf_cov = 10 if (!defined $inf_cov);
+$skip_get_uq = 1 if (!defined $get_uq_sc_opts);
 
 if (!$is_valid_option) {
     die "\nInvalid / No Option(s) Provided:$! See $0 -help for valid options.\n\n";
@@ -348,7 +349,7 @@ sub run_lncRNApipe {
         my $cat_dir = $outdir . 'fetch_seq_from_ucsc';
         
 	$io->execute_system_command("mkdir -p $cat_dir",
-                                    'Making output directory for ' . $io->file_basename($deps->{'get'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
+                                    'Making output directory for ' . $io->file_basename($deps->{'fetch'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
             if (!-d $cat_dir);
 
 	if (defined $skip_get_uq) {
@@ -424,8 +425,7 @@ sub run_lncRNApipe {
 
 	    $lncRNApipe_unique_seq_file = $outdir . 'fetch_seq_from_ucsc/' . $lncRNApipe_unique_seq_file;
 	    my $lncRNApipe_unique_seq_noncoding_file = $outdir . 'fetch_seq_from_ucsc/' . 
-		$io->file_basename($lncRNApipe_unique_seq_file) .
-		'.noncoding.FASTA';
+		$io->file_basename($lncRNApipe_unique_seq_file) . '.noncoding.FASTA';
 	    my $CPC_out_file = $cat_dir . '/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.CPC.predict.txt';
 	    my $cpc_work_dir = $cat_dir . '/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.CPC.out' ;
 	    my $lncRNApipe_final_trs = $lncRNApipe_final . '/' . $io->file_basename($lncRNApipe_unique_seq_file) . '.final.gtf';
@@ -1692,6 +1692,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Apr-16-2015
+Apr-17-2015
 
 =cut

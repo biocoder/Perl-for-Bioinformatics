@@ -6,8 +6,8 @@
 # Coordinate with lncRNApipe output to parse out and add Infernal annotation to final ncRNA transcripts.
 
 # $LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-# $LastChangedDate: 2015-23-02 12:30:27 -0500 (Mon, 23 Feb 2015)  $ =~ m/.+?\:(.+)/;
-# $LastChangedRevision: 0.7.2 $ =~ m/.+?\:\s*(.*)\s*.*/;
+# $LastChangedDate: 2015-17-04 12:45:27 -0500 (Fri, 17 Apr 2015)  $ =~ m/.+?\:(.+)/;
+# $LastChangedRevision: 0706 $ =~ m/.+?\:\s*(.*)\s*.*/;
 # $AUTHORFULLNAME = 'Kranti Konganti';
 
 if [  -z "$FINAL_GTF" ]  ||
@@ -42,9 +42,10 @@ grep noncoding $CPC_TXT_OUT | cut -f 1 | sort -n | uniq | while read unetrid; do
 	annot="$annot | SequenceCoverage: $calc_cov$per_symb";
     fi 
 
-    grep_trid="\\\""$trid"\\\"";
-    grep -P $grep_trid $FINAL_GTF | sed 's/Infernal.*//' | sed "s/$/Infernal_prediction \"$annot\"\;/";
-    
+    grep -P "\"$trid\"" $FINAL_GTF | sed "s/Infernal.*//" | while read chr_loc source feature chr_st chr_en score strand frame attributes; do
+	echo -e "$chr_loc\t$source\t$feature\t$chr_st\t$chr_en\t$score\t$strand\t$frame\t$attributes Infernal_prediction \"$annot\";";
+    done
+
     inf_ann_id=0;
     grep -P "\s+$trid\s+" $CM_TXT_OUT |  while read gene_name gene_id query q_acc mdl mdl_from mdl_to seq_from seq_to strand trunc pass gc bias score e_value inc desc; do
 	inf_ann_id=$(($inf_ann_id + 1));
@@ -62,7 +63,8 @@ grep noncoding $CPC_TXT_OUT | cut -f 1 | sort -n | uniq | while read unetrid; do
 	else
 	    signi="no";
 	fi
-	
-	echo -e "$contig_id\tlncRNApipe-Infernal\texon\t$inf_match_st\t$inf_match_en\t$score\t$strand\t.\tgene_id \"$gene_id\"; gene_name \"$gene_name\"; transcript_id \"${unetrid}.${inf_ann_id}\"; exon_number \"1\" e_value \"$e_value\"; significant_match \"$signi\"; description \"$desc\";" >> $INF_GTF;
+
+	echo -e "$contig_id\tlncRNApipe-Infernal\texon\t$inf_match_st\t$inf_match_en\t$score\t$strand\t.\tgene_id \"${unetrid}\"; transcript_id \"${unetrid}.${inf_ann_id}\"; Rfam_match_gene_id \"$gene_id\"; Rfam_match_gene_name \"$gene_name\"; exon_number \"1\" e_value \"$e_value\"; significant_match \"$signi\"; description \"$desc\";" >> $INF_GTF;
+    
     done;
 done;
