@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-25-02 15:45:27 -0500 (Wed, 25 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.7.4 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-16-04 19:45:27 -0500 (Thu, 16 Apr 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.7.5 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -322,6 +322,18 @@ sub run_lncRNApipe {
 		
     } if (defined($get_uq_sc_opts) && $get_uq_sc_opts ne '');
     
+
+    # Find out if local FASTA mentioned with cuffcompare before running fetch_seq_from_ucsc.pl ########
+    my $local_ref_seq = '';
+
+    # Use local reference FASTA instead of fetching, if provided with cuffcompare
+    ($local_ref_seq) = ($cuffcmp_opts =~ m/.*?-s\s+(.+?)\s+.*/) if ($cuffcmp_opts);	
+    if ($local_ref_seq && -s $local_ref_seq && -e $local_ref_seq) {
+	$io->warning('Using local FASTA reference [ ' . $io->file_basename($local_ref_seq, 'suffix') . ' ] to fetch sequences to maintain consistency.' .
+		     "\n** Requires Bio::SeqIO module to be installed and available **", 'INFO!!');
+	    $fetch_sc_opts = "-local $local_ref_seq";
+    }
+    
     # Run fetch_seq_from_ucsc.pl ######################################################################
     do {
 
@@ -332,16 +344,8 @@ sub run_lncRNApipe {
 
 	module_header($io, 'Module 4: Running fetch_seq_from_ucsc.pl');
 	
-	my $is_failed = my $local_ref_seq = '';
+	my $is_failed = '';
         my $cat_dir = $outdir . 'fetch_seq_from_ucsc';
-
-	# Use local reference FASTA instead of fetching, if provided with cuffcompare
-	($local_ref_seq) = ($cuffcmp_opts =~ m/.*?-s\s+(.+?)\s+.*/) if ($cuffcmp_opts);	
-	if ($local_ref_seq && -s $local_ref_seq && -e $local_ref_seq) {
-	    $io->warning('Using local FASTA reference [ ' . $io->file_basename($local_ref_seq, 'suffix') . ' ] to fetch sequences to maintain consistency.' .
-			 "\n** Requires Bio::SeqIO module to be installed and available **", 'INFO!!');
-	    $fetch_sc_opts = "-local $local_ref_seq";
-	}
         
 	$io->execute_system_command("mkdir -p $cat_dir",
                                     'Making output directory for ' . $io->file_basename($deps->{'get'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
@@ -1688,6 +1692,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-25-2015
+Apr-16-2015
 
 =cut

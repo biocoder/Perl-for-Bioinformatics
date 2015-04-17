@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-19-02 01:30:27 -0500 (Tue, 24 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0703 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-16-04 19:45:27 -0500 (Thu, 16 Apr 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0705 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -890,7 +890,12 @@ sub format_gtf {
     foreach my $tr_id (keys %$tr_ids) {
 	my @bounds = sort { $a <=> $b } @{$tr_ids->{$tr_id}};
 	my $tr_line = @{$tr_lines->{$tr_id}}[0];
-	$tr_line =~ s/(.+?\t.+?\t)exon(\t)\d+\t\d+(.+?)exon_number\s+\W\d+\W+(.*)/$1transcript$2$bounds[0]\t$bounds[$#bounds]$3$4/;
+	if ($tr_line =~ m/exon\_number/i) { 
+	    $tr_line =~ s/(.+?\t.+?\t)exon(\t)\d+\t\d+(.+?)exon_number\s+\W\d+\W+(.*)/$1transcript$2$bounds[0]\t$bounds[$#bounds]$3$4/;
+	}
+	else {
+	    $tr_line =~ s/(.+?\t.+?\t)exon(\t)\d+\t\d+(.*)/$1transcript$2$bounds[0]\t$bounds[$#bounds]$3/;
+	}
 	print $formatted_gtf_fh $tr_line;
 	print $formatted_gtf_fh @{$tr_lines->{$tr_id}};
     }
@@ -1163,6 +1168,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-24-2014
+Apr-16-2015
 
 =cut

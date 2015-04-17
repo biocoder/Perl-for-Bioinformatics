@@ -10,8 +10,8 @@ use XML::XPath::XMLParser;
 use IO::Routine;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-25-02 15:45:27 -0500 (Wed, 25 Feb 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0704 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-16-04 20:45:27 -0500 (Thu, 16 Apr 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0705 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 # Declare initial global variables
@@ -208,7 +208,7 @@ foreach my $unique_seq_id (keys %$transcripts) {
     my $unchanged_contig_id = $contig_id->{$unique_seq_id};
     $contig_id->{$unique_seq_id} =~ s/chr//;
 
-    my $fetched_seq = $io->execute_get_sys_cmd_output("grep -A 1 \'$unique_seq_id\' $fa");
+    my $fetched_seq = $io->execute_get_sys_cmd_output("grep -A 1 -P \'\^\>$unique_seq_id\\s+\' $fa");
     chomp $fetched_seq;
 
     if (defined $ncbi_gi) {
@@ -481,6 +481,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-25-2015
+Apr-16-2015
 
 =cut
