@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-16-04 19:45:27 -0500 (Thu, 16 Apr 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0705 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-20-04 01:45:27 -0500 (Mon, 20 Apr 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0707 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -18,7 +18,7 @@ my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
     $antisense_only, $disp_anti_option, $gtf_bin, $num_cpu,
     $linc_rna_prox, $ncRNA_max_length, $extract_pat_user,
-    $ignore_genePred_err, $full_read_supp);
+    $ignore_genePred_err, $full_read_supp, $rescue);
 
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 my $ncRNA_class = {};
@@ -46,7 +46,8 @@ my $is_valid_option = GetOptions('help|?'              => \$help,
 				 'linc-rna-prox=i'     => \$linc_rna_prox,
 				 'full-read-support'   => \$full_read_supp,
 				 'ignore-genePred-err' => \$ignore_genePred_err,
-				 'extract-pattern=s'   => \$extract_pat_user);
+				 'extract-pattern=s'   => \$extract_pat_user,
+				 'rescue-categories'   => \$rescue);
 
 my $io = IO::Routine->new($help, $quiet);
 my $s_time = $io->start_timer;
@@ -334,43 +335,46 @@ sub class_ncRNAs {
 	$io->c_time('Categorizing and syncing lncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 
-	sync_categories();
+	if (!defined $rescue) {
 
-	# Numbers may have changed. Redo counts. Keep original found counts for future reference.
-
-	chomp (my $num_re_lincs = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?lincrna' $c_ncRNAs | wc -l"));
-	$num_lincs = 0 if ($num_lincs =~ m/^could not capture/i);
-
-	chomp (my $num_re_concs = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?conc' $c_ncRNAs | wc -l"));
-	$num_concs = 0 if ($num_concs =~ m/^could not capture/i);
-
-	chomp (my $num_re_poncs = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?ponc' $c_ncRNAs | wc -l"));
-	$num_poncs = 0 if ($num_poncs =~ m/^could not capture/i);
-
-	chomp (my $num_re_incs = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?inc.+?intronic' $c_ncRNAs | wc -l"));
-	$num_incs = 0 if ($num_incs =~ m/^could not capture/i);
-
-	chomp (my $num_re_ex_ov = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?exonic\\s+overlap' $c_ncRNAs | wc -l"));
-	$num_ex_ov = 0 if ($num_ex_ov =~ m/^could not capture/i);
-
-	chomp (my $re_no_class = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t' $u_ncRNAs | wc -l"));
-        $re_no_class = 0 if ($re_no_class =~ m/^could not capture/i);
-
+	    sync_categories();
+	    
+	    # Numbers may have changed. Redo counts.
+	    
+	    chomp ($num_lincs = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?lincrna' $c_ncRNAs | wc -l"));
+	    $num_lincs = 0 if ($num_lincs =~ m/^could not capture/i);
+	    
+	    chomp ($num_concs = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?conc' $c_ncRNAs | wc -l"));
+	    $num_concs = 0 if ($num_concs =~ m/^could not capture/i);
+	    
+	    chomp ($num_poncs = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?ponc' $c_ncRNAs | wc -l"));
+	    $num_poncs = 0 if ($num_poncs =~ m/^could not capture/i);
+	    
+	    chomp ($num_incs = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?inc.+?intronic' $c_ncRNAs | wc -l"));
+	    $num_incs = 0 if ($num_incs =~ m/^could not capture/i);
+	    
+	    chomp ($num_ex_ov = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?exonic\\s+overlap' $c_ncRNAs | wc -l"));
+	    $num_ex_ov = 0 if ($num_ex_ov =~ m/^could not capture/i);
+	    
+	    chomp ($noclass = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t' $u_ncRNAs | wc -l"));
+	    $noclass = 0 if ($noclass =~ m/^could not capture/i);
+	}
+	    
 	$io->c_time("\n\nlncRNA Summary [ " . $io->file_basename($c_ncRNAs, 'suffix') . " ] :\n" . 
 		    "-----------------------------------------------------------------------\n" .
 		    "Total number of input transcripts: $total_nc_trs_before_cat\n" .
-		    "LincRNAs: $num_re_lincs\n" . 
-		    "Intronic overlaps - Concs: $num_re_concs\n" .
-                    "Intronic overlaps - Poncs: $num_re_poncs\n" . 
-		    "Intronic overlaps - Incs: $num_re_incs\n" . 
-		    "Exonic overlaps: $num_re_ex_ov\n" . 
-		    "Total categorized: " . ($num_re_lincs + 
-					     $num_re_concs + 
-					     $num_re_incs + 
-					     $num_re_ex_ov +
-					     $num_re_poncs) . 
+		    "LincRNAs: $num_lincs\n" . 
+		    "Intronic overlaps - Concs: $num_concs\n" .
+                    "Intronic overlaps - Poncs: $num_poncs\n" . 
+		    "Intronic overlaps - Incs: $num_incs\n" . 
+		    "Exonic overlaps: $num_ex_ov\n" . 
+		    "Total categorized: " . ($num_lincs + 
+					     $num_concs + 
+					     $num_incs + 
+					     $num_ex_ov +
+					     $num_poncs) . 
 		    "\nUncategorized: " . 
-		    $re_no_class . "\n" );
+		    $noclass . "\n" );
 	
 	$cpu->finish if (defined $num_cpu);
     }
@@ -1017,11 +1021,13 @@ categorize_ncRNAs.pl takes the following arguments:
 =item -cuff or --cuffcmp (Required)
 
     Path to Cuffcompare tracking file.
+    
     Ex: cuffcmp.tracking
 
 =item -annot or --annotation (Required)
 
     Path to annotation file in Gene Prediction format.
+    
     Ex: refGene.txt
 
 =item --out (Required)
@@ -1031,7 +1037,18 @@ categorize_ncRNAs.pl takes the following arguments:
 =item -sample or --sample-names (Required)
 
     Sample names in order of supplied transcripts files.
+  
     Ex: --sample-names 'Sample1,Sample2,Sample3';
+
+=item -rescue or --rescue-categories (Optional)
+
+    Keep the transcripts that have been assigned a category that is
+    different from cuffcompare assigned class code.
+    
+    Ex: class_code "i" means, A transfag falling entirely within reference intron.
+    If categorize_ncRNAs.pl assigns other than "Intronic" category to this transcript,
+    this option will still keep it. This may be useful sometimes to investigate 
+    incorrect class_code and lncRNA categories.
 
 =item -fpkm or --fpkm-cutoff (Optional)
 
@@ -1168,6 +1185,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Apr-16-2015
+Apr-20-2015
 
 =cut
