@@ -9,7 +9,7 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-20-04 01:45:27 -0500 (Mon, 20 Apr 2015)  $ =~ m/.+?\:(.+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-21-04 17:45:27 -0500 (Tue, 21 Apr 2015)  $ =~ m/.+?\:(.+)/;
 my ($VERSION) = q$LastChangedRevision: 0707 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
@@ -433,9 +433,11 @@ sub calc_lincRNAs {
 	 
 	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" .
                 @$nc_exon_starts . @$nc_exon_ends;
-	  
+	
 	    # Skip if non-coding transcript length is more than user defined max length
 	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
+	    $io->error("Exon start [ $nc_tr_start ] is greater than Exon end [ $nc_tr_end  ] for $nc_tr_id")
+		if ($ncRNA_length < 0);
 	    next if ( (defined $ncRNA_max_length) && ($ncRNA_length > $ncRNA_max_length) );
 	   
 	    my $ov_found = $ref_gene_tree->fetch($nc_tr_start, $nc_tr_end);
@@ -471,7 +473,6 @@ sub calc_lincRNAs {
 		$nc_exons >= $min_exons) {
 		$found++;
 		$ncRNA_class->{$unique_key} = 1;
-
 		$io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
 	    }
 	    elsif (!exists $ncRNA_class->{$unique_key} &&
@@ -517,6 +518,8 @@ sub calc_overlaps {
 
 	    # Skip if non-coding transcript length is more than user defined max length
 	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
+	    $io->error("Exon start [ $nc_tr_start ] is greater than Exon end [ $nc_tr_end  ] for $nc_tr_id")
+		if ($ncRNA_length < 0);
 	    next if ( (defined $ncRNA_max_length) && ($ncRNA_length > $ncRNA_max_length) );
 
 	    $nc_int_tree->insert($nc_tr_id, $nc_tr_start, $nc_tr_end) if ($mode =~ m/^ponc|conc$/i);
@@ -916,7 +919,8 @@ sub sync_categories {
 
 	$io->execute_system_command("cp $c_ncRNAs $c_ncRNAs_tmp") if (-e $c_ncRNAs);
 
-	$io->error('Cannot find *.tosync file while attempting to sync lncRNA categories')
+	$io->error("Cannot find *.tosync file while attempting to sync lncRNA categories.\n" . 
+		   'This may also mean that 0 transcripts have been categorized.')
 	    if (!-e $c_ncRNAs_tmp || !-s $c_ncRNAs_tmp);
 		
 	my $c_ncRNAs_tmp_fh = $io->open_file('<', $c_ncRNAs_tmp);
@@ -940,7 +944,7 @@ sub sync_categories {
 	close $c_ncRNAs_tmp_fh;
 	close $c_ncRNAs_fh;
 	close $c_no_ncRNAs_fh;
-	#unlink $c_ncRNAs_tmp if (-e $c_ncRNAs_tmp);
+	unlink $c_ncRNAs_tmp if (-e $c_ncRNAs_tmp);
     }
     return;
 }
@@ -1156,11 +1160,11 @@ categorize_ncRNAs.pl takes the following arguments:
 
 =item --extract-pat (Optional)
 
-    Default: 'i|o|u|x'
+    Default: 'i|o|u|x|e'
 
     The script first extracts transcripts that belong to the Cufflinks'
-    class codes "x", "o", "i" and "u" or class codes "x", "o", "i", "u"
-    and "j" and generates the respective *putative_lncRNAs.gtf files.
+    class codes "x", "o", "i" and "u" or class codes "x", "o", "i", "u" and "j" 
+    and generates the respective *putative_lncRNAs.gtf files.
     If you want to extract transcripts belonging to class codes
     of your choice, use this option. For example, if you only
     want trancripts belonging to class codes i and u, use:
@@ -1185,6 +1189,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Apr-20-2015
+Apr-21-2015
 
 =cut

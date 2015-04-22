@@ -228,7 +228,12 @@ features from --categorize_ncRNAs.pl module.
 
 Run the CPC module. No options are required.
 
-=item --skip-cpc-core
+=item --skip-cpc
+
+Skip runnning CPC altogether. Use this option, if you think CPC is flagging a lot of
+your transcripts as "coding" and instead rely only on Infernal search results.
+
+=item --skip-blastall-core
 
 Skip runnning core CPC process once you know you have output from CPC.
 This option can be used when lncRNApipe fails for some reason after blastall
@@ -277,6 +282,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-24-2015
+Apr-22-2015
 
 =cut

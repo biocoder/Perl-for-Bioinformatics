@@ -9,8 +9,8 @@ use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-17-04 12:45:27 -0500 (Fri, 17 Apr 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.7.6 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-22-04 17:45:27 -0500 (Tue, 21 Apr 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.7.7 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -20,7 +20,8 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $num_cpu, $local_lib, $inf_cov, $skip_cpc_core,
     $skip_rnafold_core, $skip_cmscan_core,
     $lncRNApipe_ver_info, $no_update_check, 
-    $skip_get_uq, $lncRNApipe_succ, $num_cpu_by_2);
+    $skip_get_uq, $lncRNApipe_succ, $num_cpu_by_2,
+    $skip_cpc);
 
 my $is_valid_option = GetOptions('help:s'                           => \$help,
                                  'quiet'                            => \$quiet,
@@ -35,14 +36,15 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'rm-int-plots'                     => \$rm_int_plots,
 				 'infernal:s'                       => \$start_infernal,
 				 'cpu=i'                            => \$num_cpu,
-				 'skip-cpc-core'                    => \$skip_cpc_core,
+				 'skip-blastall-core'               => \$skip_cpc_core,
 				 'skip-rnafold-core'                => \$skip_rnafold_core,
 				 'skip-cmscan-core'                 => \$skip_cmscan_core,
 				 'coverage-infernal|cov-inf=f'      => \$inf_cov,
 				 'local-lib=s'                      => \$local_lib,
 				 'version'                          => \$lncRNApipe_ver_info,
 				 'no-update-chk|noup|d'             => \$no_update_check,
-				 'skip-get|skip-get-uq'             => \$skip_get_uq);
+				 'skip-get|skip-get-uq'             => \$skip_get_uq,
+				 'skip-cpc'                         => \$skip_cpc);
 
 # Initialize known defaults
 my $CAT_SC = 'categorize_ncRNAs.pl';
@@ -59,7 +61,7 @@ else {
     $num_cpu_by_2 = 1;
 }
 $inf_cov = 10 if (!defined $inf_cov);
-$skip_get_uq = 1 if (!defined $get_uq_sc_opts);
+$skip_get_uq = 1 if (defined $skip_get_uq || (!defined $get_uq_sc_opts && defined $fetch_sc_opts));
 
 if (!$is_valid_option) {
     die "\nInvalid / No Option(s) Provided:$! See $0 -help for valid options.\n\n";
@@ -322,22 +324,21 @@ sub run_lncRNApipe {
 	close lncRNApipe_categorize_mod;
 		
     } if (defined($get_uq_sc_opts) && $get_uq_sc_opts ne '');
-    
-
-    # Find out if local FASTA mentioned with cuffcompare before running fetch_seq_from_ucsc.pl ########
-    my $local_ref_seq = '';
-
-    # Use local reference FASTA instead of fetching, if provided with cuffcompare
-    ($local_ref_seq) = ($cuffcmp_opts =~ m/.*?-s\s+(.+?)\s+.*/) if ($cuffcmp_opts);	
-    if ($local_ref_seq && -s $local_ref_seq && -e $local_ref_seq) {
-	$io->warning('Using local FASTA reference [ ' . $io->file_basename($local_ref_seq, 'suffix') . ' ] to fetch sequences to maintain consistency.' .
-		     "\n** Requires Bio::SeqIO module to be installed and available **", 'INFO!!');
-	    $fetch_sc_opts = "-local $local_ref_seq";
-    }
-    
+        
     # Run fetch_seq_from_ucsc.pl ######################################################################
     do {
-
+	
+	# Find out if local FASTA mentioned with cuffcompare before running fetch_seq_from_ucsc.pl ########
+	my $local_ref_seq = '';
+	
+	# Use local reference FASTA instead of fetching, if provided with cuffcompare
+	($local_ref_seq) = ($cuffcmp_opts =~ m/.*?-s\s+(.+?)\s+.*/) if ($cuffcmp_opts);	
+	if ($local_ref_seq && -s $local_ref_seq && -e $local_ref_seq) {
+	    $io->warning('Using local FASTA reference [ ' . $io->file_basename($local_ref_seq, 'suffix') . ' ] to fetch sequences to maintain consistency.' .
+			 "\n** Requires Bio::SeqIO module to be installed and available **", 'INFO!!');
+	    $fetch_sc_opts = "-local $local_ref_seq";
+	}
+	
 	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
 	$lncRNApipe_succ = get_pipeline_status_code($cpu) if (defined $num_cpu);
 	my $uq_tr_feat_dir = 'get_unique_features';
@@ -476,28 +477,38 @@ sub run_lncRNApipe {
 	    } if (defined $start_cpc);
 	    
 	    # To resume the remaining 2 modules, we need to check for CPC prediction file and adjust the file.
-	    
-	    if (-e $CPC_out_file && -s $CPC_out_file) {
-		$io->c_time('Getting noncoding "only" transcripts [ from ' .
-			    $io->file_basename($unique_gtf, 'suffix') .
-			    " ] ...");
-		
-		$io->execute_system_command("grep noncoding $CPC_out_file | cut -f 1 | " .
-					    'while read trid; do grep -P "${trid//\./\\\.}\W" ' .
-					    "$unique_gtf; done &> $lncRNApipe_final_trs");
-		
-		$io->c_time('Creating FASTA for noncoding "only" transcripts [ from ' .
-			    $io->file_basename($unique_gtf, 'suffix') .
-			    " ] ...");
-		
-		$io->execute_system_command("grep noncoding $CPC_out_file | cut -f 1 | ".
-					    'while read trid; do grep -A 1 -P "${trid//\./\\\.}\W" ' .
-					    "$lncRNApipe_unique_seq_file; done &> $lncRNApipe_unique_seq_noncoding_file");
-		$lncRNApipe_unique_seq_file = $lncRNApipe_unique_seq_noncoding_file;
-	    }
-	    else {
-		$io->error('CPC prediction step seems to have failed... Bailing out!');
-		$lncRNApipe_succ = 0;
+
+	    if (!defined $skip_cpc) {
+		if (-e $CPC_out_file && -s $CPC_out_file) {
+		    $io->c_time('Getting noncoding "only" transcripts [ from ' .
+				$io->file_basename($unique_gtf, 'suffix') .
+				" ] ...");
+		    
+		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -f 1 | " .
+						'while read trid; do grep -P "${trid//\./\\\.}\W" ' .
+						"$unique_gtf; done &> $lncRNApipe_final_trs");
+		    
+		    $io->c_time('Creating FASTA for noncoding "only" transcripts [ from ' .
+				$io->file_basename($unique_gtf, 'suffix') .
+				" ] ...");
+		    
+		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -f 1 | ".
+						'while read trid; do grep -A 1 -P "${trid//\./\\\.}\W" ' .
+						"$lncRNApipe_unique_seq_file; done &> $lncRNApipe_unique_seq_noncoding_file");
+		    $lncRNApipe_unique_seq_file = $lncRNApipe_unique_seq_noncoding_file;
+		}
+		else {
+		    $lncRNApipe_succ = 0;
+		    $io->error("CPC prediction step seems to have failed... \n" .
+			       "See --skip-cpc if you do not want to run CPC altogether\n\nBailing out!");
+		}
+	    } 
+	    elsif (defined $skip_cpc) {
+		$io->c_time('Creating a place holder [ --skip-cpc requested ] ...');
+		$CPC_out_file = $lncRNApipe_final . '/.' . $io->file_basename($lncRNApipe_unique_seq_file) . '.ph';
+		$io->execute_system_command('grep -oP ">.+?\\s+" ' . $lncRNApipe_unique_seq_file . " | sed -e 's/>//g' | sed -e 's/\\s+\$//g' " .
+					    '| while read trid; do echo -e "${trid}\tnoncoding"; done > ' . $CPC_out_file);
+		$io->execute_system_command("cp $unique_gtf $lncRNApipe_final_trs");
 	    }
 
 	    # Do RNAfold and draw entropy plot ############################################################
@@ -513,6 +524,8 @@ sub run_lncRNApipe {
 		$io->c_time('Making directory for RNAfold predictions [ ' . $io->file_basename($RNAfold_dir_final, 'suffix') . ' ] ...');
 		$io->execute_system_command("mkdir -p $RNAfold_dir_final")			    
 		    if (!-d $RNAfold_dir_final);
+
+		$io->warning('CPC was not run! Will run RNAfold on all transcript models.') if (defined $skip_cpc);
 	
 		if (!defined $skip_rnafold_core) {
 	
@@ -576,9 +589,6 @@ sub run_lncRNApipe {
 						"while read trid; do find $RNAfold_dir -type f -name \${trid//\\./\\\\.}_fstruct.ps" .
 						" -exec mv -t $RNAfold_dir_final" . "/\ {} \\;; done;");
 		}
-		else {
-		    $io->warning('CPC was not run! Will run RNAfold on all transcript models.');
-		}
 
 		$io->c_time('Moving around files and cleaning up directories ...');
 		$io->execute_system_command("mv $RNAfold_dir/*.mfe $RNAfold_dir_final/.")
@@ -610,6 +620,8 @@ sub run_lncRNApipe {
 						"-------------\n" . $deps->{'cmscan'} . ' ' . $start_infernal . ' --tblout ' .
 						$tbl . ' ' . $deps->{'rfam_cm'} . ' ' . $lncRNApipe_unique_seq_file . ' &> ' . $raw);
 		}
+
+		$io->warning('CPC was not run! Will run Infernal on all transcript models.') if (defined $skip_cpc);
     
 		if (-e $CPC_out_file && -s $CPC_out_file) {
 		    $io->exist_sys_cmd(['sort', 'head', 'awk', 'uniq', 'mv', 'bc']);
@@ -635,9 +647,6 @@ sub run_lncRNApipe {
 		    $io->c_time('Moving around files...');
 		    $io->execute_system_command("mv $lncRNApipe_final_trs" . '.tmp ' . $lncRNApipe_final_trs);
 		}
-		else {
-		    $io->warning('CPC was not run! Will run Infernal on all transcript models.');
-		}
 	      		    
 	    } if (defined $start_infernal);
 
@@ -649,7 +658,7 @@ sub run_lncRNApipe {
 					     "Truncated output from  $cat_dir/*.CPC.predict.txt"); 
 					    
 		$io->error("Could not get final putative lncRNA count.\n" .
-			   "Try re-running the final module. Take a look at --skip-cpc-core, --skip-rnafold-core and --skip-cmscan-core options." .
+			   "Try re-running the final module. Take a look at --skip-blastall-core, --skip-rnafold-core and --skip-cmscan-core options." .
 			   "\nThis may also mean that the putative lncRNAs that were used with CPC may have all been flagged as \"coding\".");
 	    }
 	    else {
@@ -659,16 +668,18 @@ sub run_lncRNApipe {
 
 	    disp_ncRNA_counts($io, $lncRNApipe_final_trs, 'Final putative novel lncRNA count');
 	    $cpu->finish(0, {'lncRNApipe_test' => $lncRNApipe_succ}) if (defined $num_cpu);
+
+	    unlink $CPC_out_file if (defined $skip_cpc);
 	}
 	
 	$cpu->wait_all_children if (defined $cpu);
 	close lncRNApipe_fetch_seq_mod;
 	
-    } if (defined $start_cpc || defined $start_rnafold || defined $start_infernal);
+    } if (defined $start_cpc || defined $start_rnafold || defined $start_infernal || defined $skip_cpc);
 
     close $dep_tools_fh;
     close $pl_dep_paths_fh;
-    
+
     # \x{2633}
     if ($lncRNApipe_succ) {
 	$io->c_time("\x{2632}\x{2634} lncRNApipe Pipeline finished!");
@@ -728,6 +739,9 @@ sub setup_lncRNApipe {
 
     # rm
     check_util('rm');
+
+    # cp
+    check_util('cp');
 
     # mkdir
     check_util('mkdir');
@@ -1092,14 +1106,15 @@ sub pipeline_status {
     my $status = shift;
     my $msg = shift;
 
-    if ($status =~ m/ERROR\!|ERROR/i) {
+    if ($status =~ m/ERROR|STDERR/i) {
 	if ($msg) {
 	    print "\nERROR!\n------\n$msg\n";
 	}
-	elsif ($status !~ m/STDERR/i) {
-	    print $status;
+	else {
+	    print "\n$status\n";
 	}
-	return 0;
+	$self->c_time("\x{2632}\x{2634} lncRNApipe Pipeline aborted(?)\n\n");
+	exit;
     }
     elsif ($status !~ m/STDERR/i) {
 	print $status;
@@ -1310,21 +1325,23 @@ sub disp_ncRNA_counts {
     my $file = shift;
     my $total_desc = shift;
 
-    chomp (my $num_lincs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?lincrna' $file | wc -l"));
+    chomp (my $num_lincs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?lincrna.*?Infernal' $file | wc -l"));
     $num_lincs = 0 if ($num_lincs =~ m/^could not capture/i);
 
-    chomp (my $num_concs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?conc' $file | wc -l"));
+    chomp (my $num_concs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?conc.*?.*?Infernal' $file | wc -l"));
     $num_concs = 0 if ($num_concs =~ m/^could not capture/i);
     
-    chomp (my $num_poncs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?ponc' $file | wc -l"));
+    chomp (my $num_poncs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?ponc.*?.*?Infernal' $file | wc -l"));
     $num_poncs = 0 if ($num_poncs =~ m/^could not capture/i);    
 
-    chomp (my $num_incs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?inc.+?intronic' $file | wc -l"));
+    chomp (my $num_incs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?\"inc.+?intronic.*?.*?Infernal' $file | wc -l"));
     $num_incs = 0 if ($num_incs =~ m/^could not capture/i);
 
-    chomp (my $num_ex_ov = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?exonic\\s+overlap' $file | wc -l"));
+    chomp (my $num_ex_ov = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?exonic\\s+overlap.*?.*?Infernal' $file | wc -l"));
     $num_ex_ov = 0 if ($num_ex_ov =~ m/^could not capture/i);
 
+    chomp (my $num_inf_ann = $c_io->execute_get_sys_cmd_output("grep -viP '\ttranscript\t.+?No Annotation' $file | grep -iP '\ttranscript\t' | wc -l"));
+    $num_inf_ann = 0 if ($num_inf_ann =~ m/^could not capture/i);
 
     print("\n\nlncRNA Summary [ " . $c_io->file_basename($file, 'suffix') . " ] :\n" .
 	  "---------------------------------------------------------------------------------------\n" .
@@ -1337,8 +1354,10 @@ sub disp_ncRNA_counts {
 				$num_concs +
 				$num_incs +
 				$num_ex_ov +
-				$num_poncs) . 
+				$num_poncs) .
+	  "\nInfernal matches: $num_inf_ann\n" .
 	  "\n\n" );
+    
     
     return;
     
@@ -1643,7 +1662,12 @@ features from --categorize_ncRNAs.pl module.
 
 Run the CPC module. No options are required.
 
-=item --skip-cpc-core
+=item --skip-cpc
+
+Skip runnning CPC altogether. Use this option, if you think CPC is flagging a lot of
+your transcripts as "coding" and instead rely only on Infernal search results.
+
+=item --skip-blastall-core
 
 Skip runnning core CPC process once you know you have output from CPC.
 This option can be used when lncRNApipe fails for some reason after blastall
@@ -1692,6 +1716,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Apr-17-2015
+Apr-22-2015
 
 =cut
