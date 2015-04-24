@@ -1516,7 +1516,7 @@ To get help documentation about this module, run:
     
  perl lncRNApipe --h rna
 
-=item 7. Infernal (lncRNApipe Option -inf or --infernal)
+=item 7. Infernal (lncRNApipe Option --inf or --infernal)
 
 In the final step, lncRNApipe pipeline invokes cmscan from Infernal package to search Rfam databases for sturcture and sequence similarities to annotate the putative lncRNAs .
                                                                                                                                                                 
@@ -1532,7 +1532,13 @@ The pipeline script uses a lot of inherent GNU core utils and has been only test
 
 =over 5
 
-=item * Instead of using lncRNApipe --run ./lncRNApipe_output ..., use lncRNApipe --run /data/lncRNApipe_output ...
+=item * Instead of using:
+
+  lncRNApipe --run ./lncRNApipe_output ...
+
+ Use: 
+
+  lncRNApipe --run /data/lncRNApipe_output ...
 
 =back
 
@@ -1542,23 +1548,21 @@ The final output is a putative list of annotated lncRNAs in GTF format that can 
 
 =over 5
 
-=item * Cuffcompare output is stored in the directory called "cuffcompare". lncRNApipe uses 'lncRNApipe_cuffcmp.tracking' file from this folder for the next module.
+=item * Output from `cuffcompare` is stored in the directory called `cuffcompare`. lncRNApipe uses `lncRNApipe_cuffcmp.tracking` file from this folder for the next module.
 
-=item * categorize_ncRNAs.pl's output is stored in the directory called "categorize_ncRNAs". lncRNApipe uses files ending with suffix '.putative.class.lncRNAs.gtf' for the next module.
+=item * Output from `categorize_ncRNAs.pl` is stored in the directory called `categorize_ncRNAs`. lncRNApipe uses files ending with suffix `.putative.class.lncRNAs.gtf` for the next module.
 
-=item * get_unique_features.pl's output is stored in the directory called "get_unique_features". lncRNApipe uses files ending with suffix '.putative.class.lncRNAs.unique.gtf ' for the next module
+=item * Output from `get_unique_features.pl` output is stored in the directory called `get_unique_features`. lncRNApipe uses files ending with suffix `.putative.class.lncRNAs.unique.gtf` for the next module
 
-=item * fetch_seq_from_ucsc.pl's output is stored in the directory called "fetch_seq_from_ucsc". lncRNApipe uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules. The file ending in suffix '.noncoding.FASTA' is used for the next modules.
+=item * Output from `fetch_seq_from_ucsc.pl` is stored in the directory called `fetch_seq_from_ucsc`. lncRNApipe uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules. The file ending in suffix `.noncoding.FASTA` is used for the next modules.
 
-=item * CPC predictions are stored in a directory called "CPC".
+=item * CPC predictions are stored in a directory called `CPC`.
 
-=item * The final result files are stored in a directory called "lncRNApipe.final" and have a suffix '.final.gtf'.
+=item * The final result files are stored in a directory called `lncRNApipe.final` and have a suffix `.final.gtf`.
 
-=item * The RNAfold plots are stored in directories inside "lncRNApipe.final" directory ending in suffix '.final.RNAfold'.
+=item * The RNAfold plots are stored in directories inside "lncRNApipe.final" directory ending in suffix `.final.RNAfold`.
 
-=item * The result files from cmscan (Infernal) are stored in directories inside "lncRNApipe.final" directory ending with suffix '.infernal'. The file ending in suffix '.allInfernalHits.gtf' contains all RNA hmm and cm model matches from cmscan (Infernal) and the best hit is applied to file ending in suffix '.final.gtf' based on the sequence coverage (--coverage-infernal) filter requested.
-
-=item * The resule files ending with suffix '*allInfernalHits.gtf' contains all Infernal matches regardless of best hit sorting.
+=item * The result files from `cmscan` (Infernal) are stored in directories inside `lncRNApipe.final` directory ending with suffix `.infernal`. The file ending in suffix `.allInfernalHits.gtf` contains all RNA hmm and cm model matches from `cmscan` (Infernal) and the best hit is applied to file ending in suffix `.final.gtf` based on the sequence coverage (`--coverage-infernal`) filter requested.
 
 =back
 
