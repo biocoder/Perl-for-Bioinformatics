@@ -25,23 +25,23 @@ IO::Routine [![Build Status](https://api.travis-ci.org/biocoder/Perl-for-Bioinfo
 
           cd /to/your/preferred/install/path
           curl -O https://raw.githubusercontent.com/biocoder/Perl-for-Bioinformatics/master/NGS-Utils/lncRNApipe
-          perl lncRNApipe -setup
+          perl lncRNApipe --setup
 
 * Documentation:
           
-          perl lncRNApipe -h
+          perl lncRNApipe --h
 or
 
           perldoc lncRNApipe
 or to get help documentation for individual modules, do:
 
-      	  perl lncRNApipe -h cuff
-      	  perl lncRNApipe -h cat
-      	  perl lncRNApipe -h get
-      	  perl lncRNApipe -h fetch
-      	  perl lncRNApipe -h cpc
-      	  perl lncRNApipe -h rna
-      	  perl lncRNApipe -h inf
+      	  perl lncRNApipe --h cuff
+      	  perl lncRNApipe --h cat
+      	  perl lncRNApipe --h get
+      	  perl lncRNApipe --h fetch
+      	  perl lncRNApipe --h cpc
+      	  perl lncRNApipe --h rna
+      	  perl lncRNApipe --h inf
       	  
 * Known issues:
 
@@ -59,8 +59,8 @@ or to get help documentation for individual modules, do:
             
 * Caveats:
     * The pipeline script uses a lot of inherent Linux core utils and has been only tested in BASH shell.
-    * Please use absolute full PATH names. Instead of using `lncRNApipe -run ./lncRNApipe_output ...`, use
-          `lncRNApipe -run /data/lncRNApipe_output ...`
+    * Please use absolute full PATH names. Instead of using `lncRNApipe --run ./lncRNApipe_output ...`, use
+          `lncRNApipe --run /data/lncRNApipe_output ...`
 
  
            

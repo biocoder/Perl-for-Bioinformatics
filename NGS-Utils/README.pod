@@ -17,9 +17,9 @@ Complete Description:
 
 Examples:
 
- perl lncRNApipe -h
+ perl lncRNApipe --h
 
- perl lncRNApipe -run /data/lncRNApipe/ -cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' -cat-ncRNAs "-sample-names 'M1,M2' -ov 80 -fpkm 2 -len 200 -max-len 10000 -min-exons 1 -antisense" -get-uq-feat '-sf known_lncRNAs.bed' -fetch-seq '-db mm10' -cpc -rna -inf
+ perl lncRNApipe --run /data/lncRNApipe/ --cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' -cat-ncRNAs "-sample-names 'M1,M2' -ov 80 -fpkm 2 -len 200 -max-len 10000 -min-exons 1 -antisense" -get-uq-feat '-sf known_lncRNAs.bed' -fetch-seq '-db mm10' --cpc --rna --inf
 
 
 =head1 DESCRIPTION
@@ -28,7 +28,7 @@ This pipeline script will bind together the functionality of the tools / scripts
 
 =over 5
 
-=item 1. Cuffcompare (lncRNApipe Option: -cuff or --cuffcompare)
+=item 1. Cuffcompare (lncRNApipe Option: --cuff or --cuffcompare)
 
 The transcript assembly can be compared to known annotation of choice to classify them into different class codes (http://cufflinks.cbcb.umd.edu/manual.html#class_codes) using Cuffcompare. The assembled transcripts should be in GTF format. Cufflinks generates the output files in GTF format. If you are using other software such as Scripture, you can convert the output file in BED format into GTF using Scripture as:
 
@@ -36,47 +36,47 @@ The transcript assembly can be compared to known annotation of choice to classif
 
 To get help documentation about this module, run:
 
- perl lncRNApipe -h cuff
+ perl lncRNApipe --h cuff
 
-=item 2. categorize_ncRNAs.pl (lncRNApipe Option: -cat or --cat-ncRNAs)
+=item 2. categorize_ncRNAs.pl (lncRNApipe Option: --cat or --cat-ncRNAs)
     
 lncRNApipe uses the tracking file (*.tracking) produced by Cuffcompare, annotation data in gene prediction format and a list of supplied transcripts in GTF format to produce and categorize lncRNAs into different classes as mentioned in the paper: http://genome.cshlp.org/content/22/3/577.full. In brief, the lncRNAs are classified into 5 categories: Long intergenic lncRNAs (LincRNAs), Intronic contained lncRNAs (Incs), Partially overlapping lncRNAs (Poncs), Completely overlapping lncRNAs (Concs) and Exonic overlaps (LncRNAs with sense or antisense overlap with reference exon).
 
 To get help documentation about this module, run:
 
- perl lncRNApipe -h cat
+ perl lncRNApipe --h cat
 
-=item 3. get_unique_features.pl (lncRNApipe Option: -get or --get--uq-feat)
+=item 3. get_unique_features.pl (lncRNApipe Option: --get or --get--uq-feat)
     
-It then compares the putative list with supplied known lncRNAs in BED format to get features that do not overlap any known lncRNAs. To extract known lncRNAs from your assembled transcripts for downstream analysis, include --known with -get option of lncRNAscan (--known option with lncRNApipe is experimental).
+It then compares the putative list with supplied known lncRNAs in BED format to get features that do not overlap any known lncRNAs. To extract known lncRNAs from your assembled transcripts for downstream analysis, include --known with --get option of lncRNAscan (--known option with lncRNApipe is experimental).
 
 To get help documentation about this module, run:
 
- perl lncRNApipe -h get
+ perl lncRNApipe --h get
 
-=item 4. fetch_seq_from_ucsc.pl (lncRNApipe Option: -fetch or --fetch-seq)
+=item 4. fetch_seq_from_ucsc.pl (lncRNApipe Option: --fetch or --fetch-seq)
     
 This list is then used to fetch DNA sequence of those transcript sequences to determine their coding potential using CPC.
     
 To get help documentation about this module, run:
     
- perl lncRNApipe -h fetch
+ perl lncRNApipe --h fetch
 
-=item 5. CPC.sh (lncRNApipe Option -cpc or --cpc)
+=item 5. CPC.sh (lncRNApipe Option --cpc or --cpc)
     
 In this step, the fetched FASTA sequences are used to determine the coding potential and those that are flagged as "noncoding" are used to create the final list of high confidence lncRNAs. This step may take a while to finish.
 
 To get help documentation about this module, run:
 
- perl lncRNApipe -h cpc
+ perl lncRNApipe --h cpc
 
-=item 6. RNAfold (lncRNApipe Option -rna or --rnafold)
+=item 6. RNAfold (lncRNApipe Option --rna or --rnafold)
 
 Here, lncRNApipe pipeline invokes RNAfold program to calculate minimum free energy structure of the predicted non-coding RNA. This step may take a while to finish.
                                                                                                                                                                 
 To get help documentation about this module, run:
     
- perl lncRNApipe -h rna
+ perl lncRNApipe --h rna
 
 =item 7. Infernal (lncRNApipe Option -inf or --infernal)
 
@@ -84,7 +84,7 @@ In the final step, lncRNApipe pipeline invokes cmscan from Infernal package to s
                                                                                                                                                                 
 To get help documentation about this module, run:
     
- perl lncRNApipe -h inf
+ perl lncRNApipe --h inf
 
 =back
 
@@ -94,7 +94,7 @@ The pipeline script uses a lot of inherent GNU core utils and has been only test
 
 =over 5
 
-=item * Instead of using lncRNApipe -run ./lncRNApipe_output ..., use lncRNApipe -run /data/lncRNApipe_output ...
+=item * Instead of using lncRNApipe --run ./lncRNApipe_output ..., use lncRNApipe --run /data/lncRNApipe_output ...
 
 =back
 
@@ -120,6 +120,8 @@ The final output is a putative list of annotated lncRNAs in GTF format that can 
 
 =item * The result files from cmscan (Infernal) are stored in directories inside "lncRNApipe.final" directory ending with suffix '.infernal'. The file ending in suffix '.allInfernalHits.gtf' contains all RNA hmm and cm model matches from cmscan (Infernal) and the best hit is applied to file ending in suffix '.final.gtf' based on the sequence coverage (--coverage-infernal) filter requested.
 
+=item * The resule files ending with suffix '*allInfernalHits.gtf' contains all Infernal matches regardless of best hit sorting.
+
 =back
 
 The pipeline has the ability to run each of these individual modules if any of them fail during the initial run.
@@ -132,7 +134,7 @@ The pipeline has the ability to run each of these individual modules if any of t
 
 =item * This script will try its best to setup the pipeline on the suitable architecture.
 
- perl lncRNApipe -setup
+ perl lncRNApipe --setup
 
 =back
 
@@ -142,35 +144,35 @@ The pipeline has the ability to run each of these individual modules if any of t
 
 =item * Run the complete pipeline:
 
- perl lncRNApipe -run /data/lncRNApipe/ -cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 80 -len 200 -max-len 10000 -min-exons 1 -fpkm 2 -antisense -sample-names "M0,M1,M2"' -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed' -fetch '-db mm10' -cpc
+ perl lncRNApipe --run /data/lncRNApipe/ --cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 80 -len 200 -max-len 10000 -min-exons 1 -fpkm 2 -antisense -sample-names "M0,M1,M2"' --get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed' --fetch --cpc --inf
 
 =item * Run categorize_ncRNAs module of the pipeline:
     
- perl lncRNApipe -run /data/lncRNApipe/ -cat '-clean -overlap 80 -len 200 -max-len 10000 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf'
+ perl lncRNApipe --run /data/lncRNApipe/ --cat '-clean -overlap 80 -len 200 -max-len 10000 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf'
 
 =item * Run get_unique_features module of the pipeline to extract novel lncRNAs:
     
- perl lncRNApipe -run /data/lncRNApipe -get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed'
+ perl lncRNApipe -run /data/lncRNApipe --get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed'
 
 =item * Run get_unique_features module of the pipeline to extract known lncRNAs:
     
- perl lncRNApipe -run /data/lncRNApipe -get '--known -sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed'
+ perl lncRNApipe --run /data/lncRNApipe --get '--known -sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed'
 
 =item * Run fetch_unique_features module of the pipeline:
 
- perl lncRNApipe -run /data/lncRNApipe -fetch '-db mm10'
+ perl lncRNApipe --run /data/lncRNApipe --fetch '-db mm10'
 
 =item * Run CPC module of the pipeline:
 
- perl lncRNApipe -run /data/lncRNApipe -cpc
+ perl lncRNApipe --run /data/lncRNApipe --cpc
 
 =item * Run RNAfold module of the pipeline:
 
- perl lncRNApipe -run /data/lncRNApipe -rna
+ perl lncRNApipe --run /data/lncRNApipe --rna
 
 =item * Run Infernal module of the pipeline:
 
- perl lncRNApipe -run /data/lncRNApipe -inf
+ perl lncRNApipe --run /data/lncRNApipe --inf
 
 =back
 
@@ -180,42 +182,44 @@ lncRNApipe takes the following arguments:
 
 =over 4
 
-=item -v or --version (Optional)
+=item --v or --version (Optional)
     
 Displays version information and quits.
 
-=item -d or --no-update-chk (Optional)
+=item --d or --no-update-chk (Optional)
     
 Disable software update check.
 
-=item -h or --help (Optional)
+=item --h or --help (Optional)
     
 Displays this helpful message.
 
-=item -setup or --setup
+=item --setup or --setup
     
 Try to setup the pipeline with all its dependencies.
 
-=item -run or --run
+=item --run or --run
 
 Run the lncRNApipe pipeline with output directory supplied as option.
 Ex: perl lncRNApipe -run /home/konganti/lncRNApipe_output ...
 
-=item -cuff or --cuffcompare
+=item --cuff or --cuffcompare
 
 Run the Cuffcompare module with supplied options.
 
-=item -cat or --cat-ncRNAs
+=item --cat or --cat-ncRNAs
 
 Run the categorize_ncRNAs.pl module with supplied options.
 
-=item -get or --get-uq-feat
+=item --get or --get-uq-feat
 
 Run the get_unique_features.pl module with supplied options.
 
-=item -fetch or --fetch-seq
+=item --fetch or --fetch-seq
 
 Run the fetch_seq_from_ucsc.pl module with supplied options.
+Using --fetch without any options will try and use local reference FASTA
+mentioned with --cuffcompare option.
 
 =item --skip-get (--fetch-seq option required)
 
@@ -224,7 +228,7 @@ In some cases, you may not have a file of known non-coding RNAs. In such cases,
 you can skip get_unique_features.pl module, and directly fetch FASTA sequences for
 features from --categorize_ncRNAs.pl module.
 
-=item -cpc or --cpc
+=item --cpc or --cpc
 
 Run the CPC module. No options are required.
 
@@ -239,7 +243,7 @@ Skip runnning core CPC process once you know you have output from CPC.
 This option can be used when lncRNApipe fails for some reason after blastall
 within CPC has finished running but unable to continue forward.
 
-=item -rna or --rnafold
+=item --rna or --rnafold
 
 Run RNAfold module of the pipeline. No options required
 
@@ -249,7 +253,7 @@ Skip runnning core RNAfold process once you know you have output from RNAfold.
 This option can be used when you want lncRNApipe to generate plots based on
 output from RNAfold which should have completed successfully.
 
-=item -inf or --infernal
+=item --inf or --infernal
 
 Run Infernal module of the pipeline. No options required
 
@@ -259,12 +263,12 @@ Skip runnning cmscan process once you know you have output from a successful
 cmscan run. This option can be used when you want lncRNApipe to extract 
 annotation from infernal and attempt to annotate putative novel lncRNAs.
 
-=item -cov-inf or --coverage-infernal
+=item --cov-inf or --coverage-infernal
 
 Only annotate final putative lncRNAs which have cmscan match over this much percentage of sequence.
 Default: 10
 
-=item -cpu or --cpu
+=item --cpu
 
 lncRNApipe will attempt to run multiple processes on this may CPU cores.
 Mentioning number of CPUs equal to or more than number of assembled 
