@@ -1548,11 +1548,11 @@ The final output is a putative list of annotated lncRNAs in GTF format that can 
 
 =over 5
 
-=item * Output from `cuffcompare` is stored in the directory called `cuffcompare`. lncRNApipe uses `lncRNApipe_cuffcmp.tracking` file from this folder for the next module.
+=item * Output from "cuffcompare" is stored in the directory called `cuffcompare`. lncRNApipe uses `lncRNApipe_cuffcmp.tracking` file from this folder for the next module.
 
-=item * Output from `categorize_ncRNAs.pl` is stored in the directory called `categorize_ncRNAs`. lncRNApipe uses files ending with suffix `.putative.class.lncRNAs.gtf` for the next module.
+=item * Output from "categorize_ncRNAs.pl` is stored in the directory called `categorize_ncRNAs`. lncRNApipe uses files ending with suffix `.putative.class.lncRNAs.gtf` for the next module.
 
-=item * Output from `get_unique_features.pl` output is stored in the directory called `get_unique_features`. lncRNApipe uses files ending with suffix `.putative.class.lncRNAs.unique.gtf` for the next module
+=item * Output from *get_unique_features.pl* output is stored in the directory called `get_unique_features`. lncRNApipe uses files ending with suffix `.putative.class.lncRNAs.unique.gtf` for the next module
 
 =item * Output from `fetch_seq_from_ucsc.pl` is stored in the directory called `fetch_seq_from_ucsc`. lncRNApipe uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules. The file ending in suffix `.noncoding.FASTA` is used for the next modules.
 
