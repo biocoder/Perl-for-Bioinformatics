@@ -324,21 +324,22 @@ sub run_lncRNApipe {
 	close lncRNApipe_categorize_mod;
 		
     } if (defined($get_uq_sc_opts) && $get_uq_sc_opts ne '');
-        
+
+    # Find out if local FASTA mentioned with cuffcompare before running fetch_seq_from_ucsc.pl ########
+    my $local_ref_seq = '';
+    
+    # Use local reference FASTA instead of fetching, if provided with cuffcompare
+    # This needs to be outside do {}, to guarantee parsing, even if -fetch-seq does not have any options.
+    ($local_ref_seq) = ($cuffcmp_opts =~ m/.*?-s\s+(.+?)\s+.*/) if ($cuffcmp_opts);	
+    if ($local_ref_seq && -s $local_ref_seq && -e $local_ref_seq) {
+	$io->warning('Using local FASTA reference [ ' . $io->file_basename($local_ref_seq, 'suffix') . ' ] to fetch sequences to maintain consistency.' .
+			 "\n** Requires Bio::SeqIO module to be installed and available **", 'INFO!!');
+	$fetch_sc_opts = "-local $local_ref_seq";
+    }
+    
     # Run fetch_seq_from_ucsc.pl ######################################################################
     do {
-	
-	# Find out if local FASTA mentioned with cuffcompare before running fetch_seq_from_ucsc.pl ########
-	my $local_ref_seq = '';
-	
-	# Use local reference FASTA instead of fetching, if provided with cuffcompare
-	($local_ref_seq) = ($cuffcmp_opts =~ m/.*?-s\s+(.+?)\s+.*/) if ($cuffcmp_opts);	
-	if ($local_ref_seq && -s $local_ref_seq && -e $local_ref_seq) {
-	    $io->warning('Using local FASTA reference [ ' . $io->file_basename($local_ref_seq, 'suffix') . ' ] to fetch sequences to maintain consistency.' .
-			 "\n** Requires Bio::SeqIO module to be installed and available **", 'INFO!!');
-	    $fetch_sc_opts = "-local $local_ref_seq";
-	}
-	
+		
 	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
 	$lncRNApipe_succ = get_pipeline_status_code($cpu) if (defined $num_cpu);
 	my $uq_tr_feat_dir = 'get_unique_features';
