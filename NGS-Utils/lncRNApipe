@@ -1457,8 +1457,14 @@ Examples:
 
  perl lncRNApipe --h
 
- perl lncRNApipe --run /data/lncRNApipe/ --cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' -cat-ncRNAs "-sample-names 'M1,M2' -ov 80 -fpkm 2 -len 200 -max-len 10000 -min-exons 1 -antisense" -get-uq-feat '-sf known_lncRNAs.bed' -fetch-seq '-db mm10' --cpc --rna --inf
-
+ perl lncRNApipe --run /data/lncRNApipe/ \
+                 --cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' \
+                 --cat-ncRNAs '-sample-names "M1,M2" -ov 80 -fpkm 2 -len 200 -max-len 10000 -min-exons 1 -antisense" \
+                 --get-uq-feat '-sf known_lncRNAs.bed' \
+                 --fetch-seq '-db mm10' \
+                 --cpc \
+                 --rna \
+                 --inf
 
 =head1 DESCRIPTION
 
