@@ -109,7 +109,7 @@ $io->c_time('Checking for the validity of attribute column [ 9th column ] in sup
 for (0 .. $#ARGV) {
     $io->verify_files([$ARGV[$_]],
                       ["Cufflinks assembled transcript"]);
-    $ARGV[$_] = check_gtf_attributes($ARGV[$_]);
+    $ARGV[$_] = check_gtf_attributes($ARGV[$_], $lables[$_]);
     push @{$p_file_names_gtf}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_lncRNAs.gtf';
     push @{$p_file_names_txt}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_lncRNAs.txt';
     unlink $p_file_names_gtf->[$_] if (-e $p_file_names_gtf->[$_] && !defined($genePred) && !defined($categorize));
@@ -848,6 +848,7 @@ sub remove_warnings {
 # Check GTF attribute column
 sub check_gtf_attributes {
     my $file = shift;
+    my $label = shift;
     my $t_lines_tr = $io->execute_get_sys_cmd_output('grep -iP \'\ttranscript\t\' ' . $file .' | head -n 1');
     my $t_lines_ex = $io->execute_get_sys_cmd_output('grep -iP \'\texon\t\' ' . $file .' | head -n 1');
     
@@ -866,7 +867,7 @@ sub check_gtf_attributes {
 		   qq/chr3\tCufflinks\texon\t30551033\t30551349\t1000\t-\t.\tgene_id "CUFF.22498"; transcript_id "CUFF.22498.1"; exon_number "2"; FPKM "2.5052666329"; frac "1.000000"; conf_lo "1.676755"; conf_hi "3.353509"; cov "4.749121";\n/ .
 		     qq/\nYour File:\n----------\n/ . $io->execute_get_sys_cmd_output("head -n 3 $file"), 'INFO!');
 	$io->warning('Sit back and relax. We got it covered ... Formatting the GTF file to process with lncRNApipe.', 'INFO!');
-	$file = format_gtf($file);
+	$file = format_gtf($file, $label);
     }
     return $file;
 }
@@ -874,8 +875,9 @@ sub check_gtf_attributes {
 # Format all the exon "only" features to "transcript-exon" in the GTF file.
 sub format_gtf {
     my $gtf = shift;
+    my $label = shift;
     my $gtf_fh = $io->open_file('<', $gtf);
-    my $formatted_gtf = $output . $io->file_basename($gtf) . '.formatted.gtf';
+    my $formatted_gtf = $output . $io->file_basename($gtf) . ".$label.formatted.gtf";
     my $formatted_gtf_fh = $io->open_file('>', $formatted_gtf);
     my $tr_ids = {};
     my $tr_lines = {};
