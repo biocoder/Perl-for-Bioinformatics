@@ -256,8 +256,8 @@ foreach my $unique_seq_id (keys %$transcripts) {
 	    sleep $pause_ncbi;
 	}
 	elsif (defined $local_ref_fa) {
-	    $io->error("Contig / Chromosome ID [ $unchanged_contig_id ] does not exist in supplied reference FASTA.\n".
-		       'Please make sure that the reference FASTA has those IDs.') if (!exists $contigs->{lc($unchanged_contig_id)});
+	    $io->warning("Contig / Chromosome ID [ $unchanged_contig_id ] does not exist in supplied reference FASTA.\n".
+			 'Please make sure that the reference FASTA has those IDs.') if (!exists $contigs->{lc($unchanged_contig_id)});
 	    my $subseq_obj = $contigs->{lc($unchanged_contig_id)};
 	    my $subseq = $subseq_obj->subseq($exon_start, $exon_end);
 	    $seq .= $subseq;
