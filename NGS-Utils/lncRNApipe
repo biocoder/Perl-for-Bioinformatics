@@ -80,8 +80,6 @@ elsif (defined $setup) {
     setup_lncRNApipe(`pwd`) 
 }
 elsif (defined $out || (defined $help && $help eq '')) {
-    print $fetch_sc_opts, "\n";
-    exit 0;
     run_lncRNApipe();
 }
 elsif (defined $help && $help ne '') {
