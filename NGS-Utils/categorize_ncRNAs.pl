@@ -18,7 +18,7 @@ my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
     $antisense_only, $disp_anti_option, $gtf_bin, $num_cpu,
     $linc_rna_prox, $ncRNA_max_length, $extract_pat_user,
-    $ignore_genePred_err, $full_read_supp, $rescue);
+    $ignore_genePred_err, $full_read_supp, $rescue, $gtf_formatted);
 
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 my $ncRNA_class = {};
@@ -110,8 +110,15 @@ for (0 .. $#ARGV) {
     $io->verify_files([$ARGV[$_]],
                       ["Cufflinks assembled transcript"]);
     $ARGV[$_] = check_gtf_attributes($ARGV[$_], $lables[$_]);
-    push @{$p_file_names_gtf}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_lncRNAs.gtf';
-    push @{$p_file_names_txt}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_lncRNAs.txt';
+    if ($gtf_formatted) {
+	push @{$p_file_names_gtf}, $output . $io->file_basename($ARGV[$_]) . '.putative_lncRNAs.gtf';
+	push @{$p_file_names_txt}, $output . $io->file_basename($ARGV[$_]) . '.putative_lncRNAs.txt';
+
+    }
+    else {
+	push @{$p_file_names_gtf}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_lncRNAs.gtf';
+	push @{$p_file_names_txt}, $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative_lncRNAs.txt';
+    }
     unlink $p_file_names_gtf->[$_] if (-e $p_file_names_gtf->[$_] && !defined($genePred) && !defined($categorize));
 }
 
@@ -908,6 +915,8 @@ sub format_gtf {
 	print $formatted_gtf_fh $tr_line;
 	print $formatted_gtf_fh @{$tr_lines->{$tr_id}};
     }
+    
+    $gtf_formatted = 1;
     return $formatted_gtf;
 }
 
