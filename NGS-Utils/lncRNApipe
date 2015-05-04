@@ -10,8 +10,8 @@ use Term::ANSIColor qw(:constants);
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-22-04 17:45:27 -0500 (Tue, 21 Apr 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.7.7 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-29-04 17:45:27 -0500 (Tue, 29 Apr 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.7.8 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -65,7 +65,7 @@ $inf_cov = 10 if (!defined $inf_cov);
 $skip_get_uq = 1 if (defined $skip_get_uq || (!defined $get_uq_sc_opts && defined $fetch_sc_opts));
 
 if (!$is_valid_option) {
-    die "\nInvalid / No Option(s) Provided:$! See $0 -help for valid options.\n\n";
+    die "\nInvalid / No Option(s) Provided:$! See $0 --help for valid options.\n\n";
 }
 elsif (defined $lncRNApipe_ver_info) {
     my $io = run_lncRNApipe('version');
@@ -379,12 +379,12 @@ sub run_lncRNApipe {
 	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'fetch'} . ' ' .
 							 join('-', split(/\-|\--/, $fetch_sc_opts)) .
 							 ' -tmap ' . $lncRNApipe_unique_file .
-							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\ttranscript\\t'",
+							 " -out $cat_dir -ff gtf -id 'transcript_id\\s+\\\"(.+?)\\\"' -skip '\\ttranscript\\t'",
 							 "Command call:\n" .
 							 "-------------\n" . $deps->{'fetch'} . ' ' .
 							 join('-', split(/\-|\--/, $fetch_sc_opts)) .
 							 ' -tmap ' . $lncRNApipe_unique_file .
-							 " -out $cat_dir -ff gtf -id 'transcript_id.+?\\\"(.+?)\\\"' -skip '\\ttranscript\\t'");
+							 " -out $cat_dir -ff gtf -id 'transcript_id\\s+\\\"(.+?)\\\"' -skip '\\ttranscript\\t'");
 	    $lncRNApipe_succ = pipeline_status($io, $is_failed);
 	    $cpu->finish(0, {'lncRNApipe_succ' => $lncRNApipe_succ}) if (defined $num_cpu);
 	}
@@ -392,7 +392,7 @@ sub run_lncRNApipe {
 	$cpu->wait_all_children if (defined $num_cpu);
 	close lncRNApipe_get_unique_mod;
 	
-    } if (defined($fetch_sc_opts) && $fetch_sc_opts ne '');
+    } if (defined $fetch_sc_opts);
     
     # Finally Run CPC, RNAfold and Infernal ##############################################################
     do {
@@ -1376,7 +1376,7 @@ sub check_for_updates {
     
     if ($newest_release =~ m/^could not/i) {
 	$io->warning('Unable to contact github.com for updates ... May be we have reached the X-rate-limit! :-(' .
-		     "\nUse -d option if you wish to disable update check.");
+		     "\nUse --d option if you wish to disable update check.");
 	return;
     }
     
@@ -1391,14 +1391,14 @@ sub check_for_updates {
 						["$newest_release"], 'warn'); 
     
     $io->warning('You are using the latest version of the software which is v' . $newest_release . " [ Release date: $newest_release_date  ]." .
-		 "\nUse -d option if you wish to disable update check.", 'OK!') if (!$is_upToDate);
+		 "\nUse --d option if you wish to disable update check.", 'OK!') if (!$is_upToDate);
 
     chomp(my $last_commit_msg = $io->execute_get_sys_cmd_output("curl -Lks https://api.github.com/repos/biocoder/Perl-for-Bioinformatics/commits?per_page=1 | grep 'message'"));
     chomp(my $last_commit_date = $io->execute_get_sys_cmd_output("curl -Lks https://api.github.com/repos/biocoder/Perl-for-Bioinformatics/commits?per_page=1 | grep 'date' | head -n 1"));
 
     if ($last_commit_msg =~ m/^could not/i) {
 	$io->warning('Unable to contact github.com for latest commit message ... May be we have reached the X-rate-limit! :-(' .
-		     "\nUse -d option if you wish to disable update check.");
+		     "\nUse --d option if you wish to disable update check.");
 	return;
     }
 
@@ -1732,6 +1732,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Apr-22-2015
+Apr-29-2015
 
 =cut

@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-21-04 17:45:27 -0500 (Tue, 21 Apr 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0707 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-29-04 17:45:27 -0500 (Tue, 29 Apr 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0708 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -215,15 +215,15 @@ sub get_putative_ncRNAs {
 		my ($q_loc_id, $q_t_id, $discard) = split/\|/, $cols[$_];
 		next if (!$q_t_id || $q_t_id eq '');
 		$q_t_id =~ s/\./\\./g;
-		my $t_lines = $io->execute_get_sys_cmd_output('grep -iP \'\"' . $q_t_id . '\"\' ' . $ARGV[$_], 0);
+		my $t_lines = $io->execute_get_sys_cmd_output('grep -P \'transcript_id\s+\"' . $q_t_id . '\"\' ' . $ARGV[$_], 0);
 		
-		if (defined $cov_cutoff && $t_lines !~ m/.*?cov.+?\"(.+?)\".*/i && !-e $output . '.cat_cov_cutoff.war') {
+		if (defined $cov_cutoff && $cov_cutoff > 0 && $t_lines !~ m/.*?cov.+?\"(.+?)\".*/i && !-e $output . '.cat_cov_cutoff.war') {
 		    my $local_fh = $io->open_file('>', $output . '.cat_cov_cutoff.war');
 		    $io->warning("Coverage information not present in the input transcript assemblies.\n" .
 				 'Transcripts will not be filtered based on coverage cutoff.');
 		    close $local_fh;
 		}
-		if (defined $fpkm_cutoff && $t_lines !~ m/.*?[FR]PKM.+?\"(.+?)\".*/i && !-e $output . '.cat_fpkm_cutoff.war') {
+		if (defined $fpkm_cutoff && $fpkm_cutoff > 0 && $t_lines !~ m/.*?[FR]PKM.+?\"(.+?)\".*/i && !-e $output . '.cat_fpkm_cutoff.war') {
 		    my $local_fh = $io->open_file('>', $output . '.cat_fpkm_cutoff.war');
 		    $io->warning("FPKM / RPKM information not present in the input transcript assemblies.\n" .
 				 'Transcripts will not be filtered based on FPKM / RPKM cutoff.');
@@ -238,19 +238,19 @@ sub get_putative_ncRNAs {
 
 		my $p_lncRNAs = '';
 		if ($t_lines =~ m/.+?[FR]PKM.+?\"(.+?)\".+?cov.+?\"(.+?)\".+?full\_read\_support.+?\"(yes|no)\".*/i) {
-		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -iP \'\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
+		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -P \'transcript_id\s+\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
 			if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff && $3 =~ m/$full_read_supp_def/i);
 		}
 		elsif ($t_lines =~ m/.+?[FR]PKM.+?\"(.+?)\".+?cov.+?\"(.+?)\".*/i) {
-		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -iP \'\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
+		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -P \'transcript_id\s+\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
 			if ($1 >= $fpkm_cutoff && $2 >= $cov_cutoff);
 		}
 		elsif ($t_lines =~ m/.+?[FR]PKM.+?\"(.+?)\".*/i) {
-		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -iP \'\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
+		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -P \'transcript_id\s+\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'")
 			if ($1 >= $fpkm_cutoff);
 		}
 		else {
-		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -iP \'\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'");
+		    $p_lncRNAs = $io->execute_get_sys_cmd_output('grep -P \'transcript_id\s+\"' . $q_t_id . '\"\' ' . $ARGV[$_] . " | sed -e \'s\/\$\/ class_code \"$class_code\"\;\/'");
 		}
 
 		my $p_file_names_gtf_fh = $io->open_file('>>', $p_file_names_gtf->[$_]);
@@ -302,7 +302,7 @@ sub get_genePred {
 # Categorize ncRNAs
 sub class_ncRNAs {
     my $refAnnot = store_coords($refGenePred);
-    my $cpu = '';
+    my $cpu = my $info_sync_word = '';
 
     if (defined $num_cpu) {
 	$cpu = Parallel::ForkManager->new($num_cpu);
@@ -315,31 +315,46 @@ sub class_ncRNAs {
 
         my $p_gtf = $p_file_names_gtf->[$_];
         my $p_ncRNAs = store_coords($p_file_names_txt->[$_]);
-        my $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.class.lncRNAs.gtf';
-	my $u_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.noClass.lncRNAs.gtf';
+	my $c_ncRNAs = my $u_ncRNAs = '';
+	
+	if ($gtf_formatted) {
+	    $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.putative.class.lncRNAs.gtf';
+	    $u_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.putative.noClass.lncRNAs.gtf';	    
+	}
+	else {
+	    $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.class.lncRNAs.gtf';
+	    $u_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.noClass.lncRNAs.gtf';
+	}
+	
+	unlink $c_ncRNAs if (-e $c_ncRNAs);
+	unlink $u_ncRNAs if (-e $u_ncRNAs);
 
 	chomp (my $total_nc_trs_before_cat = $io->execute_get_sys_cmd_output("grep -P '\ttranscript\t' $ARGV[$_] | wc -l"));
 	$total_nc_trs_before_cat = 'NA' if (!$total_nc_trs_before_cat);
-
-        unlink $c_ncRNAs if (-e $c_ncRNAs);
-	unlink $u_ncRNAs if (-e $u_ncRNAs);
 	
 	my ($num_ex_ov, $num_incs, $num_concs, $num_poncs, $num_lincs, $noclass, $num_noSense,
 	    $discard) = 0;
 
-	$io->c_time('Categorizing and syncing lncRNAs (Exonic overlaps) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	if (!defined $rescue) {
+	    $info_sync_word = ' and syncing ';
+	}
+	else {
+	    $info_sync_word = ' ';
+	}
+
+	$io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (Exonic overlaps) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_ex_ov, $num_noSense) = calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 
-	$io->c_time('Categorizing and syncing lncRNAs (Intronic overlaps - Incs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (Intronic overlaps - Incs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_incs, $discard) = calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing and syncing lncRNAs (Intronic overlaps - Concs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (Intronic overlaps - Concs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_concs, $discard) = calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing and syncing lncRNAs (Intronic overlaps - Poncs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (Intronic overlaps - Poncs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_poncs, $discard) = calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
 
-	$io->c_time('Categorizing and syncing lncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	$io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
         ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 
 	if (!defined $rescue) {
@@ -438,8 +453,7 @@ sub calc_lincRNAs {
 		$nc_exon_ends,
 		$nc_tr_id) = get_parts($transfrag);
 	 
-	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" .
-                @$nc_exon_starts . @$nc_exon_ends;
+	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" . join('', @$nc_exon_starts) . join('', @$nc_exon_ends);
 	
 	    # Skip if non-coding transcript length is more than user defined max length
 	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
@@ -462,14 +476,14 @@ sub calc_lincRNAs {
 		    $found++;
 		    $ncRNA_class->{$unique_key} = 1;
 		    
-		    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
+		    $io->execute_system_command('grep -P \'transcript_id\s+\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
 		}
 		elsif (!exists $ncRNA_class->{$unique_key} &&
 		       $ncRNA_length >= $length &&
 		       $nc_exons >= $min_exons) {
 		    $num_noClass++;
 		    $ncRNA_class->{$unique_key} = 1;
-		    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0);
+		    $io->execute_system_command('grep -P \'transcript_id\s+\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0);
 		}
 		next;
 	    }
@@ -480,14 +494,14 @@ sub calc_lincRNAs {
 		$nc_exons >= $min_exons) {
 		$found++;
 		$ncRNA_class->{$unique_key} = 1;
-		$io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
+		$io->execute_system_command('grep -P \'transcript_id\s+\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"LincRNA\";\/\' >> $c_ncRNAs", 0);
 	    }
 	    elsif (!exists $ncRNA_class->{$unique_key} &&
 		   $ncRNA_length >= $length &&
 		   $nc_exons >= $min_exons) {
 		$num_noClass++;
 		$ncRNA_class->{$unique_key} = 1;
-		$io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0);
+		$io->execute_system_command('grep -P \'transcript_id\s+\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"No Class \(\?\)\"\;\/\' >> $u_ncRNAs", 0);
 	    }
 	}
     }
@@ -505,7 +519,9 @@ sub calc_overlaps {
     my $found = 0;
     my $num_noSense = 0;
 
-    # Calculate overlap.
+    # Calculate overlap. Keep track of categorized ncRNAs.
+    my $categorized_unique_ncRNAs = {};
+  
     foreach my $nc_chr (keys %{$p_ncRNAs}) {
 
 	my $nc_int_tree = Set::IntervalTree->new() if ($mode =~ m/^ponc|conc$/i);
@@ -520,8 +536,7 @@ sub calc_overlaps {
 		$nc_exon_ends, 
 		$nc_tr_id) = get_parts($p_ncRNAs->{$nc_chr}->[$ncRNA_line]);
 
-	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" .
-		@$nc_exon_starts . @$nc_exon_ends;
+	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" . join('', @$nc_exon_starts) . join('', @$nc_exon_ends);
 
 	    # Skip if non-coding transcript length is more than user defined max length
 	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
@@ -700,7 +715,7 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--; 
 			    $num_noSense++,
-			    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"Exonic - Sense exonic overlap with $ref_tr_id\";\/\' >> $u_ncRNAs", 0),
+			    $io->execute_system_command('grep -P \'transcript_id\s+\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"Exonic - Sense exonic overlap with $ref_tr_id\";\/\' >> $u_ncRNAs", 0),
 			    last if (defined($antisense_only) && $antisense_only);
 			    $found++;
 			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Exonic - Sense exonic overlap with $ref_tr_id\";";
@@ -711,7 +726,7 @@ sub calc_overlaps {
 			    splice(@{$p_ncRNAs->{$nc_chr}}, $ncRNA_line, 1);
 			    $ncRNA_line--;
 			    $num_noSense++,
-			    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"Exonic - Exonic overlap with $ref_tr_id\";\/\' >> $u_ncRNAs", 0),
+			    $io->execute_system_command('grep -P \'transcript_id\s+\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; lncRNA_type \"Exonic - Exonic overlap with $ref_tr_id\";\/\' >> $u_ncRNAs", 0),
 			    last if (defined($antisense_only) && $antisense_only);
 			    $found++;
 			    $ncRNA_class->{$unique_key} = "lncRNA_type \"Exonic - Exonic overlap with $ref_tr_id\";";
@@ -720,7 +735,11 @@ sub calc_overlaps {
 		    }
 		}
 	    }
-	    $io->execute_system_command('grep -iP \'\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; $ncRNA_class->{$unique_key}\/\' >> $c_ncRNAs", 0) if ($ncRNA_class->{$unique_key} ne '');
+	    
+	    if (!exists $categorized_unique_ncRNAs->{$unique_key}) {
+		$categorized_unique_ncRNAs->{$unique_key} = 1;
+		$io->execute_system_command('grep -P \'transcript_id\s+\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; $ncRNA_class->{$unique_key}\/\' >> $c_ncRNAs", 0);
+	    }
 	}
     }
     return ($found, $num_noSense);
@@ -856,8 +875,8 @@ sub remove_warnings {
 sub check_gtf_attributes {
     my $file = shift;
     my $label = shift;
-    my $t_lines_tr = $io->execute_get_sys_cmd_output('grep -iP \'\ttranscript\t\' ' . $file .' | head -n 1');
-    my $t_lines_ex = $io->execute_get_sys_cmd_output('grep -iP \'\texon\t\' ' . $file .' | head -n 1');
+    my $t_lines_tr = $io->execute_get_sys_cmd_output('grep -iP \'\ttranscript\t.+?transcript_id\' ' . $file .' | head -n 1');
+    my $t_lines_ex = $io->execute_get_sys_cmd_output('grep -iP \'\texon\t.+?transcript_id\' ' . $file .' | head -n 1');
     
     if ( ($t_lines_tr !~ m/\".+?\"\;/ && $t_lines_ex !~ m/\".+?\"\;/) ||
 	 ($t_lines_tr =~ m/\'.+?\'/ || $t_lines_ex =~ m/\'.+?\'/)
@@ -867,7 +886,7 @@ sub check_gtf_attributes {
     }
     
     if (!$t_lines_tr || $t_lines_tr =~ m/^could/i || $t_lines_tr =~ m/STDERR/i) {
-	$io->warning('Seems like the suppiled assembly [ ' . $io->file_basename($file, 'suffix') . ' ] does not contain proper transcript-exon features.' .
+	$io->warning('Seems like the suppiled assembly [ ' . $io->file_basename($file, 'suffix') . ' ] file does not contain proper transcript-exon features.' .
 		   "\nIt should have a transcript feature line followed by it's exon feature lines.\n\nExample:\n--------\n".
 		   qq/chr3\tCufflinks\ttranscript\t30549662\t30551349\t1000\t-\t.\tgene_id "CUFF.22498"; transcript_id "CUFF.22498.1"; FPKM "2.5052666329"; frac "1.000000"; conf_lo "1.676755"; conf_hi "3.353509"; cov "4.749121";\n/ .
 		   qq/chr3\tCufflinks\texon\t30549662\t30550273\t1000\t-\t.\tgene_id "CUFF.22498"; transcript_id "CUFF.22498.1"; exon_number "1"; FPKM "2.5052666329"; frac "1.000000"; conf_lo "1.676755"; conf_hi "3.353509"; cov "4.749121";\n/ .
@@ -923,11 +942,20 @@ sub format_gtf {
 
 # Remove categories that do not sync with cuffcompare
 sub sync_categories {
+    my $c_ncRNAs = my $c_no_ncRNAs = '';
+    
     for (0 .. $#ARGV) {
-	my $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.class.lncRNAs.gtf';
-	my $c_no_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.noClass.lncRNAs.gtf';
-	my $c_ncRNAs_tmp = $c_ncRNAs . '.tosync';
 
+	if ($gtf_formatted) {
+	    $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.putative.class.lncRNAs.gtf';
+	    $c_no_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.putative.noClass.lncRNAs.gtf';
+	}
+	else {
+	    $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.class.lncRNAs.gtf';
+	    $c_no_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.noClass.lncRNAs.gtf';
+	}
+
+	my $c_ncRNAs_tmp = $c_ncRNAs . '.tosync';
 	$io->execute_system_command("cp $c_ncRNAs $c_ncRNAs_tmp") if (-e $c_ncRNAs);
 
 	$io->error("Cannot find *.tosync file while attempting to sync lncRNA categories.\n" . 
@@ -1200,6 +1228,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Apr-21-2015
+Apr-29-2015
 
 =cut

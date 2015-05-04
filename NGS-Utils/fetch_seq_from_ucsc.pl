@@ -10,8 +10,8 @@ use XML::XPath::XMLParser;
 use IO::Routine;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-16-04 20:45:27 -0500 (Thu, 16 Apr 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0705 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-29-04 17:45:27 -0500 (Tue, 29 Apr 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0708 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 # Declare initial global variables
@@ -195,8 +195,8 @@ while (my $line = <$tmap_fh>) {
 	$strand->{$unique_seq_id} = $chr_strand;
     }
     else {
-	$io->error('Duplicate recored found for transcript ID with same feature start position: ' . $unique_seq_id . 
-		   "\nCurrent recored for the same transcript ID: " . $line . "\n");
+	$io->error("Duplicate record found [ for $unique_seq_id ] with same feature start position, when trying to store: " . 
+		   "\n\n" . $line . "\n");
     }
 }
 
@@ -256,8 +256,11 @@ foreach my $unique_seq_id (keys %$transcripts) {
 	    sleep $pause_ncbi;
 	}
 	elsif (defined $local_ref_fa) {
-	    $io->warning("Contig / Chromosome ID [ $unchanged_contig_id ] does not exist in supplied reference FASTA.\n".
-			 'Please make sure that the reference FASTA has those IDs.') if (!exists $contigs->{lc($unchanged_contig_id)});
+	    if (!exists $contigs->{lc($unchanged_contig_id)}) {
+		$io->warning("Contig / Chromosome ID [ $unchanged_contig_id ] does not exist in supplied reference FASTA.\n".
+			     'Please make sure that the reference FASTA has those IDs.'); 
+		next;
+	    }
 	    my $subseq_obj = $contigs->{lc($unchanged_contig_id)};
 	    my $subseq = $subseq_obj->subseq($exon_start, $exon_end);
 	    $seq .= $subseq;
@@ -481,6 +484,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Apr-16-2015
+Apr-29-2015
 
 =cut
