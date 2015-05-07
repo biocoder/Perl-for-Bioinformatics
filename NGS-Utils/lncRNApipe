@@ -10,7 +10,7 @@ use Term::ANSIColor qw(:constants);
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-29-04 17:45:27 -0500 (Tue, 29 Apr 2015)  $ =~ m/.+?\:(.+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-07-05 17:45:27 -0500 (Thu, 07 May 2015)  $ =~ m/.+?\:(.+)/;
 my ($VERSION) = q$LastChangedRevision: 0.7.8 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
@@ -336,6 +336,9 @@ sub run_lncRNApipe {
 	$io->warning('Using local FASTA reference [ ' . $io->file_basename($local_ref_seq, 'suffix') . ' ] to fetch sequences to maintain consistency.' .
 			 "\n** Requires Bio::SeqIO module to be installed and available **", 'INFO!!');
 	$fetch_sc_opts = "-local $local_ref_seq";
+    }
+    elsif( ($local_ref_seq eq '' || !-s $local_ref_seq || !-e $local_ref_seq) && !defined $fetch_sc_opts) {
+	$io->error("We need to know where to fetch FASTA sequences from [ -local or -db or -ncbi ] ??\n\nSee $0 --h fetch for options.");
     }
     
     # Run fetch_seq_from_ucsc.pl ######################################################################
@@ -1732,6 +1735,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Apr-29-2015
+May-07-2015
 
 =cut
