@@ -26,7 +26,7 @@ Examples:
                  --fetch-seq '-db mm10' \
                  --cpc \
                  --rna \
-                 --inf
+                 --inf &> lncRNApipe.run.log
 
 =head1 DESCRIPTION
 
@@ -284,6 +284,23 @@ lncRNApipe will attempt to run multiple processes on this may CPU cores.
 Mentioning number of CPUs equal to or more than number of assembled 
 transcript files is strongly encouraged.
 
+=item --send-run-report
+
+lncRNApipe will send your log file. For this to work, you need to save the output of the pipeline to
+a log file. Ex:
+
+     perl lncRNApipe --run /data/lncRNApipe/ \
+                     --cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' \
+                     --cat-ncRNAs '-sample-names "M1,M2" -ov 80 -fpkm 2 -len 200 -max-len 10000 -min-exons 1 -antisense" \
+                     --fetch-seq '-db mm10' \
+                     --cpc \
+                     --rna \
+                     --inf  &> lncRNAPipe.run.log 
+
+and then, if the run fails or if you wish to discuss other issues. Use:
+ 
+     perl lncRNApipe --send-run-report '-email your_email@gmail.com -log lncRNApipe.run.log'
+
 =back
 
 =head1 AUTHOR
@@ -296,6 +313,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-May-07-2015
+May-08-2015
 
 =cut
