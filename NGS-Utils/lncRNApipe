@@ -10,8 +10,8 @@ use Term::ANSIColor qw(:constants);
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-07-05 17:45:27 -0500 (Thu, 07 May 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.7.8 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-07-08 11:45:27 -0500 (Fri, 08 May 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0.7.9 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -22,7 +22,7 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $skip_rnafold_core, $skip_cmscan_core,
     $lncRNApipe_ver_info, $no_update_check, 
     $skip_get_uq, $lncRNApipe_succ, $num_cpu_by_2,
-    $skip_cpc);
+    $skip_cpc, $debug);
 
 my $is_valid_option = GetOptions('help:s'                           => \$help,
                                  'quiet'                            => \$quiet,
@@ -45,7 +45,8 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'version'                          => \$lncRNApipe_ver_info,
 				 'no-update-chk|noup|d'             => \$no_update_check,
 				 'skip-get|skip-get-uq'             => \$skip_get_uq,
-				 'skip-cpc'                         => \$skip_cpc);
+				 'skip-cpc'                         => \$skip_cpc,
+				 'send-run-report=s'                => \$debug);
 
 # Initialize known defaults
 my $CAT_SC = 'categorize_ncRNAs.pl';
@@ -54,6 +55,7 @@ my $GET_UQ_SC = 'get_unique_features.pl';
 my $CPC_SH_SC = 'CPC.sh';
 my $ANN_INF_SC = 'annotate_final_ncRNAs.sh';
 my $RELPLOT_MOD_SC = 'relplot_mod.pl';
+my $SEND_MAIL_SC = 'send_lncRNApipe_log.pl';
 my $USER_HOME = dirname(abs_path($0));
 if (defined $num_cpu) {
     $num_cpu_by_2 = sprintf("%.0f", $num_cpu / 2) - 1;
@@ -81,6 +83,13 @@ elsif (defined $setup) {
 }
 elsif (defined $out || (defined $help && $help eq '')) {
     run_lncRNApipe();
+}
+elsif (defined $debug) {
+    my $depconf_fh = read_conf('/.lncRNApipe.depconf');
+    my $pl_dep_paths_fh = read_conf('/.lncRNApipe.PERLLIBS');
+    my $pl_inc_string = source_env($pl_dep_paths_fh);
+    get_deps($depconf_fh);
+    system("$deps->{'email'} $debug");
 }
 elsif (defined $help && $help ne '') {
     my $depconf_fh = read_conf('/.lncRNApipe.depconf');
@@ -706,6 +715,7 @@ sub setup_lncRNApipe {
     chomp(my $install_dir = shift);
     chomp(my $dl_util = `which wget 2>&1`);
 
+    print "\n Hi :-) I am Vayu and I will attempt to install lncRNApipe for you.";
     print "\nChecking for platform independent prerequisites on UNIX based machines...\n";
 
     # Wget or Curl
@@ -817,6 +827,14 @@ sub setup_lncRNApipe {
     cpanm_status($pm_install_dir, 'XML::XPath', $install_dir);
     cpanm_status($pm_install_dir, 'XML::XPath::XMLParser', $install_dir);
     cpanm_status($pm_install_dir, 'Parallel::ForkManager', $install_dir);
+    cpanm_status($pm_install_dir, 'MIME::Lite', $install_dir);
+    cpanm_status($pm_install_dir, 'Email::Valid', $install_dir);
+
+    if (!ask_user("\n\nDo you already have BioPerl installed?")) {
+	print "\nOK ... This may take a while ... Grab a snack or coffee!\n";
+	cpanm_status($pm_install_dir, 'BioPerl', $install_dir);
+    }
+
 
     print "\n\nThank you cpanm!\n";
 
@@ -959,6 +977,7 @@ sub setup_lncRNApipe {
     print $dep_fh "$install_dir/" . $RELPLOT_MOD_SC, "\n" if (check_native("$install_dir/" . $RELPLOT_MOD_SC));
     print $dep_fh "$install_dir/" . $CPC_SH_SC, "\n" if (check_native("$install_dir/" . $CPC_SH_SC));
     print $dep_fh "$install_dir/" . $ANN_INF_SC, "\n" if (check_native("$install_dir/" . $ANN_INF_SC));
+    print $dep_fh "$install_dir/" . $SEND_MAIL_SC, "\n" if (check_native("$install_dir/" . $SEND_MAIL_SC));
 
     if (-e "$install_dir/.lncRNApipe.depbin/Rfam.cm.1_1" &&
 	-s "$install_dir/.lncRNApipe.depbin/Rfam.cm.1_1") {
@@ -1286,6 +1305,7 @@ sub get_deps {
     ($deps->{'cpc'}) = ($dep_tools =~ m/(.+?$CPC_SH_SC)/i);
     ($deps->{'ann-inf'}) = ($dep_tools =~ m/(.+?$ANN_INF_SC)/i);
     ($deps->{'relplot'}) = ($dep_tools =~ m/(.+?$RELPLOT_MOD_SC)/i);
+    ($deps->{'email'}) = ($dep_tools =~ m/(.+?$SEND_MAIL_SC)/i);
     ($deps->{'cpc_home'}) = ($dep_tools =~ m/cpcHome\:(.+)/i) if (!exists $ENV{'CPC_HOME'}); 
 
     foreach my $dep (keys %$deps) {
@@ -1465,7 +1485,7 @@ Examples:
                  --fetch-seq '-db mm10' \
                  --cpc \
                  --rna \
-                 --inf
+                 --inf &> lncRNApipe.run.log
 
 =head1 DESCRIPTION
 
@@ -1723,6 +1743,23 @@ lncRNApipe will attempt to run multiple processes on this may CPU cores.
 Mentioning number of CPUs equal to or more than number of assembled 
 transcript files is strongly encouraged.
 
+=item --send-run-report
+
+lncRNApipe will send your log file. For this to work, you need to save the output of the pipeline to
+a log file. Ex:
+
+     perl lncRNApipe --run /data/lncRNApipe/ \
+                     --cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' \
+                     --cat-ncRNAs '-sample-names "M1,M2" -ov 80 -fpkm 2 -len 200 -max-len 10000 -min-exons 1 -antisense" \
+                     --fetch-seq '-db mm10' \
+                     --cpc \
+                     --rna \
+                     --inf  &> lncRNAPipe.run.log 
+
+and then, if the run fails or if you wish to discuss other issues. Use:
+ 
+     perl lncRNApipe --send-run-report '-email your_email@gmail.com -log lncRNApipe.run.log'
+
 =back
 
 =head1 AUTHOR
@@ -1735,6 +1772,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-May-07-2015
+May-08-2015
 
 =cut
