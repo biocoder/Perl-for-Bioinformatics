@@ -715,7 +715,8 @@ sub setup_lncRNApipe {
     chomp(my $install_dir = shift);
     chomp(my $dl_util = `which wget 2>&1`);
 
-    print "\nHi :-) I am Vayu and I will attempt to install lncRNApipe for you.";
+    binmode(STDOUT, ":utf8");
+    print "\n\x{1f473}  Hi! I am Vayu and I will attempt to install lncRNApipe for you.";
     print "\nChecking for platform independent prerequisites on UNIX based machines...\n";
 
     # Wget or Curl
