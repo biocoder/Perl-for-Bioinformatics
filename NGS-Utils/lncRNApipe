@@ -1002,7 +1002,7 @@ sub setup_lncRNApipe {
     close $dep_fh;
 
     $io->execute_system_command(0,
-				"\n\nSetup complete. See \"perl lncRNApipe -h\" to run the pipeline with options.");
+				"\n\nSetup complete. See \"perl lncRNApipe --h\" to run the pipeline with options.");
     # For build check
     exit;
 }
