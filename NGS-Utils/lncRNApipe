@@ -836,7 +836,7 @@ sub setup_lncRNApipe {
     }
 
 
-    print "\n\nThank you cpanm!\n";
+    print "\nThank you cpanm!\n";
 
     my $pm_path = "$pm_install_dir/PERLLIBS:$pm_install_dir/PERLLIBS/lib:$pm_install_dir/PERLLIBS/lib/perl5";
 
