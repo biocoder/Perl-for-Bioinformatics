@@ -12,12 +12,13 @@ my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-07-08 11:45:27 -0500 (Fri, 08 Ma
 my ($VERSION) = q$LastChangedRevision: 0709 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
-my ($help, $quiet, $log_file, $user_email);
+my ($help, $quiet, $log_file, $user_email, $msg);
 
 my $is_valid_option = GetOptions('help:s'  => \$help,
                                  'quiet'   => \$quiet,
 				 'log=s'   => \$log_file,
-				 'email=s' => \$user_email);
+				 'email=s' => \$user_email,
+				 'msg:s'   => \$msg);
 
 my $io = IO::Routine->new($help, $quiet);
 my $s_time = $io->start_timer;
@@ -32,7 +33,6 @@ unless(Email::Valid->address( -address => $user_email)) {
 $io->c_time('Composing email ...');
 
 email("lncRNApipe Run Report from $ENV{'USER'}", 
-      "lncRNApipe used by $ENV{'USER'}",
       $log_file);
 
 $io->c_time('Mail sent to lncRNApipe@outlook.com. Any replies will be sent to ' . $user_email . '.');
@@ -40,7 +40,6 @@ $io->end_timer($s_time);
 
 ######################### Functions ############################################
 sub email {
-    my $msg = shift;
     my $sbjt = shift;
     my $e_file = shift;
 
@@ -128,6 +127,11 @@ send_lncRNApipe_log.pl takes the following arguments:
     Path to lncRNApipe log file.
     
     Ex: -l /data/lncRNApipe/run.log
+
+=item -m or --msg (Optional)
+
+    Any optional message you want to send with the report.
+    Ex: -m 'I cannot run lncRNApipe because, I get the following error'
 
 =back
 

@@ -1758,7 +1758,7 @@ a log file. Ex:
 
 and then, if the run fails or if you wish to discuss other issues. Use:
  
-     perl lncRNApipe --send-run-report '-email your_email@gmail.com -log lncRNApipe.run.log'
+     perl lncRNApipe --send-run-report '-email your_email@gmail.com -log lncRNApipe.run.log -m "I cannot run lncRNApipe because lorem ipsum ...."'
 
 =back
 
