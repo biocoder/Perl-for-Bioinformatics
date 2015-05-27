@@ -519,9 +519,6 @@ sub calc_overlaps {
     my $found = 0;
     my $num_noSense = 0;
 
-    # Calculate overlap. Keep track of categorized ncRNAs.
-    my $categorized_unique_ncRNAs = {};
-  
     foreach my $nc_chr (keys %{$p_ncRNAs}) {
 
 	my $nc_int_tree = Set::IntervalTree->new() if ($mode =~ m/^ponc|conc$/i);
@@ -736,8 +733,8 @@ sub calc_overlaps {
 		}
 	    }
 	    
-	    if (!exists $categorized_unique_ncRNAs->{$unique_key}) {
-		$categorized_unique_ncRNAs->{$unique_key} = 1;
+	    # All ncRNAs that have been categorized will be here. The remaning will go through lincRNAs or noClass check.
+	    if (exists $ncRNA_class->{$unique_key}) {
 		$io->execute_system_command('grep -P \'transcript_id\s+\"' . $nc_tr_id . '\"\' '  . "$p_gtf | sed -e \'s\/\$\/ transcript_length \"$ncRNA_length\"\; $ncRNA_class->{$unique_key}\/\' >> $c_ncRNAs", 0);
 	    }
 	}

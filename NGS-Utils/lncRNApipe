@@ -173,6 +173,18 @@ sub run_lncRNApipe {
 				    'Making output directory for cuffcompare [ ' . $cuffcmp_dir . ' ]')
 	    if (!-d $cuffcmp_dir);
 
+	# Check if -i is provided with cuffcompare and adjust accordingly.
+
+	(my $cuffcmp_opts_trs_in_file) = ($cuffcmp_opts =~ m/-i\s+([^\s]*)/);
+	
+	if ($cuffcmp_opts_trs_in_file) {
+	    my $i_fh = $io->open_file('<', $cuffcmp_opts_trs_in_file);
+	    my $i_files = do {local $/; <$i_fh>};
+	    my $i_file_str = join(' ', split(/\n|\r/, $i_files));
+	    
+	    $cuffcmp_opts =~ s/-i\s+[^\s]*/$i_file_str/;
+	}
+
 	$io->execute_system_command($deps->{'cuffcompare'} .
 				    " -T -o $cuffcmp_dir/lncRNApipe_cuffcmp " .
 				    join('-', split(/\-/, $cuffcmp_opts)),
@@ -303,15 +315,22 @@ sub run_lncRNApipe {
 	    $lncRNApipe_class_file = $outdir . 'categorize_ncRNAs/' . $lncRNApipe_class_file;
 	    my $unique_ncRNAs = $cat_dir . '/' . $io->file_basename($lncRNApipe_class_file) . '.unique.gtf';
 	    unlink $unique_ncRNAs if (-e $unique_ncRNAs);
+
+	    my $sff_opt = '';
+	    if ($get_uq_sc_opts !~ m/-sff/) {
+		$io->c_time("Assuming supplied known ncRNAs to be in BED format...\n" .
+			    'You can change this option with -sff. Ex: -sff gtf');
+		$sff_opt = '-sff bed';
+	    }
 		
 	    $is_failed = $io->execute_get_sys_cmd_output('perl' . $pl_inc_string . $deps->{'get'} . ' ' .
-							 '-q -cf ' . $lncRNApipe_class_file . ' -cff gtf -sff bed '.
+							 '-q -cf ' . $lncRNApipe_class_file . " -cff gtf $sff_opt ".
 							 join('-', split(/\-|\--/, $get_uq_sc_opts)) .
 							 ' -unique -out ' .
 							 $unique_ncRNAs,
 							 "Command call:\n" .
 							 "-------------\n" . $deps->{'get'} . ' ' .
-							 '-q -cf ' . $lncRNApipe_class_file . ' -cff gtf -sff bed '.
+							 '-q -cf ' . $lncRNApipe_class_file . " -cff gtf $sff_opt ".
 							 join('-', split(/\-|\--/, $get_uq_sc_opts)) .
 							 ' -unique -out ' .
 							 $unique_ncRNAs);
@@ -340,7 +359,7 @@ sub run_lncRNApipe {
     
     # Use local reference FASTA instead of fetching, if provided with cuffcompare
     # This needs to be outside do {}, to guarantee parsing, even if -fetch-seq does not have any options.
-    ($local_ref_seq) = ($cuffcmp_opts =~ m/.*?-s\s+(.+?)\s+.*/) if ($cuffcmp_opts);	
+    ($local_ref_seq) = ($cuffcmp_opts =~ m/-s\s+([^\s]*)/) if ($cuffcmp_opts);	
     if ($local_ref_seq && -s $local_ref_seq && -e $local_ref_seq) {
 	$io->warning('Using local FASTA reference [ ' . $io->file_basename($local_ref_seq, 'suffix') . ' ] to fetch sequences to maintain consistency.' .
 			 "\n** Requires Bio::SeqIO module to be installed and available **", 'INFO!!');
