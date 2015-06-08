@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 
+# These are safe to load. Core modules distributed with Perl itself.
 use strict;
 use warnings;
 use Getopt::Long;
@@ -7,6 +8,8 @@ use File::Temp;
 use File::Basename;
 use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
+use YAML qw(LoadFile);
+use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
@@ -22,7 +25,7 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $skip_rnafold_core, $skip_cmscan_core,
     $lncRNApipe_ver_info, $no_update_check, 
     $skip_get_uq, $lncRNApipe_succ, $num_cpu_by_2,
-    $skip_cpc, $debug);
+    $skip_cpc, $debug, $sp_list, $pipe_config);
 
 my $is_valid_option = GetOptions('help:s'                           => \$help,
                                  'quiet'                            => \$quiet,
@@ -46,7 +49,9 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'no-update-chk|noup|d'             => \$no_update_check,
 				 'skip-get|skip-get-uq'             => \$skip_get_uq,
 				 'skip-cpc'                         => \$skip_cpc,
-				 'send-run-report=s'                => \$debug);
+				 'send-run-report=s'                => \$debug,
+				 'list=s'                           => \$sp_list,
+				 'config=s'                         => \$pipe_config);
 
 # Initialize known defaults
 my $CAT_SC = 'categorize_ncRNAs.pl';
@@ -56,6 +61,7 @@ my $CPC_SH_SC = 'CPC.sh';
 my $ANN_INF_SC = 'annotate_final_ncRNAs.sh';
 my $RELPLOT_MOD_SC = 'relplot_mod.pl';
 my $SEND_MAIL_SC = 'send_lncRNApipe_log.pl';
+my $HGCONF = '.hg.conf';
 my $USER_HOME = dirname(abs_path($0));
 if (defined $num_cpu) {
     $num_cpu_by_2 = sprintf("%.0f", $num_cpu / 2) - 1;
@@ -106,6 +112,23 @@ elsif (defined $help && $help ne '') {
     close $depconf_fh;
     close $pl_dep_paths_fh;
 }
+elsif (defined $sp_list) {
+    my $io = run_lncRNApipe('version');
+    list($io);
+    exit 0;
+}
+elsif (defined $pipe_config) {
+    my $io = run_lncRNApipe('version');
+    $io->error('Cannot find the configuration file [ ' . $pipe_config . ' ] or the file is empty!')
+	if (!-s $pipe_config || !-e $pipe_config);
+
+    # Will fail if not installed properly.
+    require YAML;
+    YAML->import( qw( LoadFile ) );
+    my $lncRNApipe_config = LoadFile($pipe_config);
+    #$io->c_time("Read parameters: \n\n" . Data::Dumper->Dump([$lncRNApipe_config], [qw(lncRNApipe_config)]));
+    run_lncRNApipe($lncRNApipe_config);
+}
 else {
 
 ################################################################################################
@@ -139,6 +162,19 @@ sub run_lncRNApipe {
 
     return $io if ($shall_I_run eq 'version');
 
+    my $s_time = $io->start_timer;
+    binmode(STDOUT, ":utf8");
+
+    # Validate options here after help documentation is printed
+    $io->c_time('Validating options...');
+    $io->c_time("Starting \x{2632}\x{2634} lncRNApipe Pipeline...");
+
+    my $dep_tools_fh = $io->open_file('<', $USER_HOME . '/.lncRNApipe.depconf');
+    get_deps($dep_tools_fh);
+    
+    # User has requested to run the pipeline from assembly stage. Handle it here.
+    run_assembly($io, $shall_I_run, $s_time) if (ref($shall_I_run) eq 'HASH');
+
     $io->verify_options([$out, $is_valid_option]) if (defined $help && $help eq '');
 
     if (!defined $out) {
@@ -149,16 +185,6 @@ sub run_lncRNApipe {
 	$outdir = $io->validate_create_path($out, 'create',
 					    'lncRNApipe pipeline output directory')
     }
-
-    my $s_time = $io->start_timer;
-    binmode(STDOUT, ":utf8");
-
-    # Validate options here after help documentation is printed
-    $io->c_time('Validating options...');
-    $io->c_time("Starting \x{2632}\x{2634} lncRNApipe Pipeline...");
-
-    my $dep_tools_fh = $io->open_file('<', $USER_HOME . '/.lncRNApipe.depconf');
-    get_deps($dep_tools_fh);
 
     $io->exist_sys_cmd(['mkdir']);
 
@@ -734,17 +760,13 @@ sub setup_lncRNApipe {
     chomp(my $install_dir = shift);
     chomp(my $dl_util = `which wget 2>&1`);
 
-    binmode(STDOUT, ":utf8");
-    print "\n\x{1f473}  Hi! I am Vayu and I will attempt to install lncRNApipe for you.";
-    print "\nChecking for platform independent prerequisites on UNIX based machines...\n";
-
     # Wget or Curl
     if ($dl_util !~ m/.+?wget$/i) {
 	chomp ($dl_util = `which curl 2>&1`);
 	succ_or_fail(0, 'Curl|Wget')
 	    if ($dl_util !~ m/.+?curl$/i);
 	succ_or_fail(1, 'curl');
-        $dl_util .= ' -LkO ';
+        $dl_util .= ' -LksO ';
     }
     elsif ($dl_util =~ m/.+?(wget)$/i) {
 	succ_or_fail(1, $1);
@@ -753,6 +775,14 @@ sub setup_lncRNApipe {
     else{
 	succ_or_fail(0, 'Curl|Wget');
     }
+
+    # Return dl util only if requested
+    return $dl_util if ($install_dir eq 'get_dl_UTIL');
+
+    binmode(STDOUT, ":utf8");
+    print "\n\x{1f473}  Hi! I am Vayu and I will attempt to install lncRNApipe for you.";
+    print "\nChecking for platform independent prerequisites on UNIX based machines...\n";
+
 
     # Unzip
     check_util('unzip');
@@ -792,6 +822,18 @@ sub setup_lncRNApipe {
 
     # bc
     check_util('bc');
+
+    # head
+    check_util('head');
+
+    # sort
+    check_util('sort');
+
+    # cat
+    check_util('cat');
+
+    # Mandatory by Single UNIX Specification. Just checking for sanity
+    check_util('awk');
 
     print "\n\nWe definetely need the custom module, IO::Routine.\n" .
       "We also need good grace of cpanm to install remaining modules.\n\n" .
@@ -841,7 +883,7 @@ sub setup_lncRNApipe {
 	$pm_install_dir = $local_lib;
     }
 
-    cpanm_status($pm_install_dir, 'Module::Load', $install_dir);
+    #cpanm_status($pm_install_dir, 'Module::Load', $install_dir); # This is a core module.
     cpanm_status($pm_install_dir, 'Set::IntervalTree', $install_dir);
     cpanm_status($pm_install_dir, 'LWP::Simple', $install_dir);
     cpanm_status($pm_install_dir, 'XML::XPath', $install_dir);
@@ -849,12 +891,12 @@ sub setup_lncRNApipe {
     cpanm_status($pm_install_dir, 'Parallel::ForkManager', $install_dir);
     cpanm_status($pm_install_dir, 'MIME::Lite', $install_dir);
     cpanm_status($pm_install_dir, 'Email::Valid', $install_dir);
+    cpanm_status($pm_install_dir, 'YAML', $install_dir);
 
     if (!ask_user("\n\nDo you already have BioPerl installed?")) {
-	print "\nOK ... This may take a while ... Grab a snack or coffee!\n";
+	print "\nOK ... This may take a while ... Grab a snack or a cup of coffee!\n";
 	cpanm_status($pm_install_dir, 'BioPerl', $install_dir);
     }
-
 
     print "\nThank you cpanm!\n";
 
@@ -989,6 +1031,10 @@ sub setup_lncRNApipe {
     print $dep_fh check_bio_util('blastall', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('RNAfold', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('gtfToGenePred', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('genePredToGtf', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('trimmomatic', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('tophat', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('cufflinks', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('cmscan', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('formatdb', $install_dir, $sys_arch), "\n";
     print $dep_fh "$install_dir/" . $CAT_SC, "\n" if (check_native("$install_dir/" . $CAT_SC));
@@ -998,6 +1044,7 @@ sub setup_lncRNApipe {
     print $dep_fh "$install_dir/" . $CPC_SH_SC, "\n" if (check_native("$install_dir/" . $CPC_SH_SC));
     print $dep_fh "$install_dir/" . $ANN_INF_SC, "\n" if (check_native("$install_dir/" . $ANN_INF_SC));
     print $dep_fh "$install_dir/" . $SEND_MAIL_SC, "\n" if (check_native("$install_dir/" . $SEND_MAIL_SC));
+    print $dep_fh "$install_dir/" . $HGCONF, "\n" if (check_native("$install_dir/" . $HGCONF));
 
     if (-e "$install_dir/.lncRNApipe.depbin/Rfam.cm.1_1" &&
 	-s "$install_dir/.lncRNApipe.depbin/Rfam.cm.1_1") {
@@ -1316,6 +1363,11 @@ sub get_deps {
     ($deps->{'blastall'}) = ($dep_tools =~ m/(.+?blastall)/i);
     ($deps->{'RNAfold'}) = ($dep_tools =~ m/(.+?rnafold)/i);
     ($deps->{'bin-gtfToGenePred'}) = ($dep_tools =~ m/(.+?gtfToGenePred)/i);
+    ($deps->{'bin-genePredToGtf'}) = ($dep_tools =~ m/(.+?genePredToGtf)/i);
+    ($deps->{'trimmomatic'}) = ($dep_tools =~ m/(.+?trimmomatic)/i);
+    ($deps->{'tophat'}) = ($dep_tools =~ m/(.+?tophat)/i);
+    ($deps->{'cufflinks'}) = ($dep_tools =~ m/(.+?cufflinks)/i);
+    ($deps->{'hgconf'}) = ($dep_tools =~ m/(.+?$HGCONF)/i);
     ($deps->{'cmscan'}) = ($dep_tools =~ m/(.+?cmscan)/i);
     ($deps->{'formatdb'}) = ($dep_tools =~ m/(.+?formatdb)/i);
     ($deps->{'rfam_cm'}) = ($dep_tools =~ m/(.+?Rfam\.cm\.1\_1)/i);
@@ -1326,7 +1378,10 @@ sub get_deps {
     ($deps->{'ann-inf'}) = ($dep_tools =~ m/(.+?$ANN_INF_SC)/i);
     ($deps->{'relplot'}) = ($dep_tools =~ m/(.+?$RELPLOT_MOD_SC)/i);
     ($deps->{'email'}) = ($dep_tools =~ m/(.+?$SEND_MAIL_SC)/i);
-    ($deps->{'cpc_home'}) = ($dep_tools =~ m/cpcHome\:(.+)/i) if (!exists $ENV{'CPC_HOME'}); 
+    ($deps->{'cpc_home'}) = ($dep_tools =~ m/cpcHome\:(.+)/i) if (!exists $ENV{'CPC_HOME'});
+
+    # Finally copy .hg.conf to user home if it does not exist.
+    system("cp $deps->{'hgconf'} $ENV{'HOME'}/.") if (!-e "$ENV{'HOME'}/.hg.conf");
 
     foreach my $dep (keys %$deps) {
 	die "\n\nCannot find required dependency [ " . $dep . " ]. May be reinstalling lncRNApipe will resolve the issue?\n\n"
@@ -1474,6 +1529,397 @@ sub get_pipeline_status_code {
 	});
 }
 
+# Show users ENSEMBL species list.
+sub list {
+    my $io = shift;
+    my $release_only = shift;
+    
+    $io->c_time('Finding out latest release version at ENSEMBL...');
+    chomp(my $latest_release = $io->execute_get_sys_cmd_output("curl -Lks ftp://ftp.ensembl.org/pub/ -l | grep release | sort -nr -k9 | head -n 1"));
+    return $latest_release if ($release_only);
+    $io->c_time('Latest ENSEMBL release is: ' . $latest_release .
+		"\n\nSpecies List for $latest_release:\n==================================");
+    $io->execute_system_command("curl -Lks ftp://ftp.ensembl.org/pub/$latest_release/gtf/ -l");
+    print "\n";
+    return;
+}
+
+# Run the assembly stage of the pipeline.
+sub run_assembly {
+    my $io = shift;
+    my $params = shift;
+    my $clock = shift;
+    my $beverb = "\nPlease check your config file [ " . $io->file_basename($pipe_config, 'suffix') . ' ] and provide a valid value(s).';
+
+    # Verify minimum required params.
+    verify_config_file($io, $beverb, $params->{'overwriteOutputDir'}, 'overwriteOutputDir', 'yes|no');
+    verify_config_file($io, $beverb, $params->{'performTranscriptAssembly'}, 'performTranscriptAssembly', 'yes|no');
+    verify_config_file($io, $beverb, $params->{'replicates'}, 'replicates', 'yes|no');
+    verify_config_file($io, $beverb, $params->{'sourceDB'}, 'sourceDB', 'ensembl|ucsc') if (defined $params->{'sourceDB'});
+    verify_config_file($io, $beverb, $params->{'scheduler'}, 'scheduler', 'pbs|sge|lsf') if (defined $params->{'scheduler'});
+    verify_config_file($io, $beverb, $params->{'libType'}, 'libType', 'se|pe|mixed') if (defined $params->{'libType'});
+    
+    $io->c_time('OK. Removing output directory [ '. $io->file_basename($params->{'outputDir'}). ' ] ...'),
+	$io->execute_system_command("rm -rf $params->{'outputDir'}")
+	if (defined $params->{'outputDir'} &&
+	    -d $params->{'outputDir'} &&
+	    defined $params->{'overwriteOutputDir'} &&
+	    $params->{'overwriteOutputDir'} =~ /^YES$/i);
+    
+    $io->error('Output directory not mentioned. We need to know where to store the results. [outputDir: ?]' . $beverb)
+	if (!$params->{'outputDir'});
+    
+    $io->error('We want to know if you intend to perform transcript assembly using tophat / cufflinks. [performTranscriptAssembly: ?]' . $beverb)
+	if (!defined $params->{'performTranscriptAssembly'});    
+    
+    $io->error('Invalid / No value provided reading sequence read type. [readType: ?] ' . $beverb)
+	if (!defined $params->{'readType'} || $params->{'readType'} !~ m/fasta|fastq/i);
+
+    $io->error('No information regarding reference annotation provided. [sourceDB: ?], [species: ?], [useThisAnnotation: ?]')
+	if ( (!defined $params->{'sourceDB'} || !defined $params->{'species'}) && !defined $params->{'useThisAnnotation'});
+
+    $io->error('Annotation file [ ' . $params->{'useThisAnnotation'} . ' ] does not exist or is empty.')
+	if (defined $params->{'useThisAnnotation'} && 
+	    ( !-e $params->{'useThisAnnotation'} || -z $params->{'useThisAnnotation'}) );
+
+    $io->error('Invalid / No value provided for [bowtieGenomeIndex: ?]' . $beverb)
+	if (!defined $params->{'bowtieGenomeIndex'});
+
+    $io->warning('Will not trim reads. [readType: FASTA]') if ($params->{readType} =~ m/FASTA/i && defined $params->{'trimmomatic'});
+    $io->error("[performTranscriptAssembly: ] requested, but cannot find any reads' options." . $beverb)
+	if (defined $params->{'performTranscriptAssembly'} && 
+	    ( !defined $params->{'reads'}->{'r1'} && !defined $params->{'reads'}->{'r2'} ));
+    
+    my $sample_name_exists = 0;
+    foreach my $val (@{$params->{'categorize_ncRNAs'}}) {
+	$sample_name_exists = $val if ($val =~ m/sample/i);
+    }
+    $io->error('-sample-names option is required for [categorize_ncRNAs: ]' . $beverb)
+	if (!$sample_name_exists);
+
+    # Necessary evil
+    my $tophat_o_dir = $params->{'outputDir'} . '/tophat';
+    my $cufflinks_o_dir = $params->{'outputDir'} . '/cufflinks';
+    my $trim_o_dir = $params->{'outputDir'} . '/trimmomatic';
+    my $job_scripts_dir = $params->{'outputDir'} . '/job_scripts';
+    my $ref_annot_dir = $params->{'outputDir'} . '/ref_annotation';
+    my $cuffdiff_novel = $params->{'outputDir'} . '/cuffdiff_known_ncRNAs';
+    my $cuffdiff_known = $params->{'outputDir'} . '/cuffdiff_novel_ncRNAs';
+    my $mk_output_dirs = '';
+
+    $io->c_time('Preparing output directories...');
+
+    my $annot_gtf = '';
+    if (!defined $params->{'useThisAnnotation'}) {
+	$mk_output_dirs = $io->execute_get_sys_cmd_output("mkdir -p $ref_annot_dir");
+	$io->error('Cannot create output directories. Exited with the following error(s):' .
+		   "\n$mk_output_dirs") if ($mk_output_dirs !~ m/could not capture/i);
+
+	$io->c_time('Downloading annotation from ' . $params->{'sourceDB'} . ' ...');
+	
+	if ($params->{'sourceDB'} =~ m/ensembl/i) {
+	    my $release = list($io, 'release');
+	    my $dl_util = setup_lncRNApipe('get_dl_UTIL');
+	    print "\n";
+	    
+	    if ($dl_util =~ m/curl/i) {
+		chomp(my $file = $io->execute_get_sys_cmd_output("curl -s ftp://ftp.ensembl.org/pub/$release/gtf/$params->{'species'}/ |  grep -e '^-' | awk '{ print \$9 }' | grep -i gtf"));
+		$dl_util =~ s/O/ -o $ref_annot_dir\/$params->{'species'}_$params->{'sourceDB'}\.gtf\.gz/;
+		$io->execute_system_command("$dl_util ftp://ftp.ensembl.org/pub/$release/gtf/$params->{'species'}/$file > /dev/null 2>&1");
+	    }
+	    else {
+		$dl_util .= "-O $ref_annot_dir/$params->{'species'}_$params->{'sourceDB'}.gtf.gz" if ($dl_util =~ m/wget/i);
+		$io->execute_system_command("$dl_util ftp://ftp.ensembl.org/pub/$release/gtf/$params->{'species'}/*gtf.gz > /dev/null 2>&1");
+	    }
+	    $io->execute_system_command("gunzip $ref_annot_dir/$params->{'species'}_$params->{'sourceDB'}.gtf.gz");
+	    $annot_gtf = "$ref_annot_dir/$params->{'species'}_$params->{'sourceDB'}.gtf";
+	}
+	elsif ($params->{'sourceDB'} =~ m/ucsc/i) {
+	    my $ucsc_dl_status = $io->execute_get_sys_cmd_output("$deps->{'bin-genePredToGtf'} $params->{'species'} refGene $ref_annot_dir/$params->{'species'}_$params->{'sourceDB'}.gtf");
+	    $io->error('Download quit with the following error: ' . "\n\n$ucsc_dl_status")
+		if ($ucsc_dl_status !~ m/could not capture/i);
+	    $annot_gtf = "$ref_annot_dir/$params->{'species'}_$params->{'sourceDB'}.gtf";
+	}
+    }
+    else {
+	$annot_gtf = $params->{'useThisAnnotation'};
+    }
+
+    if (defined $params->{'performTranscriptAssembly'}) {
+	$mk_output_dirs = $io->execute_get_sys_cmd_output("mkdir -p $tophat_o_dir; " .
+							  "mkdir -p $cufflinks_o_dir; " .
+							  "mkdir -p $trim_o_dir; " .
+							  "mkdir -p $job_scripts_dir; " .
+							  "mkdir -p $cuffdiff_novel; " .
+							  "mkdir -p $cuffdiff_known");
+	
+	$io->error('Cannot create output directories. Exited with the following error(s):' . 
+		   "\n$mk_output_dirs") if ($mk_output_dirs !~ m/could not capture/i);
+		
+	$io->c_time('Preparing job scripts...') if (defined $params->{'scheduler'});
+
+	my @r1_samples = my @r2_samples = ();
+	if (!defined $params->{'reads'}->{'r2'}) {
+	    $io->c_time('[reads => r1: ] only mentioned. Treating it as SE reads...');		
+	    @r1_samples = split/\|/, $params->{'reads'}->{'r1'};
+	    $params->{'reads'}->{'r2'} .= '0|' x scalar @r1_samples; # R1 is SE
+	    @r2_samples = split/\|/, $params->{'reads'}->{'r2'};
+	}	
+	elsif (!defined $params->{'reads'}->{'r1'}) {
+	    $io->c_time('[reads => r2: ] only mentioned. Treating it as SE reads...');		
+	    @r2_samples = split/\|/, $params->{'reads'}->{'r2'};
+	    $params->{'reads'}->{'r1'} .= '0|' x scalar @r2_samples; # R1 is SE
+	    @r1_samples = split/\|/, $params->{'reads'}->{'r1'};
+	}
+	else {
+	    $io->c_time('Detected PE / MP reads...');
+	    @r1_samples = split/\|/, $params->{'reads'}->{'r1'};
+	    @r2_samples = split/\|/, $params->{'reads'}->{'r2'};
+	}
+			
+	my $grand_sample_size = sample_size(\@r1_samples, \@r2_samples);
+	
+	$io->error("Seems like you intend to limited samples.\nIn that case, indicate empty sample by separating it with appropriate delimiter [ | ].")
+	    if ( defined $params->{'reads'}->{'r1'} &&
+		 defined $params->{'reads'}->{'r2'} &&
+		 ( $#r1_samples > 0 || $#r2_samples > 0 ) &&
+		 ( $#r1_samples != $#r2_samples ) &&
+		 ( $params->{'reads'}->{'r1'} !~ m/^\||\|\||\|$/ ||
+		   $params->{'reads'}->{'r2'} !~ m/^\||\|\||\|$/ ) &&
+		 $params->{'libType'} =~ m/^mixed$/i
+	       );
+	
+	my $sample_names2num = sample_nums($params->{'categorize_ncRNAs'}, $io);
+	
+	my $pe_file_index = 0;
+	for(my $i=0; $i<=$grand_sample_size; $i++) {
+	    
+	    my $reps_1 = handle_read_libs($r1_samples[$i], $params->{'reads'}->{'readsDir'}, $io, $params)
+		if ($r1_samples[$i]);
+	    my $reps_2 = handle_read_libs($r2_samples[$i], $params->{'reads'}->{'readsDir'}, $io, $params)
+		if ($r2_samples[$i]);
+	    
+	    $io->error("Seems like you intend to use limited replicates.\nIn that case, indicate empty replicate by separating it with appropriate delimiter [ , ].")
+		if (($#$reps_1 > 0 && $#$reps_2 > 0 ) &&
+		    ($#$reps_1 != $#$reps_2) &&
+		    ( $r1_samples[$i] !~ m/^,|,,|,$/ ||
+		       $r2_samples[$i] !~ m/^,|,,|,$/ ) &&
+		    $params->{'libType'} =~ m/^mixed$/i
+		   );
+	    
+	    my $grand_rep_size = sample_size($reps_1, $reps_2);
+	    
+	    for (my $j=0; $j<=$grand_rep_size; $j++) {
+		my $all_reps_1 = my $all_reps_2 = '';
+		my $rep_num = $j+1;
+		my $rep_num2name = "_rep_$rep_num";
+		
+		$all_reps_1 = $reps_1->[$j] if ($reps_1->[$j]);
+		$all_reps_2 = $reps_2->[$j] if ($reps_2->[$j]);
+		
+		my $all_reps_1_base = $io->file_basename($all_reps_1);
+		my $all_reps_2_base = $io->file_basename($all_reps_2);
+		
+		my $sample_name = "sample_" . ($i+1) . $rep_num2name;
+		$sample_name = $sample_names2num->{$i} . $rep_num2name if (exists $sample_names2num->{$i});
+		
+		my $tophat_rep_o_dir = "$tophat_o_dir/$sample_names2num->{$i}$rep_num2name";
+		my $cufflinks_rep_o_dir = "$cufflinks_o_dir/$sample_names2num->{$i}$rep_num2name";
+		my $trim_rep_o_dir = "$trim_o_dir/$sample_names2num->{$i}$rep_num2name";
+		
+		$io->execute_system_command("mkdir -p $tophat_rep_o_dir; " .
+					    "mkdir -p $cufflinks_rep_o_dir");
+		
+		my $trim_cmd = '';
+		
+		if ($params->{'readType'} =~ m/^FASTQ$/i) {
+		    
+		    $io->execute_system_command("mkdir -p $trim_rep_o_dir");
+		    $trim_cmd = "#\n# Trimmomatic Run\n#\n#\n";
+		    
+		    my $trimmomatic_dir = dirname(abs_path($deps->{'trimmomatic'}));
+		    $trimmomatic_dir .= '/adapters/';
+		    my $trim_params = join(" ", @{$params->{'trimmomatic'}});
+		    $trim_params =~ s/\:(.+?\.fa.*?\:)/\:$trimmomatic_dir$1/ if ($trim_params !~ m/\/.+?\.fa/);
+		     
+		    if ($all_reps_2 && $all_reps_1) {
+			$trim_cmd .= "java -jar $deps->{'trimmomatic'} PE -threads $params->{'CPUs'} $all_reps_1 $all_reps_2 ".
+			    "$trim_rep_o_dir/$all_reps_1_base.filtered.fq " .
+			    "$trim_rep_o_dir/$all_reps_1_base.unpaired.fq " .
+			    "$trim_rep_o_dir/$all_reps_2_base.filtered.fq " .
+			    "$trim_rep_o_dir/$all_reps_2_base.unpaired.fq " .
+			    $trim_params .
+			    " &> $trim_o_dir/run.log";
+			$all_reps_1 = "$trim_rep_o_dir/$all_reps_1_base.filtered.fq";
+			$all_reps_2 = "$trim_rep_o_dir/$all_reps_2_base.filtered.fq";
+		    }
+		    elsif ($all_reps_1) {
+			$trim_cmd .= "java -jar $deps->{'trimmomatic'} SE -threads $params->{'CPUs'} $all_reps_1 ".
+			    "$trim_rep_o_dir/$all_reps_1_base.filtered.fq " .
+			    $trim_params .
+			    " &> $trim_o_dir/run.log";
+			$all_reps_1 = "$trim_rep_o_dir/$all_reps_1_base.filtered.fq";
+		    }
+		    elsif ($all_reps_2) {
+			$trim_cmd .= "java -jar $deps->{'trimmomatic'} SE -threads $params->{'CPUs'} $all_reps_2 ".
+			    "$trim_rep_o_dir/$all_reps_2_base.filtered.fq " .
+			    $trim_params .
+			    " &> $trim_o_dir/run.log";
+			$all_reps_1 = "$trim_rep_o_dir/$all_reps_2_base.filtered.fq";
+		    }
+		    #print "\n$trim_cmd\n\n";
+		}
+		
+		my $tophat_cmd = "\n\n#\n# Tophat Run\n#\n#\ntophat " .
+		    join(' ', @{$params->{'tophat'}}) .
+		    " -o $tophat_rep_o_dir " .
+		    "$params->{'bowtieGenomeIndex'} " . "$all_reps_1 " . "$all_reps_2";
+		
+		my $cufflinks_cmd = "\n\n#\n# Cufflinks Run\n#\n#\ncufflinks ".
+		    join(' ', @{$params->{'cufflinks'}}) .
+		    " -o $cufflinks_rep_o_dir" .
+		    " -g $annot_gtf $tophat_rep_o_dir/accepted_hits.bam";
+		
+		#print "\n$tophat_cmd\n";
+		$io->c_time("Job script [ $sample_name.sh  ] written..." );
+		write_job("$job_scripts_dir/$sample_name" . ".sh",
+			  $trim_cmd,
+			  $tophat_cmd,
+			  $cufflinks_cmd,
+			  #			     $cuffcompare_cmd,
+			  #			     $lncRNApipe_post_assembly_cmd,
+			  $params,
+			  $io
+		    );
+		
+	    }
+				
+	    $pe_file_index++;
+	}    
+    }
+
+    exit 0;
+}
+
+# Write job script with commands
+sub write_job {
+    my $job_script_name = shift(@_);
+    my $io = pop(@_);
+    my $params = pop(@_);
+    my @cmds = @_;
+    
+    my $auto_generated_on = localtime;
+    my $scheduler_opts_str = join("\n#", @{$params->{'schedulerOpts'}});
+    my $job_script_fh = $io->open_file('>', $job_script_name);
+    
+    my $job_script = qq {#!/bin/bash
+# 
+# lncRNApipe job script generated on $auto_generated_on.
+# Scheduler is $params->{'scheduler'}.
+# 
+# Job parameters:
+#
+#$scheduler_opts_str
+# 
+# For sanity, just appending path to our sandboxed assembly binaries.
+#
+
+export PATH=\$PATH:$deps->{'tophat'}:$deps->{'cufflinks'}
+
+@cmds
+};
+
+    print $job_script_fh $job_script;
+    close $job_script_fh;
+    return;    
+}
+
+# Calculate sample size and return largest.
+sub sample_size {
+    my $arr1 = shift;
+    my $arr2 = shift;
+    my $samples = shift;
+    my $io = shift;
+
+    if ($#$arr1 > $#$arr2) {
+	return $#$arr1;
+    }
+    else {
+	return $#$arr2;
+    }
+}
+
+# Create sample nums for sample names
+sub sample_nums {
+    my $sample_str = shift;
+    my $io = shift;
+
+    my $sample_names2num = {};
+    foreach my $cat_option (@$sample_str) {
+	
+	if ($cat_option =~ m/sample.+?\s+(.+)/i) {
+	    $cat_option = $io->strip_leading_and_trailing_spaces($cat_option);
+	    my @sample_names = split/\,/, $1;
+	    
+	    for (my $i=0; $i<=$#sample_names; $i++) {
+		$sample_names2num->{$i} = $sample_names[$i];
+		    }
+	    last;
+	}
+    }
+    
+    return $sample_names2num;
+}
+
+# Handle and separate read lib files
+sub handle_read_libs {
+    my $samples = shift;
+    my $reads_dir = shift;
+    my $io = shift;
+    my $params = shift;
+    my $full_path2readfiles = [];
+
+    my @replicates = split/\,/, $samples;
+
+    foreach my $replicate (@replicates) {
+	$replicate = $io->strip_leading_and_trailing_spaces($replicate);
+	if ( (!$replicate || !-e $replicate || !-s $replicate || length($replicate) == 0) && $params->{'libType'} !~ m/^mixed$/i) {
+	    $io->error("[libType: $params->{'libType'}]\n\n" .
+		       "Read file [ file: $replicate ] does not exist or is empty.\n" .
+		       "Use [libType: MIXED] if you want to mix PE and SE libraries or if you have limited replicates.");
+		$replicate = $io->validate_create_path($replicate, 'do not create', 'Input directory') . $replicate;
+	}
+	push @{$full_path2readfiles}, $reads_dir . '/' . $replicate;
+    }   
+
+    return $full_path2readfiles;
+}
+
+# Throw error on incorrect config params
+sub verify_config_file {
+    my $io = shift;
+    my $msg = shift;
+    my $check_this = shift;
+    my $check_this_name = shift;
+    my $only_these_vals = shift;
+    my $regex = my $regex_msg = 'yes|no';
+    
+    $regex = $regex_msg = $only_these_vals if ($only_these_vals);
+    $regex_msg = uc($regex_msg);
+    $regex_msg =~ s/\|/ or /;
+    
+    $io->error("No value(s) provided for [$check_this_name: ].") if (!$check_this);
+    $io->error("[$check_this_name: $check_this] is not a valid value. Please use only $regex_msg.$msg")
+	if ($check_this !~ m/^$regex$/i);
+    return; 
+}
+
+# Check if parameter is defined
+sub is_param_defined {
+    my $param = shift;
+    my $io = shift;
+}
+    
 
 __END__
 
