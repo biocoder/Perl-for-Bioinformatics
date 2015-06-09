@@ -783,6 +783,8 @@ sub setup_lncRNApipe {
     print "\n\x{1f473}  Hi! I am Vayu and I will attempt to install lncRNApipe for you.";
     print "\nChecking for platform independent prerequisites on UNIX based machines...\n";
 
+    # BASH
+    check_util('bash');
 
     # Unzip
     check_util('unzip');
@@ -1556,7 +1558,7 @@ sub run_assembly {
     verify_config_file($io, $beverb, $params->{'performTranscriptAssembly'}, 'performTranscriptAssembly', 'yes|no');
     verify_config_file($io, $beverb, $params->{'replicates'}, 'replicates', 'yes|no');
     verify_config_file($io, $beverb, $params->{'sourceDB'}, 'sourceDB', 'ensembl|ucsc') if (defined $params->{'sourceDB'});
-    verify_config_file($io, $beverb, $params->{'scheduler'}, 'scheduler', 'pbs|sge|lsf') if (defined $params->{'scheduler'});
+    verify_config_file($io, $beverb, $params->{'scheduler'}, 'scheduler', 'pbs|sge|lsf|none') if (defined $params->{'scheduler'});
     verify_config_file($io, $beverb, $params->{'libType'}, 'libType', 'se|pe|mixed') if (defined $params->{'libType'});
     
     $io->c_time('OK. Removing output directory [ '. $io->file_basename($params->{'outputDir'}). ' ] ...'),
@@ -1586,9 +1588,22 @@ sub run_assembly {
 	if (!defined $params->{'bowtieGenomeIndex'});
 
     $io->warning('Will not trim reads. [readType: FASTA]') if ($params->{readType} =~ m/FASTA/i && defined $params->{'trimmomatic'});
-    $io->error("[performTranscriptAssembly: ] requested, but cannot find any reads' options." . $beverb)
-	if (defined $params->{'performTranscriptAssembly'} && 
-	    ( !defined $params->{'reads'}->{'r1'} && !defined $params->{'reads'}->{'r2'} ));
+    
+    if ($params->{'performTranscriptAssembly'} =~ m/^YES$/i) {
+	$io->error("[performTranscriptAssembly: ] requested, but cannot find any reads' options." . $beverb)
+	    if (!defined $params->{'reads'}->{'r1'} && !defined $params->{'reads'}->{'r2'});
+	
+	$io->error('[performTranscriptAssembly: ] requested but found [cuffcompare: ] options.'.
+		   "\n[cuffcompare: ] options are not required when you are performing transcript assembly with lncRNApipe.")
+	    if (defined $params->{'cuffcompare'});
+
+	$io->error("[performTranscriptAssembly: ] requested but [genomeFasta: ] not mentioned\nOR " .
+		   "cannot find genome FASTA file OR the genome FASTA file is empty.")
+	    if (!defined $params->{'genomeFasta'} || !-e $params->{'genomeFasta'} || !-s $params->{'genomeFasta'});
+    }
+
+    $io->error('[scheduler: ] mentioned but we also need to know [batchSubCmd: ].')
+	if ($params->{'scheduler'} !~ m/^none$/i && !defined $params->{'batchSubCmd'});
     
     my $sample_name_exists = 0;
     foreach my $val (@{$params->{'categorize_ncRNAs'}}) {
@@ -1645,7 +1660,7 @@ sub run_assembly {
 	$annot_gtf = $params->{'useThisAnnotation'};
     }
 
-    if (defined $params->{'performTranscriptAssembly'}) {
+    if ($params->{'performTranscriptAssembly'} =~ m/^YES$/i) {
 	$mk_output_dirs = $io->execute_get_sys_cmd_output("mkdir -p $tophat_o_dir; " .
 							  "mkdir -p $cufflinks_o_dir; " .
 							  "mkdir -p $trim_o_dir; " .
@@ -1655,7 +1670,7 @@ sub run_assembly {
 	
 	$io->error('Cannot create output directories. Exited with the following error(s):' . 
 		   "\n$mk_output_dirs") if ($mk_output_dirs !~ m/could not capture/i);
-		
+	
 	$io->c_time('Preparing job scripts...') if (defined $params->{'scheduler'});
 
 	my @r1_samples = my @r2_samples = ();
@@ -1690,8 +1705,26 @@ sub run_assembly {
 	       );
 	
 	my $sample_names2num = sample_nums($params->{'categorize_ncRNAs'}, $io);
+	my $scheduler_job_depends = my $check_these_log_files = '';
 	
-	my $pe_file_index = 0;
+	if ($params->{'scheduler'} =~ m/^SGE$/i) {
+	    # -hold_jid jobid1,jobid2,jobid3
+	    $scheduler_job_depends = 'JOB_ID';
+	}
+	elsif ($params->{'scheduler'} =~ m/^PBS$/i) {
+	    # -W depend=afterok:jobid1:jobid2:jobid3
+	    $scheduler_job_depends = 'PBS_JOBID';
+	}
+	elsif ($params->{'scheduler'} =~ m/^LSF$/i) {
+	    # -w "done(jobid1) && done(jobid2) && done(jobid3)"
+	    $scheduler_job_depends = 'LSB_JOBID';
+	}
+	else {
+	    $params->{'batchSubCmd'} = 'bash';
+	}
+
+	#unlink "$job_scripts_dir/job_IDs" if (-e "$job_scripts_dir/job_IDs");
+		
 	for(my $i=0; $i<=$grand_sample_size; $i++) {
 	    
 	    my $reps_1 = handle_read_libs($r1_samples[$i], $params->{'reads'}->{'readsDir'}, $io, $params)
@@ -1735,7 +1768,7 @@ sub run_assembly {
 		if ($params->{'readType'} =~ m/^FASTQ$/i) {
 		    
 		    $io->execute_system_command("mkdir -p $trim_rep_o_dir");
-		    $trim_cmd = "#\n# Trimmomatic Run\n#\n#\n";
+		    $trim_cmd = "\n\n#\n# Trimmomatic Run\n#\n#\n";
 		    
 		    my $trimmomatic_dir = dirname(abs_path($deps->{'trimmomatic'}));
 		    $trimmomatic_dir .= '/adapters/';
@@ -1749,7 +1782,7 @@ sub run_assembly {
 			    "$trim_rep_o_dir/$all_reps_2_base.filtered.fq " .
 			    "$trim_rep_o_dir/$all_reps_2_base.unpaired.fq " .
 			    $trim_params .
-			    " &> $trim_o_dir/run.log";
+			    " &> $trim_rep_o_dir/run.log";
 			$all_reps_1 = "$trim_rep_o_dir/$all_reps_1_base.filtered.fq";
 			$all_reps_2 = "$trim_rep_o_dir/$all_reps_2_base.filtered.fq";
 		    }
@@ -1757,60 +1790,157 @@ sub run_assembly {
 			$trim_cmd .= "java -jar $deps->{'trimmomatic'} SE -threads $params->{'CPUs'} $all_reps_1 ".
 			    "$trim_rep_o_dir/$all_reps_1_base.filtered.fq " .
 			    $trim_params .
-			    " &> $trim_o_dir/run.log";
+			    " &> $trim_rep_o_dir/run.log";
 			$all_reps_1 = "$trim_rep_o_dir/$all_reps_1_base.filtered.fq";
 		    }
 		    elsif ($all_reps_2) {
 			$trim_cmd .= "java -jar $deps->{'trimmomatic'} SE -threads $params->{'CPUs'} $all_reps_2 ".
 			    "$trim_rep_o_dir/$all_reps_2_base.filtered.fq " .
 			    $trim_params .
-			    " &> $trim_o_dir/run.log";
+			    " &> $trim_rep_o_dir/run.log";
 			$all_reps_1 = "$trim_rep_o_dir/$all_reps_2_base.filtered.fq";
 		    }
+
+		    $trim_cmd .= add_exit_check("$trim_rep_o_dir/run.log",
+						"$trim_o_dir/status.log",
+						'completed_successfully',
+						'isTrimRunComplete',
+						'Trimmomatic');
 		    #print "\n$trim_cmd\n\n";
 		}
 		
+
+		
 		my $tophat_cmd = "\n\n#\n# Tophat Run\n#\n#\ntophat " .
 		    join(' ', @{$params->{'tophat'}}) .
-		    " -o $tophat_rep_o_dir " .
-		    "$params->{'bowtieGenomeIndex'} " . "$all_reps_1 " . "$all_reps_2";
+		    " -o $tophat_rep_o_dir" .
+		    " -p $params->{'CPUs'}" .
+		    " $params->{'bowtieGenomeIndex'} $all_reps_1 $all_reps_2" .
+		    "&> $tophat_rep_o_dir/run.log" .
+		    add_exit_check("$tophat_rep_o_dir/run.log",
+				   "$tophat_o_dir/status.log",
+                                   'run complete',
+                                   'isTophatRunComplete',
+                                   'Tophat');
 		
 		my $cufflinks_cmd = "\n\n#\n# Cufflinks Run\n#\n#\ncufflinks ".
 		    join(' ', @{$params->{'cufflinks'}}) .
 		    " -o $cufflinks_rep_o_dir" .
-		    " -g $annot_gtf $tophat_rep_o_dir/accepted_hits.bam";
+		    " -p $params->{'CPUs'}" .
+		    " -g $annot_gtf $tophat_rep_o_dir/accepted_hits.bam &> $cufflinks_rep_o_dir/run.log" .
+		    add_exit_check("$cufflinks_rep_o_dir/run.log",
+				   "$cufflinks_o_dir/status.log",
+				   'processed.+?loci',
+				   'isCufflinksRunComplete',
+				   'Cufflinks');
+		
+		$check_these_log_files .= "$trim_rep_o_dir/run.log\n$tophat_rep_o_dir/run.log\n$cufflinks_rep_o_dir/run.log\n";
 		
 		#print "\n$tophat_cmd\n";
-		$io->c_time("Job script [ $sample_name.sh  ] written..." );
-		write_job("$job_scripts_dir/$sample_name" . ".sh",
-			  $trim_cmd,
-			  $tophat_cmd,
-			  $cufflinks_cmd,
-			  #			     $cuffcompare_cmd,
-			  #			     $lncRNApipe_post_assembly_cmd,
-			  $params,
-			  $io
-		    );
-		
-	    }
-				
-	    $pe_file_index++;
-	}    
-    }
+		write_and_submit_job("lncRNApipe_assembly_stage_$sample_name" . ".sh",
+				     'NO_DEPENDENCY_YET',
+				     $trim_cmd,
+				     $tophat_cmd,
+				     $cufflinks_cmd,
+				     $scheduler_job_depends,
+				     $job_scripts_dir,
+				     $params,
+				     $io);
+	    }		
+	}
 
+	my $lncRNApipe_opts = my $job_deps_str = '';
+	my $job_ids_fh = $io->open_file('<', "$job_scripts_dir/job_IDs");
+	my $job_ids = do {local $/; <$job_ids_fh>};
+	
+	if ($params->{'scheduler'} =~ m/^none$/i) {
+	    $job_deps_str = join("\nwait ", (split(/\n|\r/, $job_ids)));
+	    $job_deps_str = "wait $job_deps_str";
+	}
+	elsif ($params->{'scheduler'} =~ m/^sge$/i) {
+	    $job_deps_str =  '-hold_jid ' . join(",", (split(/\n|\r/, $job_ids)));
+	}
+	elsif ($params->{'scheduler'} =~ m/^pbs$/i) {
+		$job_deps_str = '-W depend=afterok:' . join(":", (split(/\n|\r/, $job_ids)));
+	}
+	elsif ($params->{'scheduler'} =~ m/^lsf$/i) {
+	    $job_deps_str = '-w "done(' . join(") && done(", (split(/\n|\r/, $job_ids)));
+	    $job_deps_str .= ')"';
+	}
+	
+	$lncRNApipe_opts = "\n\n$job_deps_str" if ($params->{'scheduler'} =~ m/^none$/i);
+	$lncRNApipe_opts .= qq {
+
+find $cufflinks_o_dir -type f -name 'transcripts.gtf' > $cufflinks_o_dir/assembled_transcripts.txt
+								      
+perl $USER_HOME/lncRNApipe --run $params->{'outputDir'} --cpu $params->{'CPUs'} --cuffcompare '-r $annot_gtf -s $params->{'genomeFasta'} -i $cufflinks_o_dir/assembled_transcripts.txt' --cat-ncRNAs '} . join(' ', @{$params->{'categorize_ncRNAs'}}) . "' -fetch -cpc -inf"; 
+	
+	
+	my $lncRNApipe_post_assembly_cmd = add_exit_check("$cufflinks_o_dir/status.log",
+							  "$cufflinks_o_dir/lncRNApipe_pre_run_status.log",
+							  'passed',
+							  'isCufflinksRunComplete',
+							  'Pre assembly pipeline') . $lncRNApipe_opts .
+							      " &> $params->{'outputDir'}/lncRNApipe.postAssembly.run.log";
+	$io->c_time('Post assembly job script [ lncRNApipe_postAssembly.run.sh  ] written...');
+	write_and_submit_job('lncRNApipe_postAssembly.run.sh',
+			     $job_deps_str,
+			     $lncRNApipe_post_assembly_cmd,
+			     $scheduler_job_depends,
+			     $job_scripts_dir,
+			     $params,
+			     $io);
+	
+	$check_these_log_files .= "$params->{'outputDir'}/lncRNApipe.postAssembly.run.log\n";
+	#print "\n\n$lncRNApipe_post_assembly_cmd\n\n";
+	$io->c_time('All job scripts have been submitted. Please check these log files for results / errors.' . "\n\n$check_these_log_files");
+    }
     exit 0;
 }
 
+# Write exit code for job script
+sub add_exit_check {
+    my $log_file = shift;
+    my $status_log_file = shift;
+    my $pattern = shift;
+    my $var_name = shift;
+    my $cmd_in_msg = shift;
+
+    my $here = qq {
+
+$var_name=`grep -ioP '$pattern' $log_file`
+
+if [ -z "\$$var_name" ]; then
+     echo "lncRNApipe: $cmd_in_msg run has failed." >> $status_log_file
+     exit -1
+else
+     echo "lncRNApipe: $cmd_in_msg run has passed." >> $status_log_file
+fi};
+
+    return $here;
+}
+
 # Write job script with commands
-sub write_job {
+sub write_and_submit_job {
     my $job_script_name = shift(@_);
+    my $deps_str = shift(@_);
     my $io = pop(@_);
     my $params = pop(@_);
+    my $job_scripts_dir = pop(@_);
+    my $jobid_env = pop(@_);
     my @cmds = @_;
     
+    $job_script_name = "$job_scripts_dir/$job_script_name";
+
     my $auto_generated_on = localtime;
     my $scheduler_opts_str = join("\n#", @{$params->{'schedulerOpts'}});
     my $job_script_fh = $io->open_file('>', $job_script_name);
+
+    unshift(@cmds, "# We need job id to create dependency chain\n" .
+	    'echo  ${' .
+	    $jobid_env .
+	    "} >> $job_scripts_dir/job_IDs\n")
+	if ($deps_str eq 'NO_DEPENDENCY_YET' && $jobid_env);
     
     my $job_script = qq {#!/bin/bash
 # 
@@ -1826,13 +1956,32 @@ sub write_job {
 
 export PATH=\$PATH:$deps->{'tophat'}:$deps->{'cufflinks'}
 
-@cmds
-};
+@cmds};
 
     print $job_script_fh $job_script;
     close $job_script_fh;
+    $io->c_time('Job script [ ' . $io->file_basename($job_script_name, 'suffix') . '  ] written...');
+    
+    if ($params->{'scheduler'} !~ m/^none$/i) {
+	$io->c_time('Submitting job script [ '. $io->file_basename($job_script_name, 'suffix') . '  ]...');
+	if ($deps_str ne 'NO_DEPENDENCY_YET') {
+	    $io->c_time("$params->{'batchSubCmd'} $deps_str $job_script_name");
+	}
+	else {
+	    $io->c_time("$params->{'batchSubCmd'} $job_script_name");
+	}
+    }
+    else {
+	$io->c_time('No scheduler specified. Running it in background with bash...');
+	$io->c_time("bash $job_script_name &");
+	# $io->execute_system_command("$params->{'batchSubCmd'} $job_script_name &");
+	# my $this_pid = $io->execute_get_sys_cmd_output("echo $!");
+	# $io->execute_system_command("echo $this_pid >> $job_scripts_dir/job_IDs");
+    }
     return;    
 }
+
+
 
 # Calculate sample size and return largest.
 sub sample_size {
@@ -1858,8 +2007,12 @@ sub sample_nums {
     foreach my $cat_option (@$sample_str) {
 	
 	if ($cat_option =~ m/sample.+?\s+(.+)/i) {
+	    my $samples = $1;
 	    $cat_option = $io->strip_leading_and_trailing_spaces($cat_option);
-	    my @sample_names = split/\,/, $1;
+	    $io->error('Sample names in [categorize_ncRNAs: ] options should be enclosed within double quotes.' .
+		       "\nEx: \"sample_1,sample_2,sample_3,.,.,sample_n\"") if ($samples !~ /\".+?\"/);
+	    $samples =~ s/\"//g;
+	    my @sample_names = split/\,/, $samples;
 	    
 	    for (my $i=0; $i<=$#sample_names; $i++) {
 		$sample_names2num->{$i} = $sample_names[$i];
