@@ -1600,11 +1600,11 @@ sub run_lncRNApipe_from_conf {
     $io->error('-sample-names option is required for [categorize_ncRNAs: ].' . $beverb)
 	if (!is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample'));
     
-    $io->error('In [cuffdiff: ] options, "-b" is not required. We got that from [genomeFasta: ].' . $beverb)
-	if (defined $params->{'cuffdiff'} && is_option_exists_in_anon($params->{'cuffdiff'}, '-b\s+'));
+    #$io->error('In [cuffdiff: ] options, "-b" is not required. We got that from [genomeFasta: ].' . $beverb)
+	#if (defined $params->{'cuffdiff'} && is_option_exists_in_anon($params->{'cuffdiff'}, '-b\s+'));
 
-    $io->error('In [cufflinks: ] options, "-b" is not required. We got that from [genomeFasta: ].' . $beverb)
-	if (defined $params->{'cufflinks'} && is_option_exists_in_anon($params->{'cufflinks'}, '-b\s+'));
+    #$io->error('In [cufflinks: ] options, "-b" is not required. We got that from [genomeFasta: ].' . $beverb)
+	#if (defined $params->{'cufflinks'} && is_option_exists_in_anon($params->{'cufflinks'}, '-b\s+'));
 
     # Necessary evil
     my $tophat_o_dir = $params->{'outputDir'} . '/tophat';
