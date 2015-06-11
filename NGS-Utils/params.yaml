@@ -109,7 +109,7 @@ sourceDB: UCSC
 # ENSEMBL and UCSC represents species name differently in the URLs.
 # To view species names for ENSEMBL do, "perl lncRNApipe --list ENSEMBL".
 # Go to https://genome.ucsc.edu/FAQ/FAQreleases.html#TOP to view UCSC version names.
-# For example, at UCSC, for mouse, it is mm10 or mm9, for rat, it is rn5 or rn6 etc...
+# For example, at UCSC, for mouse, it is mm9 or mm9, for rat, it is rn5 or rn6 etc...
 #
 species: mm9
 
@@ -117,7 +117,7 @@ species: mm9
 # If you want to use your own annoation file, provide full path to the annotation
 # file of your choice. This option overrides "sourceDB: " and "species: " options above.
 # Again, "PLEASE MAKE SURE", you are providing the same genome index from the
-# same source. In the example below, "bowtieGenomeIndex" is mm10 genome index created
+# same source. In the example below, "bowtieGenomeIndex" is mm9 genome index created
 # from FASTA files from UCSC.
 #
 useThisAnnotation: /Users/krantikonganti/Projects/scratch_test/lncRNApipe_test/ref_annotation/mm9_UCSC.gtf
@@ -170,12 +170,12 @@ trimmomatic:
 # No need to provide -p, as it will be handled by lncRNApipe.
 #
 genomeFasta: /Users/krantikonganti/Projects/scratch_test/lncRNApipe_test/genome.fa
-bowtieGenomeIndex: /data/ref_indexes/bowtie2/mm10_UCSC/genome
+bowtieGenomeIndex: /data/ref_indexes/bowtie2/mm9_UCSC/genome
 tophat:
  - -x 1
  - -M
  - --b2-sensitive
- - --transcriptome-index=/data/konganti/projects/dwthreadgill/mm10_transcriptome
+ - --transcriptome-index=/data/konganti/projects/dwthreadgill/mm9_transcriptome
 
 #
 # Provide cufflinks options and also "PLEASE MAKE SURE" you provide the same reference
@@ -188,7 +188,7 @@ tophat:
 #
 cufflinks:
  - -u
- - -b /data/ref_fasta/mm10_UCSC/genome.fa
+ - -b /data/ref_fasta/mm9_UCSC/genome.fa
 
 #
 # Provide cuffcompare options.
@@ -249,6 +249,6 @@ cuffmerge:
 #
 cuffdiff:
  - -u
-# - -b /data/ref_fasta/mm10_UCSC/genome.fa
-# - -bam /data/aligned_mm10_UCSC/sample1/rep1.bam,/data/aligned_mm10_UCSC/sample1/rep2.bam /data/aligned_mm10_UCSC/sample2/rep1.bam,/data/aligned_mm10_UCSC/sample2/rep2.bam
+# - -b /data/ref_fasta/mm9_UCSC/genome.fa
+# - -bam /data/aligned_mm9_UCSC/sample1/rep1.bam,/data/aligned_mm9_UCSC/sample1/rep2.bam /data/aligned_mm9_UCSC/sample2/rep1.bam,/data/aligned_mm9_UCSC/sample2/rep2.bam
 
