@@ -126,9 +126,10 @@ useThisAnnotation: /Users/krantikonganti/Projects/scratch_test/lncRNApipe_test/r
 # Provide Unix path to directory where the read files are located and also
 # provide read file names.
 # If your data is just SE, then disable "r2: " below by prefixing it with a #.
-# Separate replicates of sample sample by a comma. Separate different samples by a |.
+# Separate replicates of sample by a comma. Separate different samples by a |.
 #
-# PLEASE MAKE SURE THE READS ARE IN ORDER. DO NOT MIX AND MATCH SAMPLES
+# PLEASE MAKE SURE THE READS ARE IN ORDER. DO NOT MIX AND MATCH READ ORDERS.
+# WE HAVE NO WAY OF KNOWING WHICH READ FILE IS _1 or _2.
 #
 reads:
  readsDir: /Users/krantikonganti/Projects/scratch_test/lncRNApipe_test
