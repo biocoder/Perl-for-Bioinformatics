@@ -1,0 +1,254 @@
+---
+# This is the configuration file, where you can specify the command line
+# options for each of the modules of lncRNApipe. If you do not wish to
+# run any of the modules, simply, disable them and all the lines following
+# it (if, any) by prefixing it with #
+#
+# 
+#
+# Specify output directory.
+# In the example below, a  new output directory called "lncRNApipe_test"
+# will be created at the mentioned path /Users/krantikonganti/Projects/scratch_test.
+#
+outputDir: /Users/krantikonganti/Projects/scratch_test/lncRNApipe_test
+
+#
+# Indicate, if we should overwrite the output directory if it already exists.
+#
+# WARNING: THIS WILL REMOVE ANY FILES / DIRECTORIES 
+#
+overwriteOutputDir: NO
+
+#
+# Let lncRNApipe know if you intend to perform transcript assembly
+# using tophat / cufflinks or just identify ncRNAs from already
+# assembled transcripts.
+#
+performTranscriptAssembly: YES
+
+#
+# Specify number of threads / CPUs to use where possible.
+# If running on a grid, each job script will run with this many
+# number of CPUs.
+# 
+CPUs: 16
+
+#
+# Specify scheduler type.
+# Valid options are PBS, SGE, LSF or NONE to disable grid computing.
+#
+scheduler: NONE
+
+#
+# Mention batch submission command.
+# For example, for LSF, it is bsub, for PBS or SGE, it
+# is qsub.
+#
+batchSubCmd: qsub
+
+#
+# Specify scheduler options on separate line
+# specific to your job running environment.
+#
+# ********************* !! IMPORTANT !! ***********************
+# *************************************************************
+#
+# Different clusters uses different job parameter names. For
+# example our cluster uses num_threads as parameter name to
+# request number of CPUs in SGE. Some clusters may use
+# num_cpu. Since it is difficult to guess, please provide
+# number of CPUs you want to use based on your grid environment
+# below, which is equal to "CPUs:" option above. Yes, we know that
+# this is kind of redundant but it is necessary evil. What ever
+# job parameters you provide after the - , they will appear
+# exactly in the job script.
+#
+# IF IT IS NOT PROVIDED, THE JOB WILL RUN ON SINGLE CPU.
+#
+# *************************************************************
+# *************************************************************
+#
+# Ex for PBS (job parameters start with a PBS directive):
+#
+# PBS -V
+# PBS -l nodes=1:ppn=16,walltime=24:00:00
+#
+# Ex for SGE (job parameters start with $ sign):
+#
+# $ -N lncRNApipe
+# $ -l num_threads=16
+#
+schedulerOpts:
+ - $ -l mem_free=10G
+ - $ -l num_threads=16
+
+#
+# Specify if your reads are in FASTA or FASTQ format.
+#
+readType: FASTA
+
+#
+# Specify if your reads are SE (single-end only), PE (paired-end only) or MIXED
+#
+libType: MIXED
+
+#
+# Specify if you want to use ENSEMBL or UCSC as source for annotation.
+# "PLEASE MAKE SURE" that you are using the same sourceDB for tophat
+# alignment, i.e. bowtie indexes created from the same sourceDB for the
+# same assembly version. As downloding genome indices on-the-fly is time
+# consuming and since many users may have genome indices installed for
+# various NGS analysis anyways, we leave it to you to provide "CORRECT"
+# genome index below in tophat and cufflinks options' configuration.
+#
+sourceDB: UCSC
+
+#
+# Choose assembly version so that we can download up-to-date annotation on the fly.
+# You can choose to supply your own annotation file for consistency below.
+# ENSEMBL and UCSC represents species name differently in the URLs.
+# To view species names for ENSEMBL do, "perl lncRNApipe --list ENSEMBL".
+# Go to https://genome.ucsc.edu/FAQ/FAQreleases.html#TOP to view UCSC version names.
+# For example, at UCSC, for mouse, it is mm10 or mm9, for rat, it is rn5 or rn6 etc...
+#
+species: mm9
+
+#
+# If you want to use your own annoation file, provide full path to the annotation
+# file of your choice. This option overrides "sourceDB: " and "species: " options above.
+# Again, "PLEASE MAKE SURE", you are providing the same genome index from the
+# same source. In the example below, "bowtieGenomeIndex" is mm10 genome index created
+# from FASTA files from UCSC.
+#
+useThisAnnotation: /Users/krantikonganti/Projects/scratch_test/lncRNApipe_test/ref_annotation/mm9_UCSC.gtf
+
+#
+# Provide Unix path to directory where the read files are located and also
+# provide read file names.
+# If your data is just SE, then disable "r2: " below by prefixing it with a #.
+# Separate replicates of sample sample by a comma. Separate different samples by a |.
+#
+# PLEASE MAKE SURE THE READS ARE IN ORDER. DO NOT MIX AND MATCH SAMPLES
+#
+reads:
+ readsDir: /Users/krantikonganti/Projects/scratch_test/lncRNApipe_test
+ r1: sample2_rep1_read1.fq,sample2_rep1_read1.fq|sample1_rep1_read1.fq
+ r2: 
+#sample1_rep1_read1.fq,sample1_rep2_read1.fq|sample2_rep1_read1.fq,sample2_rep2_read1.fq
+#r2: sample1_rep1_read2.fq,sample1_rep2_read2.fq|sample2_rep1_read2.fq,sample2_rep2_read2.fq
+
+#
+# If you want to use TRIMMOMATIC to trim reads, then provide
+# TRIMMOMATIC options. TRIMMOMATIC provides the following adapter
+# files: NexteraPE-PE.fa, TruSeq2-PE.fa, TruSeq2-SE.fa, TruSeq3-PE-2.fa,
+# TruSeq3-PE.fa and TruSeq3-SE.fa. Choose one below or provide full path
+# to the adapter sequence file you want to use.
+#
+# No need to provide -threads, as it will be handled by lncRNApipe.
+#
+trimmomatic:
+ - ILLUMINACLIP:TruSeq3-SE.fa:2:30:10
+ - LEADING:20
+ - TRAILING:20
+ - SLIDINGWINDOW:5:20
+ - MINLEN:25
+
+#
+# Provide bowtie genome index, full path to genome multi FASTA and tophat options.
+# "PLEASE MAKE SURE" that you are using the same genome indices for the sourceDB
+# mentioned above. Do not use UCSC genome indices if you requested ENSEMBL above in
+# "sourceDB: " or vice versa.
+#
+# In the example below, it is assumed that you have already created a transcriptome
+# index. If you have not created one, go through tophat manual on how to just create
+# transcriptome index (https://ccb.jhu.edu/software/tophat/manual.shtml). If you
+# use "--trancriptome-index" below and the index does not exist, it will keep overwriting
+# while the jobs are running.
+#
+# No need to provide FASTQ files, as they will be handled by lncRNApipe.
+# No need to provide -o, as it will be handled by lncRNApipe.
+# No need to provide -p, as it will be handled by lncRNApipe.
+#
+genomeFasta: /Users/krantikonganti/Projects/scratch_test/lncRNApipe_test/genome.fa
+bowtieGenomeIndex: /data/ref_indexes/bowtie2/mm10_UCSC/genome
+tophat:
+ - -x 1
+ - -M
+ - --b2-sensitive
+ - --transcriptome-index=/data/konganti/projects/dwthreadgill/mm10_transcriptome
+
+#
+# Provide cufflinks options and also "PLEASE MAKE SURE" you provide the same reference
+# FASTA for the sourceDB you want to use in case of bias correction.
+#
+# No need to provide -g, as it will be handled by lncRNApipe.
+# No need to provide -o, as it will be handled by lncRNApipe.
+# No need to provide -p, as it will be handled by lncRNApipe.
+# No need to provide input files, as they will be handled by lncRNApipe.
+#
+cufflinks:
+ - -u
+ - -b /data/ref_fasta/mm10_UCSC/genome.fa
+
+#
+# Provide cuffcompare options.
+#
+# ******************************** !! IMPORTANT !! ******************************
+# *******************************************************************************
+#
+# If you only want to run lncRNApipe without the transcript assembly stage, then
+# provide assembled transcripts in GTF format, otherwise, no options are needed.
+#
+# *******************************************************************************
+# *******************************************************************************
+#
+# No need to provide -r, as it will be handled by lncRNApipe.
+# Provide "-i transcript_assembly_list.txt" if you did not run assembly stage,
+# where transcript_assembly_list.txt contains full path to assembled transcript
+# files.
+#
+cuffcompare:
+ - -i /data/cufflinks/assembly_list.txt
+
+#
+# Provide categorize_ncRNAs.pl options
+# See "perl lncRNApipe -h cat" for description of options.
+# 
+categorize_ncRNAs:
+ - -sample-names "d01a,d01b,d03a,d03b,d06a,d06b,d09a,d09b,d14a,d14b"
+ - -fpkm 0.1
+ - -len 200
+ - -max-len 1000000
+ - -min-exons 2
+ - -ov 80
+
+#
+# Provide cuffmerge options.
+# If you have replicates, final predicted lncRNAs will be merged.
+#
+# No need to provide -s, as it will be handled by lncRNApipe.
+# No need to provide -g, as it will be handled by lncRNApipe.
+#
+cuffmerge:
+ - --min-isoform-fraction 0.05
+ 
+#
+# Provide cuffdiff options if you want to run differential expression
+# tests between known ncRNAs and between novel ncRNAs in your samples.
+#
+# If you have mentioned "-sample-names " above in "categorize_ncRNAs: ",
+# no need to mention -L, else provide -L option here.
+#
+# No need to provide -o, as it will be handled by lncRNApipe.
+# No need to provide -p, as it will be handled by lncRNApipe.
+# No need to provide input files, if you have run tophat, cufflinks above.
+#
+# If "performTranscriptAssembly" is NO, then provide your own BAM files here prefixed by
+# -bam option.
+# Separate replicate BAM files with comma as you generally do with cuffdiff command.
+#
+cuffdiff:
+ - -u
+# - -b /data/ref_fasta/mm10_UCSC/genome.fa
+# - -bam /data/aligned_mm10_UCSC/sample1/rep1.bam,/data/aligned_mm10_UCSC/sample1/rep2.bam /data/aligned_mm10_UCSC/sample2/rep1.bam,/data/aligned_mm10_UCSC/sample2/rep2.bam
+
