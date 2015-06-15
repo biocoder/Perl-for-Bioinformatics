@@ -842,10 +842,7 @@ sub setup_lncRNApipe {
     # ln
     check_util('ln');
 
-    # touch
-    check_util('touch');
-
-    # touch
+    # ps
     check_util('ps');
 
     # Mandatory by Single UNIX Specification. Just checking for sanity
