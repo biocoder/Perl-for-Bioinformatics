@@ -1123,13 +1123,27 @@ sub setup_cpc {
     chdir "$curr_dir/cpc-master/libs/estate";
     system("make clean && make > /dev/null 2>&1");
 
-    my $format_db = 'uniref90.fasta.gz';
+    chdir "$curr_dir/data";
+    my $format_db = 'uniref90.fasta';
+    
     if (!ask_user("\nIf you already have uniref90.fasta file somewhere, then there is no point in wasting time to download it again.\n" .
 		  "Do you already have uniref90.fasta somewhere on this system?")) {
 	
 	print "\nAttempting protein database download...\n\n";
 	$dl_util =~ s/master\.zip/uniref90\.fasta\.gz/;
-	system("$dl_util ftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz");
+	
+	if (!-e "$curr_dir/data/uniref90.fa") {
+	    system("$dl_util ftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz");
+	}
+	else {
+	    print "\nFASTA file [ uniref90.fasta ] already exists in $curr_dir/data. Maybe download was incomplete ?";
+	    print "\nBailing out to make sure we are not formatting incomplete FASTA !" .
+		"\n\nMake sure you have properly downloaded uniref90.fasta file from:" .
+		"\n\tftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz" .
+		"\nand run the following command:\n" .
+		"\n\t$deps->{'formatdb'} -i $curr_dir/data/$format_db -p T -n prot_db\n\n";
+	    exit 0;
+	}
     }
     else {
 	$format_db = ask_user("\nEnter full path to uniref90.fasta: ");
@@ -1138,14 +1152,14 @@ sub setup_cpc {
     }
 
     print "\nDecompressing uniref90.fasta.gz...\n",
-    system("gunzip uniref90.fasta.gz") if ($format_db =~ m/\.gz$/);
+    system("gunzip uniref90.fasta.gz > /dev/null 2>&1") if ($format_db =~ m/\.gz$/);
 	
     if (!-e "$curr_dir/data/formatdb.log" ||
 	!-s "$curr_dir/data/formatdb.log" ||
 	!-e "$curr_dir/data/prot_db.pal" ||
 	!-s "$curr_dir/data/prot_db.pal") {
+	
 	print "\nFormatting database...\n";
-	chdir "$curr_dir/data";
 	system($deps->{'formatdb'} . " -i $format_db -p T -n prot_db > /dev/null 2>&1");
     }
     
