@@ -63,7 +63,7 @@ my $CPC_SH_SC = 'CPC.sh';
 my $ANN_INF_SC = 'annotate_final_ncRNAs.sh';
 my $RELPLOT_MOD_SC = 'relplot_mod.pl';
 my $SEND_MAIL_SC = 'send_lncRNApipe_log.pl';
-my $HGCONF = '.hg.conf';
+my $HGCONF = 'hg.conf.sh';
 my $USER_HOME = dirname(abs_path($0));
 if (defined $num_cpu) {
     $num_cpu_by_2 = sprintf("%.0f", $num_cpu / 2) - 1;
@@ -1037,7 +1037,7 @@ sub setup_lncRNApipe {
 
     if (-e "$install_dir/.lncRNApipe.depbin/Rfam.cm.1_1.bz2" &&
 	-e "$install_dir/.lncRNApipe.depbin/Rfam.cm.1_1.i1m.bz2") {
-	print "Decompressing Rfam CM files...\n\n";
+	print "Decompressing Rfam CM files...\n";
 	system("bunzip2 $install_dir/.lncRNApipe.depbin/Rfam.cm.1_1.bz2");
 	system("bunzip2 $install_dir/.lncRNApipe.depbin/Rfam.cm.1_1.i1m.bz2");
     }
@@ -1156,8 +1156,8 @@ sub setup_cpc {
 sub check_native {
     my $nat_sc = shift;
 
-    # Special case, match perl script, shell script and .hg.conf
-    (my $sc) = ($nat_sc =~ m/.*\/(.+?\.pl|.+?\.sh|\.hg\.conf)$/);
+    # Special case, match perl script, shell script and hg.conf.sh
+    (my $sc) = ($nat_sc =~ m/.*\/(.+?\.pl|.+?\.sh)$/);
 
     if (-e $nat_sc) {
 	succ_or_fail(1, $sc);
@@ -1400,8 +1400,8 @@ sub get_deps {
     ($deps->{'email'}) = ($dep_tools =~ m/(.+?$SEND_MAIL_SC)/i);
     ($deps->{'cpc_home'}) = ($dep_tools =~ m/cpcHome\:(.+)/i) if (!exists $ENV{'CPC_HOME'});
 
-    # Finally copy .hg.conf to user home if it does not exist.
-    system("cp $deps->{'hgconf'} $ENV{'HOME'}/.") if (!-e "$ENV{'HOME'}/.hg.conf");
+    # Finally copy .hg.conf to user home forcefully since we may have the updated version.
+    system("cp -f $deps->{'hgconf'} $ENV{'HOME'}/.hg.conf > /dev/null 2>&1");
 
     foreach my $dep (keys %$deps) {
 	die "\n\nCannot find required dependency [ " . $dep . " ]. May be reinstalling lncRNApipe will resolve the issue?\n\n"
