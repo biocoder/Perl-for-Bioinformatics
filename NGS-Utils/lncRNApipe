@@ -871,25 +871,25 @@ sub setup_lncRNApipe {
 
     my $dl_util_slave = '';
     if ($dl_util =~ m/.*?wget\s+/i) {
-      $dl_util_slave = $dl_util . '-O master.zip';
+      $dl_util_slave = $dl_util . "-O $setup.zip";
     }
     else {
       $dl_util_slave = $dl_util;
     }
     
-    print "\n$dl_util_slave https://github.com/biocoder/Perl-for-Bioinformatics/archive/master.zip\n\n";
-    system("$dl_util_slave https://github.com/biocoder/Perl-for-Bioinformatics/archive/master.zip > /dev/null 2>&1");
-    system("mv $install_dir/master.zip $install_dir/.build/master.zip");
+    print "\n$dl_util_slave https://github.com/biocoder/Perl-for-Bioinformatics/archive/$setup.zip\n\n";
+    system("$dl_util_slave https://github.com/biocoder/Perl-for-Bioinformatics/archive/$setup.zip > /dev/null 2>&1");
+    system("mv $install_dir/$setup.zip $install_dir/.build/$setup.zip");
 
-    succ_or_fail(0, 'master.zip')
-	if (!-e "$install_dir/.build/master.zip");
+    succ_or_fail(0, '$setup.zip')
+	if (!-e "$install_dir/.build/$setup.zip");
 
-    print "Inflating master.zip...\n";
-    print "\nunzip -d $install_dir/.build $install_dir/.build/master.zip\n";
-    system("unzip -d $install_dir/.build $install_dir/.build/master.zip  > /dev/null 2>&1");
+    print "Inflating $setup.zip...\n";
+    print "\nunzip -d $install_dir/.build $install_dir/.build/$setup.zip\n";
+    system("unzip -d $install_dir/.build $install_dir/.build/$setup.zip  > /dev/null 2>&1");
 
     # Use cpanm to install Set::IntervalTree
-    system("$dl_util https://raw.githubusercontent.com/miyagawa/cpanminus/master/cpanm  > /dev/null 2>&1");
+    system("$dl_util https://raw.githubusercontent.com/miyagawa/cpanminus/$setup/cpanm  > /dev/null 2>&1");
     succ_or_fail(0, 'cpanm') if (!-e 'cpanm');
     system("mv cpanm $install_dir/.build");
     system("chmod 755 $install_dir/.build/cpanm");
@@ -921,7 +921,7 @@ sub setup_lncRNApipe {
 
     print "\nInstalling IO::Routine...\n\n";
     system("mkdir $pm_install_dir/PERLLIBS") if (!-d "$pm_install_dir/PERLLIBS");
-    my $custom_pm_log = `cd $install_dir/.build/Perl-for-Bioinformatics-master/IO-Routine;perl Makefile.PL PREFIX=$pm_install_dir/PERLLIBS LIB=$pm_install_dir/PERLLIBS/lib && make && make test && make install; 2>&1`;
+    my $custom_pm_log = `cd $install_dir/.build/Perl-for-Bioinformatics-$setup/IO-Routine;perl Makefile.PL PREFIX=$pm_install_dir/PERLLIBS LIB=$pm_install_dir/PERLLIBS/lib && make && make test && make install; 2>&1`;
 
     if ($custom_pm_log =~ m/fail|error|cannot/i) {
 	succ_or_fail(0, 'IO::Routine');
@@ -938,8 +938,8 @@ sub setup_lncRNApipe {
     if (!-d "$lncRNApipe_root/.lncRNApipe.depbin") {
 	print "\n\nMoving required tools and scripts to current install path...\n";
 	system("mkdir $install_dir/.lncRNApipe.depbin");
-	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/.lncRNApipe.depbin/* $install_dir/.lncRNApipe.depbin/.");
-	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/* $install_dir/.");
+	system("mv $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/.lncRNApipe.depbin/* $install_dir/.lncRNApipe.depbin/.");
+	system("mv $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/* $install_dir/.");
     }
     
     print "\n\nCleaning up build directory...\n";
