@@ -1155,8 +1155,9 @@ sub setup_cpc {
 # Check for pipeline scripts.
 sub check_native {
     my $nat_sc = shift;
-    
-    (my $sc) = ($nat_sc =~ m/.*\/(.+?\.pl|.+?\.sh)$/);
+
+    # Special case, match perl script, shell script and .hg.conf
+    (my $sc) = ($nat_sc =~ m/.*\/(.+?\.pl|.+?\.sh|\.hg\.conf)$/);
 
     if (-e $nat_sc) {
 	succ_or_fail(1, $sc);
