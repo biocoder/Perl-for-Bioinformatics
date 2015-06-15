@@ -2258,11 +2258,11 @@ sub get_job_dependency_chain {
 	$job_deps_str =  join("|", (split(/\n|\r/, $job_ids)));
 	
 	if ($file =~ m/tophat$/) {
-	    $job_deps_str = "ps aux | grep 'tophat.+?($job_deps_str)' | grep -v grep | " .
+	    $job_deps_str = "ps aux | grep -P 'tophat.+?($job_deps_str)' | grep -v grep | " .
 		"while read job; do sleep 10; done;";
 	}
 	elsif ($file =~ m/cufflinks$/) {
-	    $job_deps_str = "ps aux | grep '(cufflinks|sambamba).+?($job_deps_str)' | grep -v grep | " .
+	    $job_deps_str = "ps aux | grep -P '(cufflinks|sambamba).+?($job_deps_str)' | grep -v grep | " .
 		"while read job; do sleep 10; done;";
 	}
     }
