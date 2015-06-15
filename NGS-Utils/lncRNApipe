@@ -853,8 +853,7 @@ sub setup_lncRNApipe {
 
     $setup = 'master' if (defined $setup && $setup eq '');
     
-    print "\n\nWe definetely need the custom module, IO::Routine.\n" .
-	"We also need good grace of cpanm to install remaining modules.\n\n" .
+    print "\n\nWe definetely need the custom module, IO::Routine.\n\n" .
 	"Attempting to fetch IO::Routine from Perl-for-Bioinformatics repository on github...\n";
 
     if (-d "$install_dir/.build") {
@@ -902,6 +901,7 @@ sub setup_lncRNApipe {
     }
 
     #cpanm_status($pm_install_dir, 'Module::Load', $install_dir); # This is a core module.
+    print "\nInstalling required Perl Modules...\n";
     cpanm_status($pm_install_dir, 'Set::IntervalTree', $install_dir);
     cpanm_status($pm_install_dir, 'LWP::Simple', $install_dir);
     cpanm_status($pm_install_dir, 'XML::XPath', $install_dir);
