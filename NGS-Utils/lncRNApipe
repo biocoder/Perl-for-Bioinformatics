@@ -30,7 +30,7 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
 
 my $is_valid_option = GetOptions('help:s'                           => \$help,
                                  'quiet'                            => \$quiet,
-				 'setup=s'                          => \$setup,
+				 'setup:s'                          => \$setup,
 				 'run=s'                            => \$out, 
 				 'cuffcompare|cuffcmp=s'            => \$cuffcmp_opts,
 				 'cat-ncRNAs=s'                     => \$categorize_sc_opts,
