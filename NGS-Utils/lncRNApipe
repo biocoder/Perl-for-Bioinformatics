@@ -26,7 +26,7 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $lncRNApipe_ver_info, $no_update_check, 
     $skip_get_uq, $lncRNApipe_succ, $num_cpu_by_2,
     $skip_cpc, $debug, $sp_list, $pipe_config,
-    $kill_jobs_thru_conf);
+    $kill_jobs_thru_conf, $conf_run_id);
 
 my $is_valid_option = GetOptions('help:s'                           => \$help,
                                  'quiet'                            => \$quiet,
@@ -129,6 +129,13 @@ elsif (defined $pipe_config) {
     YAML->import( qw( LoadFile ) );
     my $lncRNApipe_config = LoadFile($pipe_config);
     #$io->c_time("Read parameters: \n\n" . Data::Dumper->Dump([$lncRNApipe_config], [qw(lncRNApipe_config)]));
+
+    # Generate run id
+    require Data::Uniqid;
+    Data::Uniqid->import ( qw( uniqid ) );
+    $conf_run_id = uniqid;
+
+    # Now run lncRNApipe from config file
     run_lncRNApipe($lncRNApipe_config);
 }
 else {
@@ -908,6 +915,7 @@ sub setup_lncRNApipe {
     cpanm_status($pm_install_dir, 'MIME::Lite', $install_dir);
     cpanm_status($pm_install_dir, 'Email::Valid', $install_dir);
     cpanm_status($pm_install_dir, 'YAML', $install_dir);
+    cpanm_status($pm_install_dir, 'Data::Uniqid', $install_dir);
 
     if (!ask_user("\n\nDo you already have BioPerl installed?")) {
 	print "\nOK ... This may take a while ... Grab a snack or a cup of coffee!\n";
@@ -1831,8 +1839,8 @@ sub run_lncRNApipe_from_conf {
 		
 	for(my $i=0; $i<=$grand_sample_size; $i++) {
 
-	    my $sample_name_grand = "sample_" . ($i+1);
-	    $sample_name_grand = $sample_names2num->{$i} if (exists $sample_names2num->{$i});
+	    my $sample_name_grand = "run_$conf_run_id.sample_" . ($i+1);
+	    $sample_name_grand = "run_$conf_run_id." . $sample_names2num->{$i} if (exists $sample_names2num->{$i});
 	    
 	    my $reps_1 = handle_read_libs($r1_samples[$i], $params->{'reads'}->{'readsDir'}, $io, $params)
 		if ($r1_samples[$i]);
@@ -1848,8 +1856,9 @@ sub run_lncRNApipe_from_conf {
 		   );
 	    
 	    my $grand_rep_size = sample_size($reps_1, $reps_2);
-	    my $cufflinks_samp_o_dir = "$cufflinks_o_dir/$sample_names2num->{$i}";
-	    my $tophat_samp_o_dir = "$tophat_o_dir/$sample_names2num->{$i}";
+	    my $cufflinks_samp_o_dir = "$cufflinks_o_dir/$sample_name_grand";
+	    my $tophat_samp_o_dir = "$tophat_o_dir/$sample_name_grand";
+	    
 	    $io->execute_system_command("mkdir -p $cufflinks_samp_o_dir; " .
 					"mkdir -p $tophat_samp_o_dir");
 	    
@@ -1864,8 +1873,8 @@ sub run_lncRNApipe_from_conf {
 		my $all_reps_1_base = $io->file_basename($all_reps_1);
 		my $all_reps_2_base = $io->file_basename($all_reps_2);
 		
-		my $sample_name = "sample_" . ($i+1) . $rep_num2name;
-		$sample_name = $sample_names2num->{$i} . $rep_num2name if (exists $sample_names2num->{$i});
+		my $sample_name = "run_$conf_run_id.sample_" . ($i+1) . $rep_num2name;
+		$sample_name = "run_$conf_run_id." . $sample_names2num->{$i} . $rep_num2name if (exists $sample_names2num->{$i});
 		
 		my $tophat_rep_o_dir = "$tophat_o_dir/$sample_name";
 		my $trim_rep_o_dir = "$trim_o_dir/$sample_name";
