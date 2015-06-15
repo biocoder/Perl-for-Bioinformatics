@@ -762,6 +762,13 @@ sub setup_lncRNApipe {
     chomp(my $install_dir = shift);
     chomp(my $dl_util = `which wget 2>&1`);
 
+    binmode(STDOUT, ":utf8");
+
+    if ($install_dir ne 'get_dl_UTIL') {
+	print "\n\x{1f473}  Hi! I am Vayu and I will attempt to install lncRNApipe for you.";
+	print "\nChecking for platform independent prerequisites on UNIX based machines...\n";
+    }
+
     # Wget or Curl
     if ($dl_util !~ m/.+?wget$/i) {
 	chomp ($dl_util = `which curl 2>&1`);
@@ -780,10 +787,6 @@ sub setup_lncRNApipe {
 
     # Return dl util only if requested
     return $dl_util if ($install_dir eq 'get_dl_UTIL');
-
-    binmode(STDOUT, ":utf8");
-    print "\n\x{1f473}  Hi! I am Vayu and I will attempt to install lncRNApipe for you.";
-    print "\nChecking for platform independent prerequisites on UNIX based machines...\n";
 
     # BASH
     check_util('bash');
