@@ -1594,11 +1594,11 @@ sub run_lncRNApipe_from_conf {
 
 	$mk_output_dirs = $io->execute_get_sys_cmd_output("mkdir $params->{'outputDir'}");
     }
-    
-    $io->error('Output directory not mentioned or output directory path does not exist.' .
-	       "\nWe need to know where to store the results. [outputDir: ?]" . $beverb)
-	if (!$params->{'outputDir'} || !-d $params->{'outputDir'});
-        
+    elsif (defined $params->{'outputDir'} || -d $params->{'outputDir'}) {
+	$io->error('Output directory exists. ' .
+		   "Use [overwriteOutputDir: NO] to overwrite output directory." . $beverb);
+    }
+           
     $io->error('No information regarding reference annotation provided. [sourceDB: ?], [species: ?], [useThisAnnotation: ?]')
 	if ( (!defined $params->{'sourceDB'} || !defined $params->{'species'}) && !defined $params->{'useThisAnnotation'});
 
