@@ -851,8 +851,10 @@ sub setup_lncRNApipe {
     # Mandatory by Single UNIX Specification. Just checking for sanity
     check_util('awk');
 
+    $setup = 'master' if (defined $setup && $setup eq '');
+    
     print "\n\nWe definetely need the custom module, IO::Routine.\n" .
-      "We also need good grace of cpanm to install remaining modules.\n\n" .
+	"We also need good grace of cpanm to install remaining modules.\n\n" .
 	"Attempting to fetch IO::Routine from Perl-for-Bioinformatics repository on github...\n";
 
     if (-d "$install_dir/.build") {
@@ -866,7 +868,6 @@ sub setup_lncRNApipe {
     system("mkdir $install_dir/.build");
     succ_or_fail(0, '.build dir') if (!-d "$install_dir/.build");
 
-    $setup = 'master' if (defined $setup && $setup ne '');
     system("rm $install_dir/$setup.zip") if (-e "$install_dir/$setup.zip");
 
     my $dl_util_slave = '';
