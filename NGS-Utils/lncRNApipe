@@ -1637,6 +1637,8 @@ sub run_lncRNApipe_from_conf {
     #$io->error('In [cufflinks: ] options, "-b" is not required. We got that from [genomeFasta: ].' . $beverb)
 	#if (defined $params->{'cufflinks'} && is_option_exists_in_anon($params->{'cufflinks'}, '-b\s+'));
 
+    $params->{'species'} = 'species' if (!defined $params->{'species'});
+    
     # Necessary evil
     my $tophat_o_dir = $params->{'outputDir'} . '/tophat';
     my $cufflinks_o_dir = $params->{'outputDir'} . '/cufflinks';
@@ -1654,7 +1656,8 @@ sub run_lncRNApipe_from_conf {
 						      "mkdir -p $cuffdiff_novel; " .
 						      "mkdir -p $cuffdiff_known; " .
 						      "mkdir -p $cuffmerge_known; " .
-						      "mkdir -p $cuffmerge_novel");
+						      "mkdir -p $cuffmerge_novel; " .
+						      "mkdir -p $ref_annot_dir");
     
     $io->error('Cannot create output directories. Exited with the following error(s):' .
 	       "\n$mk_output_dirs") if ($mk_output_dirs !~ m/could not capture/i);
@@ -1698,9 +1701,6 @@ sub run_lncRNApipe_from_conf {
     my $annot_gtf = "$ref_annot_dir/$params->{'species'}_$params->{'sourceDB'}.gtf";
     
     if (!defined $params->{'useThisAnnotation'}) {
-	$mk_output_dirs = $io->execute_get_sys_cmd_output("mkdir -p $ref_annot_dir");
-	$io->error('Cannot create output directories. Exited with the following error(s):' .
-		   "\n$mk_output_dirs") if ($mk_output_dirs !~ m/could not capture/i);
 
 	$io->c_time('Checking for either wget or curl...');
 
