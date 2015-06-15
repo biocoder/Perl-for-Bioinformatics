@@ -30,7 +30,7 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
 
 my $is_valid_option = GetOptions('help:s'                           => \$help,
                                  'quiet'                            => \$quiet,
-				 'setup'                            => \$setup,
+				 'setup=s'                          => \$setup,
 				 'run=s'                            => \$out, 
 				 'cuffcompare|cuffcmp=s'            => \$cuffcmp_opts,
 				 'cat-ncRNAs=s'                     => \$categorize_sc_opts,
@@ -866,7 +866,8 @@ sub setup_lncRNApipe {
     system("mkdir $install_dir/.build");
     succ_or_fail(0, '.build dir') if (!-d "$install_dir/.build");
 
-    system("rm $install_dir/master.zip") if (-e "$install_dir/master.zip");
+    $setup = 'master' if (defined $setup && $setup ne '');
+    system("rm $install_dir/$setup.zip") if (-e "$install_dir/$setup.zip");
 
     my $dl_util_slave = '';
     if ($dl_util =~ m/.*?wget\s+/i) {
