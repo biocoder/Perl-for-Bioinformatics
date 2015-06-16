@@ -1331,8 +1331,17 @@ sub cpanm_status {
 	succ_or_fail(0, $pm);
     }
 
-    succ_or_fail(0, $pm) if ($cpanm_log !~ m/.*?success.*/i);
-    succ_or_fail(1, $pm);
+    if ($cpanm_log !~ m/.*?success.*/i) {
+	if (-e "$ENV{'HOME'}/.cpanm/build.log") {
+	    print "\n\n";
+	    system("cat $ENV{'HOME'}/.cpanm/build.log");
+	    print "\n";
+	}
+	succ_or_fail(0, $pm);
+    }
+    else {
+	succ_or_fail(1, $pm);
+    }
     return;
 }
 
