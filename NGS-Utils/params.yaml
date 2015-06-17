@@ -10,14 +10,14 @@
 # In the example below, a  new output directory called "lncRNApipe_test"
 # will be created at the mentioned path /Users/krantikonganti/Projects/scratch_test.
 #
-outputDir: /Users/krantikonganti/Projects/scratch_test/lncRNApipe_test
+outputDir: /scratch/user/konganti/test-lncRNApipe
 
 #
 # Indicate, if we should overwrite the output directory if it already exists.
 #
 # WARNING: THIS WILL REMOVE ANY FILES / DIRECTORIES 
 #
-overwriteOutputDir: NO
+overwriteOutputDir: YES
 
 #
 # Let lncRNApipe know if you intend to perform transcript assembly
@@ -31,20 +31,20 @@ performTranscriptAssembly: YES
 # If running on a grid, each job script will run with this many
 # number of CPUs.
 # 
-CPUs: 16
+CPUs: 4
 
 #
 # Specify scheduler type.
 # Valid options are PBS, SGE, LSF or NONE to disable grid computing.
 #
-scheduler: NONE
+scheduler: LSF
 
 #
 # Mention batch submission command.
 # For example, for LSF, it is bsub, for PBS or SGE, it
 # is qsub.
 #
-batchSubCmd: qsub
+batchSubCmd: bsub
 
 #
 # Specify scheduler options on separate line
@@ -78,14 +78,34 @@ batchSubCmd: qsub
 # $ -N lncRNApipe
 # $ -l num_threads=16
 #
+# Ex for LSF (job parameters start with BSUB directive):
+# module load Java/1.7.0_10 
+# BSUB -n 1
+# BSUB -L /bin/bash
+# BSUB -M 4098
+# BSUB -W 00:60
+#
 schedulerOpts:
- - $ -l mem_free=10G
- - $ -l num_threads=16
+ - BSUB -n 4
+ - BSUB -L /bin/bash
+ - BSUB -M 4098
+ - BSUB -W 00:60
+# - $ -l mem_free=10G
+# - $ -l num_threads=16
+
+#
+# Mention any other lines that should be included at the beginning of
+# the job script, after creating the job submission parameters.
+# For example, you can add commands to load software
+# environments specific to your cluster.
+#
+clusterOpts:
+ - module load Java/1.7.0_10 Perl/5.20.0-ictce-7.1.2
 
 #
 # Specify if your reads are in FASTA or FASTQ format.
 #
-readType: FASTA
+readType: FASTQ
 
 #
 # Specify if your reads are SE (single-end only), PE (paired-end only) or MIXED
@@ -111,7 +131,7 @@ sourceDB: UCSC
 # Go to https://genome.ucsc.edu/FAQ/FAQreleases.html#TOP to view UCSC version names.
 # For example, at UCSC, for mouse, it is mm9 or mm9, for rat, it is rn5 or rn6 etc...
 #
-species: mm9
+species: rn4
 
 #
 # If you want to use your own annoation file, provide full path to the annotation
@@ -120,7 +140,7 @@ species: mm9
 # same source. In the example below, "bowtieGenomeIndex" is mm9 genome index created
 # from FASTA files from UCSC.
 #
-useThisAnnotation: /Users/krantikonganti/Projects/scratch_test/lncRNApipe_test/ref_annotation/mm9_UCSC.gtf
+#useThisAnnotation: /scratch/user/konganti/test-lncRNApipe/ref_annotation/rn4_UCSC.gtf
 
 #
 # Provide Unix path to directory where the read files are located and also
@@ -132,8 +152,8 @@ useThisAnnotation: /Users/krantikonganti/Projects/scratch_test/lncRNApipe_test/r
 # WE HAVE NO WAY OF KNOWING WHICH READ FILE IS _1 or _2.
 #
 reads:
- readsDir: /Users/krantikonganti/Projects/scratch_test/lncRNApipe_test
- r1: sample2_rep1_read1.fq,sample2_rep1_read1.fq|sample1_rep1_read1.fq
+ readsDir: /scratch/user/konganti/rn4_UCSC
+ r1: cca-1103.fastq,cca-2106.fastq|
  r2: 
 #sample1_rep1_read1.fq,sample1_rep2_read1.fq|sample2_rep1_read1.fq,sample2_rep2_read1.fq
 #r2: sample1_rep1_read2.fq,sample1_rep2_read2.fq|sample2_rep1_read2.fq,sample2_rep2_read2.fq
@@ -170,13 +190,13 @@ trimmomatic:
 # No need to provide -o, as it will be handled by lncRNApipe.
 # No need to provide -p, as it will be handled by lncRNApipe.
 #
-genomeFasta: /Users/krantikonganti/Projects/scratch_test/lncRNApipe_test/genome.fa
-bowtieGenomeIndex: /data/ref_indexes/bowtie2/mm9_UCSC/genome
+genomeFasta: /scratch/user/konganti/rn4_UCSC/genome.fa
+bowtieGenomeIndex: /scratch/user/konganti/rn4_UCSC/genome
 tophat:
  - -x 1
  - -M
  - --b2-sensitive
- - --transcriptome-index=/data/konganti/projects/dwthreadgill/mm9_transcriptome
+# - --transcriptome-index=/data/konganti/projects/dwthreadgill/mm9_transcriptome
 
 #
 # Provide cufflinks options and also "PLEASE MAKE SURE" you provide the same reference
@@ -189,7 +209,7 @@ tophat:
 #
 cufflinks:
  - -u
- - -b /data/ref_fasta/mm9_UCSC/genome.fa
+ - -b /scratch/user/konganti/rn4_UCSC/genome.fa
 
 #
 # Provide cuffcompare options.
@@ -216,7 +236,7 @@ cuffcompare:
 # See "perl lncRNApipe -h cat" for description of options.
 # 
 categorize_ncRNAs:
- - -sample-names "d01a,d01b,d03a,d03b,d06a,d06b,d09a,d09b,d14a,d14b"
+ - -sample-names "cca"
  - -fpkm 0.1
  - -len 200
  - -max-len 1000000

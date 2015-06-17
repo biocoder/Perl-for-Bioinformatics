@@ -25,7 +25,8 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $lncRNApipe_ver_info, $no_update_check, 
     $skip_get_uq, $lncRNApipe_succ, $num_cpu_by_2,
     $skip_cpc, $debug, $sp_list, $pipe_config,
-    $kill_jobs_thru_conf, $conf_run_id);
+    $kill_jobs_thru_conf, $conf_run_id, $setup_compiler,
+    $cpanm_args);
 
 my $is_valid_option = GetOptions('help:s'                           => \$help,
                                  'quiet'                            => \$quiet,
@@ -52,7 +53,8 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'send-run-report=s'                => \$debug,
 				 'list=s'                           => \$sp_list,
 				 'configuration=s'                  => \$pipe_config,
-				 'kill-conf-jobs=s'                 => \$kill_jobs_thru_conf);
+				 'kill-conf-jobs=s'                 => \$kill_jobs_thru_conf,
+				 'setup-compiler=s'                 => \$setup_compiler);
 
 # Initialize known defaults
 my $CAT_SC = 'categorize_ncRNAs.pl';
@@ -64,14 +66,15 @@ my $RELPLOT_MOD_SC = 'relplot_mod.pl';
 my $SEND_MAIL_SC = 'send_lncRNApipe_log.pl';
 my $HGCONF = 'hg.conf.sh';
 my $USER_HOME = dirname(abs_path($0));
+$inf_cov = 10 if (!defined $inf_cov);
+$skip_get_uq = 1 if (defined $skip_get_uq || (!defined $get_uq_sc_opts && defined $fetch_sc_opts));
+
 if (defined $num_cpu) {
     $num_cpu_by_2 = sprintf("%.0f", $num_cpu / 2) - 1;
 } 
 else {
     $num_cpu_by_2 = 1;
 }
-$inf_cov = 10 if (!defined $inf_cov);
-$skip_get_uq = 1 if (defined $skip_get_uq || (!defined $get_uq_sc_opts && defined $fetch_sc_opts));
 
 if (!$is_valid_option) {
     die "\nInvalid / No Option(s) Provided:$! See $0 --help for valid options.\n\n";
@@ -86,6 +89,15 @@ elsif (defined $lncRNApipe_ver_info) {
     exit 0;
 }
 elsif (defined $setup) {
+    if (defined $setup_compiler) {
+	die "\nCompiler argument should be in the format COMPILER_VAR_NAME=COMPILER and your\n" .
+	    "compiler should be in your UNIX \$PATH.\n\nEx: --setup-compiler CC=g++\n\n"
+	    if ($setup_compiler !~ m/^\w+=\w+$/);
+	$cpanm_args = "--configure-args $setup_compiler";
+    }
+    else {
+	$cpanm_args = '';
+    }
     setup_lncRNApipe(`pwd`) 
 }
 elsif (defined $out || (defined $help && $help eq '')) {
@@ -282,7 +294,7 @@ sub run_lncRNApipe {
 		$gtfToGenePred_failed =~ s/[\s\r\n]+//g;
 		$io->error('gtfToGenePred quit with the following error:' . "\n\n$is_failed\nBailing out!"),
 		$lncRNApipe_succ = 0
-		    if ($gtfToGenePred_failed =~ m/invalid|error|not/i);
+		    if ($gtfToGenePred_failed !~ m/couldnotcapture/i);
 	    }
 	    
 	    $categorize_sc_opts .= " -cpu $num_cpu" if (defined $num_cpu);
@@ -783,6 +795,9 @@ sub setup_lncRNApipe {
 	print "\nChecking for platform independent prerequisites on UNIX based machines...\n";
     }
 
+    # Find out if user wants to download master or devel
+    $setup = 'master' if (defined $setup && $setup eq '');
+
     # Wget or Curl
     if ($dl_util !~ m/.+?wget$/i) {
 	chomp ($dl_util = `which curl 2>&1`);
@@ -861,8 +876,6 @@ sub setup_lncRNApipe {
 
     # Mandatory by Single UNIX Specification. Just checking for sanity
     check_util('awk');
-
-    $setup = 'master' if (defined $setup && $setup eq '');
     
     print "\n\nWe definetely need the custom module, IO::Routine.\n\n" .
 	"Attempting to fetch IO::Routine from Perl-for-Bioinformatics repository on github...\n";
@@ -913,27 +926,27 @@ sub setup_lncRNApipe {
     }
 
     #cpanm_status($pm_install_dir, 'Module::Load', $install_dir); # This is a core module.
-    print "\nInstalling required Perl Modules...\n";
-    cpanm_status($pm_install_dir, 'Set::IntervalTree', $install_dir);
-    cpanm_status($pm_install_dir, 'LWP::Simple', $install_dir);
-    cpanm_status($pm_install_dir, 'XML::XPath', $install_dir);
-    cpanm_status($pm_install_dir, 'XML::XPath::XMLParser', $install_dir);
-    cpanm_status($pm_install_dir, 'Parallel::ForkManager', $install_dir);
-    cpanm_status($pm_install_dir, 'MIME::Lite', $install_dir);
-    cpanm_status($pm_install_dir, 'Email::Valid', $install_dir);
-    cpanm_status($pm_install_dir, 'YAML', $install_dir);
-    cpanm_status($pm_install_dir, 'Data::Uniqid', $install_dir);
+    print "\nInstalling required Perl Modules...\n";    
+    cpanm_status($pm_install_dir, 'Set::IntervalTree', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'LWP::Simple', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'XML::XPath', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'XML::XPath::XMLParser', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'Parallel::ForkManager', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'MIME::Lite', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'Email::Valid', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'YAML', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'Data::Uniqid', $install_dir, $cpanm_args);
 
     if (!ask_user("\n\nDo you already have BioPerl installed?")) {
 	print "\nOK ... This may take a while ... Grab a snack or a cup of coffee!\n";
-	cpanm_status($pm_install_dir, 'BioPerl', $install_dir);
+	cpanm_status($pm_install_dir, 'BioPerl', $install_dir, $cpanm_args);
     }
 
-    print "\nThank you cpanm!\n";
+    #print "\nThank you cpanm!\n";
 
     my $pm_path = "$pm_install_dir/PERLLIBS:$pm_install_dir/PERLLIBS/lib:$pm_install_dir/PERLLIBS/lib/perl5";
 
-    print "\nInstalling IO::Routine...\n\n";
+    print "\n\nInstalling IO::Routine...\n\n";
     system("mkdir $pm_install_dir/PERLLIBS") if (!-d "$pm_install_dir/PERLLIBS");
     my $custom_pm_log = `cd $install_dir/.build/Perl-for-Bioinformatics-$setup/IO-Routine;perl Makefile.PL PREFIX=$pm_install_dir/PERLLIBS LIB=$pm_install_dir/PERLLIBS/lib && make && make test && make install; 2>&1`;
 
@@ -1103,6 +1116,11 @@ sub setup_lncRNApipe {
 
     $io->execute_system_command(0,
 				"\n\nSetup complete. See \"perl lncRNApipe --h\" to run the pipeline with options.");
+   
+    # Finally copy .hg.conf to user home forcefully since we may have the updated version.
+    system("cp -f $install_dir/$HGCONF $ENV{'HOME'}/.hg.conf > /dev/null 2>&1");
+    system("chmod 600 $ENV{'HOME'}/.hg.conf > /dev/null 2>&1");
+    
     # For build check
     exit;
 }
@@ -1125,10 +1143,13 @@ sub setup_cpc {
     
     get_deps($depconf_fh);
 
+    my $cpc_saved = 'master.zip';
+    $cpc_saved = $setup . '.zip' if (defined $setup && $setup ne '');
+
     print "\n\nAttempting to setup CPC [ github.com/biocoder/cpc ]. \nThis may take a while. Stay put...\n\n";
     system("$dl_util https://github.com/biocoder/cpc/archive/master.zip > /dev/null 2>&1");
-    system("unzip -d $curr_dir master.zip > /dev/null 2>&1");
-    system("rm master.zip");
+    system("unzip -d $curr_dir $cpc_saved > /dev/null 2>&1");
+    system("rm $cpc_saved");
     system("mv $curr_dir/cpc-master/* $curr_dir/.");
     rmdir "$curr_dir/cpc-master";
 
@@ -1145,10 +1166,11 @@ sub setup_cpc {
 		  "Do you already have uniref90.fasta somewhere on this system?")) {
 	
 	print "\nAttempting protein database download...\n\n";
-	$dl_util =~ s/master\.zip/uniref90\.fasta\.gz/;
+	$dl_util =~ s/$cpc_saved/uniref90\.fasta\.gz/;
 	
 	if (!-e "$curr_dir/data/uniref90.fa") {
 	    system("$dl_util ftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz");
+	    $format_db = "uniref90.fasta.gz";
 	}
 	else {
 	    print "\nFASTA file [ uniref90.fasta ] already exists in $curr_dir/data. Maybe download was incomplete ?";
@@ -1161,21 +1183,26 @@ sub setup_cpc {
 	}
     }
     else {
-	$format_db = ask_user("\nEnter full path to uniref90.fasta: ");
-	succ_or_fail(0, "CPC [ ERROR: $! ]")
-	    if (!-r $format_db || !-e $format_db || !-s $format_db);
+	my $uniref90_fasta_err = '';
+	until (-r $format_db && -e $format_db && -s $format_db) {
+	    $format_db = ask_user("$uniref90_fasta_err\nEnter full path to uniref90.fasta:", 'fasta|fa');
+	    $uniref90_fasta_err = "\nCannot find $format_db or the file is empty or not readable...\n\nCPC [ ERROR: $! ] !!\n";
+	}
     }
-
-    print "\nDecompressing uniref90.fasta.gz...\n",
-    system("gunzip uniref90.fasta.gz > /dev/null 2>&1") if ($format_db =~ m/\.gz$/);
-	
+    
+    if ($format_db =~ m/\.gz$/) {
+	print "\nDecompressing uniref90.fasta.gz...\n";
+	system("gunzip uniref90.fasta.gz");
+	$format_db =~ s/\.gz$//;
+    }
+    	
     if (!-e "$curr_dir/data/formatdb.log" ||
 	!-s "$curr_dir/data/formatdb.log" ||
 	!-e "$curr_dir/data/prot_db.pal" ||
 	!-s "$curr_dir/data/prot_db.pal") {
 	
 	print "\nFormatting database...\n";
-	system($deps->{'formatdb'} . " -i $format_db -p T -n prot_db > /dev/null 2>&1");
+	system($deps->{'formatdb'} . " -i $format_db -p T -n prot_db");
     }
     
     return;
@@ -1323,15 +1350,16 @@ sub cpanm_status {
     my $install_dir = shift;
     my $pm = shift;
     my $cpanm_bin = shift;
+    my $cpanm_args = shift;
 
-    my $cpanm_log = `$cpanm_bin/.build/cpanm -f -l $install_dir/PERLLIBS $pm 2>&1`;
-    
-    if ($cpanm_log !~ m/.*?success.*/i && $pm =~ m/xml/i) {
+    my $cpanm_log = `$cpanm_bin/.build/cpanm $cpanm_args -l $install_dir/PERLLIBS $pm 2>&1`;
+       
+    if ($cpanm_log !~ m/.*?success|up to date.*/i && $pm =~ m/xml/i) {
 	print STDOUT "\n\nYou need to install XML parser C libraries.\n\n\t\* On Ubuntu / Debian based Linux distributions, as root user, do:\n\n\t\tapt-get install libexpat1 libexpat1-dev\n\n\t\* On RedHat / Fedora / CentOS based Linux distributions, as root user do:\n\n\t\tyum install expat expat-devel\n\n";
 	succ_or_fail(0, $pm);
     }
 
-    if ($cpanm_log !~ m/.*?success.*/i) {
+    if ($cpanm_log !~ m/.*?success|up to date.*/i) {
 	if (-e "$ENV{'HOME'}/.cpanm/build.log") {
 	    print "\n\n";
 	    system("cat $ENV{'HOME'}/.cpanm/build.log");
@@ -1384,6 +1412,7 @@ sub get_annot {
 # Ask for user input
 sub ask_user {
  my $msg = shift;
+ my $general = shift;
  my $ans;
 
  while (1) {
@@ -1397,7 +1426,11 @@ sub ask_user {
      
      succ_or_fail(0, "\n\nAborted! [ No answer for 5 minutes. ] ??") if ($@ =~ m/DidNotAnswer/i);
      
-     if ($ans !~ m/^y|n|fasta|fa$/i) {
+     if ($general && $ans !~ m/^y|n|$general$/i) {
+	 print "\nInvalid answer!\n";
+	 next;
+     }
+     elsif (!$general && $ans !~ m/^y|n$/i) {
 	 print "\nInvalid answer!\n";
 	 next;
      }
@@ -1438,10 +1471,7 @@ sub get_deps {
     ($deps->{'relplot'}) = ($dep_tools =~ m/(.+?$RELPLOT_MOD_SC)/i);
     ($deps->{'email'}) = ($dep_tools =~ m/(.+?$SEND_MAIL_SC)/i);
     ($deps->{'cpc_home'}) = ($dep_tools =~ m/cpcHome\:(.+)/i) if (!exists $ENV{'CPC_HOME'});
-
-    # Finally copy .hg.conf to user home forcefully since we may have the updated version.
-    system("cp -f $deps->{'hgconf'} $ENV{'HOME'}/.hg.conf > /dev/null 2>&1");
-
+    
     foreach my $dep (keys %$deps) {
 	die "\n\nCannot find required dependency [ " . $dep . " ]. May be reinstalling lncRNApipe will resolve the issue?\n\n"
 	    if (!$deps->{$dep} || !-e $deps->{$dep});
@@ -2376,7 +2406,7 @@ sub get_job_dependency_chain {
     }
     elsif ($params->{'scheduler'} =~ m/^lsf$/i) {
 	$job_deps_str = '-w "done(' . join(") && done(", (split(/\n|\r/, $job_ids)));
-	$job_deps_str .= ')"';
+	$job_deps_str .= ')" <';
     }
     return $job_deps_str;
 }
@@ -2437,6 +2467,8 @@ sub write_and_submit_job {
 	    $jobid_env !~ m/none/i &&
 	    $job_ids_file !~ m/NO_DEPENDENCY_CHAIN/i);
     
+    my $cluster_opts = join("\n", @{$params->{'clusterOpts'}}) if (defined $params->{'clusterOpts'});
+ 
     my $job_script = qq {#!/bin/bash
 # 
 # lncRNApipe v$VERSION
@@ -2447,6 +2479,11 @@ sub write_and_submit_job {
 #
 #$scheduler_opts_str
 # 
+# Other custom configurations specific to your cluster as mentioned in 
+# configuration file [$yaml_was]:
+#
+$cluster_opts
+#
 # Attempting to go for zero failures regarding: "-bash: : command not found".
 # Just appending path to our sandboxed binaries.
 #
@@ -2460,8 +2497,6 @@ export PATH=\$PATH:$deps->{'bowtie'}:$deps->{'tophat'}:$deps->{'cufflinks'}@$cmd
     my $grid_job_id = '';
 
     if ($params->{'scheduler'} !~ m/^none$/i) {
-	# bsub special case
-	$params->{'batchSubCmd'} = "$params->{'batchSubCmd'} <" if ($params->{'batchSubCmd'} =~ m/^bsub$/i);
 	$io->c_time('Submitting job script [ '. $io->file_basename($job_script_name, 'suffix') . '  ]...');
 	
 	if ($deps_str !~ m/NO_DEPENDENCY_CHAIN/i) {
@@ -2475,9 +2510,12 @@ export PATH=\$PATH:$deps->{'bowtie'}:$deps->{'tophat'}:$deps->{'cufflinks'}@$cmd
 	    if ($jobID_rudimentary) {
 		$grid_job_id = get_grid_jobID_rudimentary($grid_job_id);
 		$io->execute_system_command("echo $grid_job_id >> $job_scripts_dir/$job_ids_file")
+		    if ($grid_job_id !~ m/could not capture/i);
 	    }	
 	}
 	else {
+	    # bsub special case
+	    $job_script_name = "< $job_script_name" if ($params->{'batchSubCmd'} =~ m/^bsub$/i);
 	    $io->execute_system_command("$params->{'batchSubCmd'} $job_script_name", 
 					#0,
 					"Command call:\n" .
@@ -2500,7 +2538,10 @@ export PATH=\$PATH:$deps->{'bowtie'}:$deps->{'tophat'}:$deps->{'cufflinks'}@$cmd
 # that I have to do this. Should have started with DRMAA C bindings.
 # The Schedule::DRMAAc installation needs little configuration, which
 # defeats the purpose of this whole pipeline, which is to be as simple
-# as possible to install and run.
+# as possible to install and run. 
+#
+# IN MOST CASES THE JOB ID IS NUMERIC. IF NOT, WE DEPEND ON THE USER
+# INPUT.
 #
 # This does the heavy lifting but we still ask user to verify job ids
 # parsed.
@@ -2508,12 +2549,13 @@ sub get_grid_jobID_rudimentary {
     my $job_id_string = shift;
 
     if ($job_id_string =~ m/\s+/) {
-	(my $job_id) = ($job_id_string =~ m/job\w*\s+\W*(\w+)\W*/i);
+	(my $job_id) = ($job_id_string =~ m/job.+?\W*(\d+)\W*.*?submitted/i);
 	return $job_id;
     }
     else {
-	return $job_id_string;
+	return $job_id_string if ($job_id_string);
     }
+    return 0;
 }
 
 # Calculate sample size and return largest.
