@@ -2451,6 +2451,7 @@ sub write_and_submit_job {
     my $io = shift;
     my $cmds = shift;
     my $jobID_rudimentary = shift;
+    my $cluster_opts = '';
 
     my $yaml_was = $io->file_basename($pipe_config, 'suffix');
     
@@ -2467,7 +2468,7 @@ sub write_and_submit_job {
 	    $jobid_env !~ m/none/i &&
 	    $job_ids_file !~ m/NO_DEPENDENCY_CHAIN/i);
     
-    my $cluster_opts = join("\n", @{$params->{'clusterOpts'}}) if (defined $params->{'clusterOpts'});
+    $cluster_opts = join("\n", @{$params->{'clusterOpts'}}) if (defined $params->{'clusterOpts'});
  
     my $job_script = qq {#!/bin/bash
 # 
