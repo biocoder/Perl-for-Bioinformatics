@@ -2451,7 +2451,7 @@ sub write_and_submit_job {
     my $io = shift;
     my $cmds = shift;
     my $jobID_rudimentary = shift;
-    my $cluster_opts = '';
+    my $cluster_opts = '# No cluster options specified.';
 
     my $yaml_was = $io->file_basename($pipe_config, 'suffix');
     
