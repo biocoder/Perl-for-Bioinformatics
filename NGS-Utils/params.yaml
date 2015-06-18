@@ -17,7 +17,7 @@ outputDir: /scratch/user/konganti/test-lncRNApipe
 #
 # WARNING: THIS WILL REMOVE ANY FILES / DIRECTORIES 
 #
-overwriteOutputDir: YES
+overwriteOutputDir: NO
 
 #
 # Let lncRNApipe know if you intend to perform transcript assembly
@@ -79,7 +79,6 @@ batchSubCmd: bsub
 # $ -l num_threads=16
 #
 # Ex for LSF (job parameters start with BSUB directive):
-# module load Java/1.7.0_10 
 # BSUB -n 1
 # BSUB -L /bin/bash
 # BSUB -M 4098
@@ -140,7 +139,7 @@ species: rn4
 # same source. In the example below, "bowtieGenomeIndex" is mm9 genome index created
 # from FASTA files from UCSC.
 #
-#useThisAnnotation: /scratch/user/konganti/test-lncRNApipe/ref_annotation/rn4_UCSC.gtf
+useThisAnnotation: /scratch/user/konganti/test-lncRNApipe/ref_annotation/rn4_UCSC.gtf
 
 #
 # Provide Unix path to directory where the read files are located and also
@@ -153,7 +152,7 @@ species: rn4
 #
 reads:
  readsDir: /scratch/user/konganti/rn4_UCSC
- r1: cca-1103.fastq,cca-2106.fastq|
+ r1: cca-1103.fastq,cca-2106.fastq|cca-1103.fastq,cca-2106.fastq
  r2: 
 #sample1_rep1_read1.fq,sample1_rep2_read1.fq|sample2_rep1_read1.fq,sample2_rep2_read1.fq
 #r2: sample1_rep1_read2.fq,sample1_rep2_read2.fq|sample2_rep1_read2.fq,sample2_rep2_read2.fq
@@ -232,16 +231,59 @@ cuffcompare:
  - -i /data/cufflinks/assembly_list.txt
 
 #
-# Provide categorize_ncRNAs.pl options
-# See "perl lncRNApipe -h cat" for description of options.
+# Provide categorize_ncRNAs.pl options.
+# See "perl lncRNApipe --h cat" for description of options.
 # 
 categorize_ncRNAs:
- - -sample-names "cca"
+ - -sample-names "cca,ccb"
  - -fpkm 0.1
  - -len 200
  - -max-len 1000000
  - -min-exons 2
  - -ov 80
+
+#
+# Provide get_unique_features.pl options.
+# Generally only "-ov" is required in either
+# case of [performTranscriptAssembly: YES] or
+# [performTranscriptAssembly: NO].
+#
+# See "perl lncRNApipe --h get" for description of options.
+#
+get_unique_features:
+ - -ov 10
+
+
+#
+# By, default, RNAfold is not run since it is very slow.
+# It is generally recommended to generate RNAfold plots
+# based on the transcript of your interest after you have
+# investigated the results, but you can still enable it
+# in the pipeline by uncommenting "RNAfold: " and any 
+# preciding lines below, which describe its options.
+#
+# Mention any other option other than "-p" and "--noPS" as they
+# are automatically handled by lncRNApipe.
+#
+# See "perl lncRNApipe -h rna" for description of options.
+#
+#RNAfold:
+# - --circ
+
+#
+# Provide options to cmscan. Running cmscan with
+# default options provides good matches in
+# most cases, but in any case you want to add
+# extra options, do it here.
+#
+# Provide any options other than "-o", "--tblout"
+# and "--cpu" as they are automatically handled by 
+# lncRNApipe.
+#
+# See "perl lncRNApipe -h inf" for description of options.
+#
+#cmscan:
+# - -E 9.0 
 
 #
 # Provide cuffmerge options.
@@ -265,11 +307,10 @@ cuffmerge:
 # No need to provide input files, if you have run tophat, cufflinks above.
 #
 # If "performTranscriptAssembly" is NO, then provide your own BAM files here prefixed by
-# -bam option.
-# Separate replicate BAM files with comma as you generally do with cuffdiff command.
+# -bam option. Separate replicate BAM files with comma as you generally do with cuffdiff command.
 #
 cuffdiff:
  - -u
 # - -b /data/ref_fasta/mm9_UCSC/genome.fa
-# - -bam /data/aligned_mm9_UCSC/sample1/rep1.bam,/data/aligned_mm9_UCSC/sample1/rep2.bam /data/aligned_mm9_UCSC/sample2/rep1.bam,/data/aligned_mm9_UCSC/sample2/rep2.bam
+ - -bam /data/aligned_mm9_UCSC/sample1/rep1.bam,/data/aligned_mm9_UCSC/sample1/rep2.bam /data/aligned_mm9_UCSC/sample2/rep1.bam,/data/aligned_mm9_UCSC/sample2/rep2.bam
 

@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-07-08 11:45:27 -0500 (Fri, 08 May 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.7.9 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-06-18 11:45:27 -0500 (Thu, 18 June 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.0.0 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -108,7 +108,7 @@ elsif (defined $debug) {
     my $pl_dep_paths_fh = read_conf('/.lncRNApipe.PERLLIBS');
     my $pl_inc_string = source_env($pl_dep_paths_fh);
     get_deps($depconf_fh);
-    system("$deps->{'email'} $debug");
+    system("perl $pl_inc_string $deps->{'email'} $debug");
 }
 elsif (defined $help && $help ne '') {
     my $depconf_fh = read_conf('/.lncRNApipe.depconf');
@@ -147,11 +147,6 @@ elsif (defined $pipe_config) {
     YAML->import( qw( LoadFile ) );
     my $lncRNApipe_config = LoadFile($pipe_config);
     #$io->c_time("Read parameters: \n\n" . Data::Dumper->Dump([$lncRNApipe_config], [qw(lncRNApipe_config)]));
-
-    # Generate run id
-    require Data::Uniqid;
-    Data::Uniqid->import( qw( uniqid ) );
-    $conf_run_id = Data::Uniqid->uniqid;
 
     # Now run lncRNApipe from config file
     run_lncRNApipe($lncRNApipe_config);
@@ -792,7 +787,7 @@ sub setup_lncRNApipe {
 
     if ($install_dir ne 'get_dl_UTIL') {
 	print "\n\x{1f473}  Hi! I am Vayu and I will attempt to install lncRNApipe for you.";
-	print "\nChecking for platform independent prerequisites on UNIX based machines...\n";
+	print "\nChecking for platform independent prerequisites and some of the GNU Core Utilities on UNIX based machines...\n";
     }
 
     # Find out if user wants to download master or devel
@@ -870,6 +865,9 @@ sub setup_lncRNApipe {
 
     # ln
     check_util('ln');
+
+    # wc
+    check_util('wc');
 
     # ps
     check_util('ps');
@@ -1642,7 +1640,7 @@ sub run_lncRNApipe_from_conf {
     my $io = shift;
     my $params = shift;
     my $clock = shift;
-    my $beverb = "\n\nPlease check your config file [ " . $io->file_basename($pipe_config, 'suffix') . ' ] and provide a valid value(s).';
+    my $beverb = "\n\nPlease check your config file [ " . $io->file_basename($pipe_config, 'suffix') . ' ] and provide correct value(s).';
     my $scheduler_job_depends = my $job_deps_str_lncRNApipe_post_assembly = '';
     my $cufflinks_after_assembly_check = my $check_these_log_files = my $cuffdiff_bam_files = '';
     my $job_scripts_dir_name = 'job_scripts';
@@ -1651,8 +1649,8 @@ sub run_lncRNApipe_from_conf {
     verify_config_file($io, $beverb, $params->{'overwriteOutputDir'}, 'overwriteOutputDir', 'yes|no');
     verify_config_file($io, $beverb, $params->{'performTranscriptAssembly'}, 'performTranscriptAssembly', 'yes|no');
     verify_config_file($io, $beverb, $params->{'sourceDB'}, 'sourceDB', 'ensembl|ucsc');
-    verify_config_file($io, $beverb, $params->{'scheduler'}, 'scheduler', 'pbs|sge|lsf|none');
-    verify_config_file($io, $beverb, $params->{'batchSubCmd'}, 'batchSubCmd', 'qsub|bsub') if (defined $params->{'scheduler'});
+    verify_config_file($io, $beverb, $params->{'scheduler'}, 'scheduler', 'pbs|sge|lsf|slurm|none');
+    verify_config_file($io, $beverb, $params->{'batchSubCmd'}, 'batchSubCmd', 'qsub|bsub|sbatch') if (defined $params->{'scheduler'});
 
     if ($params->{'scheduler'} =~ m/^SGE$/i) {
 	# -hold_jid jobid1,jobid2,jobid3
@@ -1663,6 +1661,11 @@ sub run_lncRNApipe_from_conf {
 	# -W depend=afterok:jobid1:jobid2:jobid3
 	$scheduler_job_depends = '${PBS_JOBID}';
 	$params->{'killCmd'} = 'qdel';
+    }
+    elsif ($params->{'scheduler'} =~ m/^SLURM$/i) {
+	# -W depend=afterok:jobid1:jobid2:jobid3
+	$scheduler_job_depends = '${SLURM_JOBID}';
+	$params->{'killCmd'} = 'scancel';
     }
     elsif ($params->{'scheduler'} =~ m/^LSF$/i) {
 	# -w "done(jobid1) && done(jobid2) && done(jobid3)"
@@ -1715,13 +1718,13 @@ sub run_lncRNApipe_from_conf {
     
     $io->error('-sample-names option is required for [categorize_ncRNAs: ].' . $beverb)
 	if (!is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample'));
-    
-    #$io->error('In [cuffdiff: ] options, "-b" is not required. We got that from [genomeFasta: ].' . $beverb)
-	#if (defined $params->{'cuffdiff'} && is_option_exists_in_anon($params->{'cuffdiff'}, '-b\s+'));
 
+    #$io->error('In [cuffdiff: ] options, "-b" is not required. We got that from [genomeFasta: ].' . $beverb)
+    #if (defined $params->{'cuffdiff'} && is_option_exists_in_anon($params->{'cuffdiff'}, '-b\s+'));
+    
     #$io->error('In [cufflinks: ] options, "-b" is not required. We got that from [genomeFasta: ].' . $beverb)
 	#if (defined $params->{'cufflinks'} && is_option_exists_in_anon($params->{'cufflinks'}, '-b\s+'));
-
+          
     $params->{'species'} = 'species' if (!defined $params->{'species'});
     
     # Necessary evil
@@ -1739,9 +1742,19 @@ sub run_lncRNApipe_from_conf {
 
     mkdirs($io, [$job_scripts_dir, $cuffdiff_novel, $cuffdiff_known,
 		 $cuffmerge_known, $cuffmerge_novel, $ref_annot_dir]);
-        
-    unlink "$job_scripts_dir/job_IDs" if (-e "$job_scripts_dir/job_IDs_tophat.$conf_run_id");
-    unlink "$job_scripts_dir/job_IDs" if (-e "$job_scripts_dir/job_IDs_cufflinks.$conf_run_id");
+
+    # Create runID
+    if ( !-e "$params->{'outputDir'}/.lncRNApipe.runID" ||
+	 !is_job_done("$params->{'outputDir'}/.lncRNApipe.runID", $io, 'get_runID', 0) ) {
+	# Generate run id
+	require Data::Uniqid;
+	Data::Uniqid->import( qw( uniqid ) );
+	$conf_run_id = Data::Uniqid->uniqid;
+	$io->execute_system_command("echo \"Run=$conf_run_id\" > $params->{'outputDir'}/.lncRNApipe.runID");
+    }
+
+    unlink "$job_scripts_dir/job_IDs_tophat.$conf_run_id" if (-e "$job_scripts_dir/job_IDs_tophat.$conf_run_id");
+    unlink "$job_scripts_dir/job_IDs_cufflinks.$conf_run_id" if (-e "$job_scripts_dir/job_IDs_cufflinks.$conf_run_id");
     $io->execute_system_command("touch $job_scripts_dir/job_IDs_tophat.$conf_run_id");
     $io->execute_system_command("touch $job_scripts_dir/job_IDs_cufflinks.$conf_run_id");
 
@@ -1793,7 +1806,36 @@ sub run_lncRNApipe_from_conf {
 	$io->c_time('Creating a GTF file with transcript_id other than "NM_"...');
 	$post_dl_status = $io->execute_get_sys_cmd_output("grep -vi 'NM_' $annot_gtf > $nc_annot_gtf");
     }
+
+    # Figure out rest of the lncRNApipe options and finalize command calls.
+    # get_unique_features.pl options
+    my $thru_conf_get_uq_feat_opts_n = "'-sf $annot_gtf'";
+    $thru_conf_get_uq_feat_opts_n = "'" . join(' ', @{$params->{'get_unique_features'}}) . "'"
+	if (defined $params->{'get_unique_features'} && is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
+    $thru_conf_get_uq_feat_opts_n = "'-sf $annot_gtf " . join(' ', @{$params->{'get_unique_features'}}) . "'"
+	if (defined $params->{'get_unique_features'} && !is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
     
+    my $thru_conf_get_uq_feat_opts_k = "'-sf $nc_annot_gtf --known -ov 10'";
+    $thru_conf_get_uq_feat_opts_k = "'--known "  . join(' ', @{$params->{'get_unique_features'}}) . "'"
+	if (defined $params->{'get_unique_features'} && is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
+    $thru_conf_get_uq_feat_opts_k = "'-sf $nc_annot_gtf --known " . join(' ', @{$params->{'get_unique_features'}}) . "'"
+	if (defined $params->{'get_unique_features'} && !is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
+
+    # RNAfold options.
+    my $thru_conf_rna_fold_opts = '';
+    $io->error('In [RNAfold: ] options, "-p" or "--noPS" are not required.' . $beverb)
+	if (defined $params->{'RNAfold'} && is_option_exists_in_anon($params->{'RNAfold'}, 'p|noPS'));
+    $thru_conf_rna_fold_opts = "--rna '" . join(' ', @{$params->{'RNAfold'}}) . "'"
+	if (defined $params->{'RNAfold'});
+
+    # cmscan options
+    my $thru_conf_inf_opts = '--inf';
+    $io->error('In [cmscan: ] options, "--cpu" or "--tblout" or "-o" are not required.' . $beverb)
+	
+	if (defined $params->{'cmscan'} && is_option_exists_in_anon($params->{'cmscan'}, 'o|cpu|tblout'));
+    $thru_conf_inf_opts = $thru_conf_inf_opts . " '" . join(' ', @{$params->{'cmscan'}}) . "'"
+	if (defined $params->{'cmscan'});
+
     # Check for annotation download errors. This code can be usefuly if I want to check any other downloads
     # in the future.
     print "\n",
@@ -1859,8 +1901,22 @@ sub run_lncRNApipe_from_conf {
 		   scalar (split/\,/, is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample')) .
 		   ' ) is not equal to number of samples mentioned in [reads: ] ( ' . ($grand_sample_size+1) . ' ).' . $beverb)
 	    if ( ($grand_sample_size+1) != scalar (split/\,/, is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample')) );
-	
-	$io->error("Seems like you intend to limited samples.\nIn that case, indicate empty sample by separating it with appropriate delimiter [ | ].")
+
+	# Quickly check if sample name is duplicated.
+	my $categorize_ncRNAs_sample_names = {};
+	foreach my $categorize_ncRNAs_sample ((split/\,/, is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample'))) {
+	    $categorize_ncRNAs_sample =~ s/\"//g;
+	    $categorize_ncRNAs_sample = (split/\s+/, $categorize_ncRNAs_sample)[1] if ($categorize_ncRNAs_sample =~ m/\s+/);
+	    
+	    if (!exists $categorize_ncRNAs_sample_names->{$categorize_ncRNAs_sample}) {
+		$categorize_ncRNAs_sample_names->{$categorize_ncRNAs_sample} = 1;
+	    }
+	    elsif (exists $categorize_ncRNAs_sample_names->{$categorize_ncRNAs_sample}) {
+		$io->error("Sample name [ $categorize_ncRNAs_sample ] is duplicated in [categorize_ncRNAs: ]." . $beverb);
+	    }
+	}
+
+	$io->error("Seems like you intend to use limited samples.\nIn that case, indicate empty sample by separating it with appropriate delimiter [ | ].")
 	    if ( defined $params->{'reads'}->{'r1'} &&
 		 defined $params->{'reads'}->{'r2'} &&
 		 ( $#r1_samples > 0 || $#r2_samples > 0 ) &&
@@ -1958,12 +2014,16 @@ sub run_lncRNApipe_from_conf {
 						"$trim_o_dir/status.log",
 						'completed successfully',
 						'isTrimRunComplete',
-						'Trimmomatic');
+						'Trimmomatic',
+						'', '>>', $sample_name);
+
+		    #my $is_trim_job_done = is_job_done("$trim_o_dir/status.log", $io, 0, $sample_name);
+		    $trim_cmd = "\n\n# Trimmomatic run has passed. Will resume from tophat ...\n"
+			if (is_job_done("$trim_o_dir/status.log", $io, 0, $sample_name));
+
 		    #print "\n$trim_cmd\n\n";
 		}
-		
-
-		
+				
 		my $tophat_cmd = "\n\n#\n# Tophat Run\n#\n#\ntophat " .
 		    join(' ', @{$params->{'tophat'}}) .
 		    " -o $tophat_rep_o_dir" .
@@ -1974,11 +2034,17 @@ sub run_lncRNApipe_from_conf {
 				   "$tophat_o_dir/status.log",
                                    'run complete',
                                    'isTophatRunComplete',
-                                   'Tophat');
+                                   'Tophat',
+				   '', '>>', $sample_name);
 
 		$bam_files .= "$tophat_rep_o_dir/accepted_hits.bam ";		
 		$check_these_log_files .= "$trim_rep_o_dir/run.log\n$tophat_rep_o_dir/run.log\n";
 		$scheduler_job_depends = "'$sample_name'" if ($params->{'scheduler'} =~ m/^none$/i);
+
+		#my $is_tophat_job_done = is_job_done("$tophat_o_dir/status.log", $io, 0, $sample_name);
+		$tophat_cmd = "\n\n# Tophat run has passed. Will resume from cufflinks ...\n"
+		    if (is_job_done("$tophat_o_dir/status.log", $io, 0, $sample_name));
+
 		#print "\n$tophat_cmd\n";
 		
 		write_and_submit_job("lncRNApipe_alignment_stage_$sample_name" . ".sh",
@@ -2032,12 +2098,20 @@ sub run_lncRNApipe_from_conf {
 			       "$cufflinks_o_dir/status.log",
 			       'processed.+?loci',
 			       'isCufflinksRunComplete',
-			       'Cufflinks');
+			       'Cufflinks',
+			       '', '>>', $sample_name_grand);
 	    
 	    $cufflinks_assembled_trs .= "$cufflinks_samp_o_dir/transcripts.gtf ";
 	    $check_these_log_files .= "$cufflinks_samp_o_dir/run.log\n";
 	    $scheduler_job_depends = "'$sample_name_grand'" if ($params->{'scheduler'} =~ m/^none$/i);
 	    $cuffdiff_bam_files .= $cufflinks_input_bam_str;
+
+	    #my $is_cufflinks_job_done = is_job_done("$cufflinks_o_dir/status.log", $io, 0, $sample_name_grand);
+
+	    if (is_job_done("$cufflinks_o_dir/status.log", $io, 0, $sample_name_grand)) {
+		$sambamba_cmd = "\n\n# Cufflinks run has passed. No need to merge replicates. Will resume from cuffcompare ...";
+		$cufflinks_cmd = "\n# Cufflinks run has passed. No need to redo transcript assembly. Will resume from cuffcompare ...";
+	    }
 	    
 	    write_and_submit_job("lncRNApipe_assembly_stage_$sample_name_grand" . ".sh",
 				 $job_deps_str,
@@ -2059,7 +2133,7 @@ sub run_lncRNApipe_from_conf {
 	    if ($cufflinks_tr_num);
 
 	$cufflinks_after_assembly_check = add_exit_check("$cufflinks_o_dir/status.log",
-							 "$cufflinks_o_dir/lncRNApipe_afterCufflinks_run_$conf_run_id.status.log",
+							 "$cufflinks_o_dir/lncRNApipe_afterCufflinks.status.log",
 							 'passed',
 							 'isCufflinksRunComplete',
 							 'Cufflinks assembly');
@@ -2093,8 +2167,7 @@ sub run_lncRNApipe_from_conf {
 	if (defined $params->{'cuffdiff'}) {
 	    for (0 .. $#{$params->{'cuffdiff'}}) {
 		delete @{$params->{'cuffdiff'}}[$_] if (@{$params->{'cuffdiff'}}[$_] =~ m/-bam\s+/);
-	    }
-	    
+	    }	    
 	}
     }
 	
@@ -2116,7 +2189,7 @@ sub run_lncRNApipe_from_conf {
 # lncRNAPipe post assembly run. This is where we identify ncRNAs / lncRNAs.
 #
 #								      
-perl $USER_HOME/lncRNApipe --run $params->{'outputDir'} --cpu $params->{'CPUs'} --cuffcompare '-r $annot_gtf -s $params->{'genomeFasta'} } . join(' ', @{$params->{'cuffcompare'}}) . "' --cat-ncRNAs '" . join(' ', @{$params->{'categorize_ncRNAs'}}) . "' --get '-sf $annot_gtf' --fetch --cpc --inf > $params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log 2>&1";
+perl $USER_HOME/lncRNApipe --run $params->{'outputDir'} --cpu $params->{'CPUs'} --cuffcompare '-r $annot_gtf -s $params->{'genomeFasta'} } . join(' ', @{$params->{'cuffcompare'}}) . "' --cat-ncRNAs '" . join(' ', @{$params->{'categorize_ncRNAs'}}) . "' --get $thru_conf_get_uq_feat_opts_n --fetch --cpc $thru_conf_inf_opts $thru_conf_rna_fold_opts > $params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log 2>&1";
     
     $lncRNApipe_opts .= qq {
 
@@ -2127,7 +2200,7 @@ perl $USER_HOME/lncRNApipe --run $params->{'outputDir'} --cpu $params->{'CPUs'} 
 ln -s $params->{'outputDir'}/cuffcompare $cuffdiff_known/.
 ln -s $params->{'outputDir'}/categorize_ncRNAs $cuffdiff_known/.
 
-perl $USER_HOME/lncRNApipe --run $cuffdiff_known --cpu $params->{'CPUs'} --get '-known $nc_annot_gtf -ov 50' >> $params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log 2>&1};
+perl $USER_HOME/lncRNApipe --run $cuffdiff_known --cpu $params->{'CPUs'} --get $thru_conf_get_uq_feat_opts_k >> $params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log 2>&1};
 
     $lncRNApipe_opts .= add_exit_check("$params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log",
 				       "$params->{'outputDir'}/lncRNApipe.postAssembly.status.log",
@@ -2158,16 +2231,16 @@ perl $USER_HOME/lncRNApipe --run $cuffdiff_known --cpu $params->{'CPUs'} --get '
 #
 # Known ncRNAs
 #
-find $params->{'outputDir'}/lncRNApipe.final -type f -name '.final.gtf' > $cuffmerge_novel/lncRNApipe_known_ncRNAs_tr_list.txt
+find $cuffdiff_known/get_unique_features -type f -name '.gtf' > $cuffmerge_known/lncRNApipe_known_ncRNAs_tr_list.txt
 
-cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffmerge_novel -r $annot_gtf -s $params->{'genomeFasta'} $cuffmerge_novel/lncRNApipe_known_ncRNAs_tr_list.txt > $params->{'outputDir'}/cuffmerge.combined.run_$conf_run_id.log 2>&1
+cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffmerge_novel -r $nc_annot_gtf -s $params->{'genomeFasta'} $cuffmerge_novel/lncRNApipe_known_ncRNAs_tr_list.txt > $params->{'outputDir'}/cuffmerge.combined.run_$conf_run_id.log 2>&1
 
 #
 # Novel ncRNAs
 #
-find $cuffdiff_known/get_unique_features -type f -name '.gtf' > $cuffmerge_known/lncRNApipe_known_ncRNAs_tr_list.txt
+find $params->{'outputDir'}/lncRNApipe.final -type f -name '.final.gtf' > $cuffmerge_novel/lncRNApipe_novel_ncRNAs_tr_list.txt
 
-cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffmerge_novel -r $annot_gtf -s $params->{'genomeFasta'} $cuffmerge_known/lncRNApipe_known_ncRNAs_tr_list.txt >> $params->{'outputDir'}/cuffmerge.combined.run_$conf_run_id.log 2>&1};
+cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffmerge_novel $cuffmerge_novel/lncRNApipe_novel_ncRNAs_tr_list.txt >> $params->{'outputDir'}/cuffmerge.combined.run_$conf_run_id.log 2>&1};
 	
 	#$cuffmerge_cmd .= add_exit_check("$params->{'outputDir'}/cuffmerge.combined.run.log",
 	#				 "$params->{'outputDir'}/cuffmerge.combined.status.log",
@@ -2210,6 +2283,9 @@ cuffdiff -o $cuffdiff_novel -L $sample_names $cuffdiff_opts $cuffmerge_novel/mer
 	$check_these_log_files .= "$params->{'outputDir'}/cuffdiff.combined.run_$conf_run_id.log\n";
     }
     
+    $lncRNApipe_opts = "\n\n# We have already identified known and novel ncRNAs. Will resume from cuffmerge and cuffdiff ...\n"
+	if (is_job_done("$params->{'outputDir'}/lncRNApipe.postAssembly.status.log", $io));
+
     write_and_submit_job("lncRNApipe_postAssembly.run_$conf_run_id.sh",
 			 $job_deps_str_lncRNApipe_post_assembly,
 			 'NO_DEPENDENCY_CHAIN',
@@ -2242,10 +2318,34 @@ sub mkdirs {
 sub is_job_done {
     my $file = shift;
     my $io = shift;
+    my $get_run_id = shift;
+    my $autogen_sample_name = shift;
+
+    if ($autogen_sample_name) {
+	$autogen_sample_name .= '.+?passed';
+    }
+    else {
+	$autogen_sample_name = 'passed';
+    }
+
+    chomp(my $line_count = $io->execute_get_sys_cmd_output("wc -l $file 2>&1 | awk '{print \$1}'"));
+    chomp(my $passed = $io->execute_get_sys_cmd_output("grep -oP '$autogen_sample_name' $file 2>&1 | head -n 1"));
+    chomp(my $run_id = $io->execute_get_sys_cmd_output("grep -oiP '" . 'Run=\w+' . "' $file 2>&1 | head -n 1"));
     
-    my $undef = $io->open_file($file);
-    my $passed = $io->execute_get_sys_cmd_output("grep -o passed $file");
-    return 1 if ($passed =~ m/passed/i);
+    if ($run_id =~ m/Run=/i && $get_run_id) {
+	$run_id =~ s/Run=//i;
+	$conf_run_id = $run_id;
+	return 1;
+    }
+    elsif ($run_id =~ m/Run=/i && $passed =~ m/passed/i) {
+	$run_id =~ s/Run=//i;
+	$conf_run_id = $run_id;
+    }
+    #elsif ($passed =~ m/passed/i) {
+	#$io->error("Unable get previous Run ID. Only way to go from here is to restart the run from the beginning.\nTry using [overwriteOutputDir: YES].");
+    #}
+    
+    return $line_count if ($passed =~ m/passed/i && $line_count =~ m/^\d+/ && $line_count > 0);
     return 0;
 }
 
@@ -2340,9 +2440,12 @@ sub get_job_dependency_chain {
 	    ask_user("\nDear $ENV{'USER'}:\n=====================\nSince the assembly job(s) waits in queue until all alignments are finished,\n" .
 		     "and since we cannot get job ID(s) programmatically, we tried to get job ID(s)\n" .
 		     "from STDOUT / STDERR of previous batch submission [ $params->{'batchSubCmd'} ] for cufflinks." .
-		     "\n\nThese are the job ID(s) [ $job_deps_str ] we got that must be finished before " .
+		     "\n\nThese are the job ID(s) we got that must be finished before " .
 		     "[ lncRNApipe_postAssembly.run_$conf_run_id.sh ] starts running.\n\n" .
-		     "Are the above job ID(s) we got from STDERR / STDOUT correct?\n" .
+		     '*' x 70 .
+		     "\n\n$job_deps_str\n\n" .
+		     '*' x 70 .
+		     "\n\nAre the above job ID(s) we got from STDERR / STDOUT correct?\n" .
 		     "Type 'y' and press ENTER to submit the job script")) {
 	    
 	    $io->c_time("YAY! We got it right!!");
@@ -2404,6 +2507,9 @@ sub get_job_dependency_chain {
     elsif ($params->{'scheduler'} =~ m/^pbs$/i) {
 	$job_deps_str = '-W depend=afterok:' . join(":", (split(/\n|\r/, $job_ids)));
     }
+    elsif ($params->{'scheduler'} =~ m/^slurm$/i) {
+	$job_deps_str = '--dependency=afterok:' . join(":", (split(/\n|\r/, $job_ids)));
+    }
     elsif ($params->{'scheduler'} =~ m/^lsf$/i) {
 	$job_deps_str = '-w "done(' . join(") && done(", (split(/\n|\r/, $job_ids)));
 	$job_deps_str .= ')" <';
@@ -2419,8 +2525,20 @@ sub add_exit_check {
     my $var_name = shift;
     my $cmd_in_msg = shift;
     my $expr = shift;
+    my $write_mode = shift;
+    my $sample_name = shift;
+    my $auto_generated_on = localtime;
+    $auto_generated_on =~ s/\s+/\_/g;
 
     $expr = '-z' if (!$expr);
+    $write_mode = '>' if (!$write_mode);
+   
+    if (!$sample_name) {
+	$sample_name = $cmd_in_msg;
+    }
+    else {
+	$sample_name = "AutoGenSampleName=$sample_name " . $cmd_in_msg;
+    }
 
     my $here = qq {
 
@@ -2431,10 +2549,10 @@ sub add_exit_check {
 $var_name=`grep -ioP '$pattern' $log_file`
 
 if [ $expr "\$$var_name" ]; then
-     echo "lncRNApipe: $cmd_in_msg run has failed." > $status_log_file
+     echo "lncRNApipe: AutoGenJobTime=$auto_generated_on Run=$conf_run_id $sample_name run has failed." $write_mode $status_log_file
      exit -1
 else
-     echo "lncRNApipe: $cmd_in_msg run has passed." > $status_log_file
+     echo "lncRNApipe: AutoGenJobTime=$auto_generated_on Run=$conf_run_id $sample_name run has passed." $write_mode $status_log_file
 fi};
 
     return $here;
@@ -2452,6 +2570,7 @@ sub write_and_submit_job {
     my $cmds = shift;
     my $jobID_rudimentary = shift;
     my $cluster_opts = '# No cluster options specified.';
+    my $sandbox_bin_path = '# Using binaries [ bowtie, tophat, cufflinks ] found on the system.';
 
     my $yaml_was = $io->file_basename($pipe_config, 'suffix');
     
@@ -2466,10 +2585,17 @@ sub write_and_submit_job {
 	    " >> $job_scripts_dir/$job_ids_file")
 	if ($jobid_env &&
 	    $jobid_env !~ m/none/i &&
-	    $job_ids_file !~ m/NO_DEPENDENCY_CHAIN/i);
+	    $job_ids_file !~ m/NO_DEPENDENCY_CHAIN/i &&
+	    !$jobID_rudimentary);
     
     $cluster_opts = join("\n", @{$params->{'clusterOpts'}}) if (defined $params->{'clusterOpts'});
- 
+    $sandbox_bin_path = '# Attempting to go for zero failures regarding: "-bash: : command not found".' .
+	"\n# Just appending path to our sandboxed binaries.\n#" .
+	"\nexport PATH=\$PATH:$deps->{'bowtie'}:$deps->{'tophat'}:$deps->{'cufflinks'}"
+	if ($deps->{'bowtie'} =~ m/lncRNApipe\.depbin/ ||
+	    $deps->{'tophat'} =~ m/lncRNApipe\.depbin/ ||
+	    $deps->{'cufflinks'} =~ m/lncRNApipe\.depbin/);
+     
     my $job_script = qq {#!/bin/bash
 # 
 # lncRNApipe v$VERSION
@@ -2481,15 +2607,11 @@ sub write_and_submit_job {
 #$scheduler_opts_str
 # 
 # Other custom configurations specific to your cluster as mentioned in 
-# configuration file [$yaml_was]:
+# configuration file [ $yaml_was ]:
 #
 $cluster_opts
 #
-# Attempting to go for zero failures regarding: "-bash: : command not found".
-# Just appending path to our sandboxed binaries.
-#
-
-export PATH=\$PATH:$deps->{'bowtie'}:$deps->{'tophat'}:$deps->{'cufflinks'}@$cmds};
+$sandbox_bin_path@$cmds};
 
     print $job_script_fh $job_script;
     close $job_script_fh;
@@ -2511,7 +2633,7 @@ export PATH=\$PATH:$deps->{'bowtie'}:$deps->{'tophat'}:$deps->{'cufflinks'}@$cmd
 	    if ($jobID_rudimentary) {
 		$grid_job_id = get_grid_jobID_rudimentary($grid_job_id);
 		$io->execute_system_command("echo $grid_job_id >> $job_scripts_dir/$job_ids_file")
-		    if ($grid_job_id !~ m/could not capture/i);
+		    if ($grid_job_id !~ m/could not capture/i && $grid_job_id);
 	    }	
 	}
 	else {
@@ -2550,7 +2672,8 @@ sub get_grid_jobID_rudimentary {
     my $job_id_string = shift;
 
     if ($job_id_string =~ m/\s+/) {
-	(my $job_id) = ($job_id_string =~ m/job.+?\W*(\d+)\W*.*?submitted/i);
+	(undef, undef, my $job_id, undef) = ($job_id_string =~ m/(submitted)?.*?job\s+(id)?\W*(\d+)\W*.*(submitted)?/i);
+	#(my $job_id) = ($job_id_string =~ m/submitted{0,1}job.+?\W*(\d+)\W*.*?submitted{0,1}/i);
 	return $job_id;
     }
     else {

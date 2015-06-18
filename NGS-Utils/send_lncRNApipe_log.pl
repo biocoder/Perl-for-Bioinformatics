@@ -35,7 +35,7 @@ $io->c_time('Composing email ...');
 email("lncRNApipe Run Report from $ENV{'USER'}", 
       $log_file);
 
-$io->c_time('Mail sent to lncRNApipe@outlook.com. Any replies will be sent to ' . $user_email . '.');
+$io->c_time('Mail sent to lncrnapipe@gmail.com. Any replies will be sent to ' . $user_email . '.');
 $io->end_timer($s_time);
 
 ######################### Functions ############################################
@@ -47,7 +47,7 @@ sub email {
 
     my $email = MIME::Lite->build (
         From     => $user_email,
-	To       => 'lncRNApipe@outlook.com',
+	To       => 'lncrnapipe@gmail.com',
 	Subject  => $sbjt,
         Type     => 'multipart/mixed',
         Debug    => 1
@@ -75,7 +75,7 @@ sub email {
     }
 
 
-    $email->send || die "Cannot send mail: $!";
+    $email->send or die "Cannot send mail: $!";
     return;
 }
 
