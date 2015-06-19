@@ -1,0 +1,43 @@
+### The short of it ###
+
+* make sure your DRM's environment is set up. e.g.:
+source <SGE_ROOT>/default/common/settings.csh
+
+*  Prepare installation to find header and binary of DRMAA implementation.
+e.g.:
+setenv LD_LIBRARY_PATH $SGE_ROOT/lib/`$SGE_ROOT/util/arch`
+ln -s $SGE_ROOT/include/drmaa.h
+
+* (optional) Run swig on interface file and drmaa.h
+swig -perl5 -exportall Schedule_DRMAAc.i
+
+* standard Module installation
+perl Makefile.PL
+make
+make test     # run from a submit node
+make install
+
+### The long of it ###
+This software was created via a SWIG interface.  As such, the true code to
+it lies in the swig interface (Schedule_DRMAAc.i) which
+will makes a wrapper of the drmaa.h (included with your Distributed
+Resource Manage (DRM), such as SGE, Condor, etc. see docs ) header file
+and creates DRMAAc.pm and a Schedule_DRMAAc_wrap.c file.
+
+A C binding to the DRMAA spec has two parts: first, the binary ( this is
+where the implementation specific details are handled ) and second, the
+header file, ( drmaa.h ) which is where the API is defined and this file
+should conform 100% to the DRMAA specification.  Thus, drmaa.h should be
+DRM implementation independant, which means in theory drmaa.h from SGE
+should be functionally the same as any other DRM's, like Condor for
+example.
+
+Since I don't want SWIG to be a requirements the result of
+running SWIG on SGE's drmaa.h, called Schedule_DRMAAc_wrap.c, has been
+included.  However, you could download SWIG v 1.3.21 or
+later and run swig on the interface file Schedule_DRMAAc.i to create
+everything fresh.
+
+NOTE:  I submitted a bug and patch to SWIG, patch # 922680 for bug 917471,
+as of this writing the patch was not applied to the SWIG 1.3.21 source so
+you may have to do it manually.

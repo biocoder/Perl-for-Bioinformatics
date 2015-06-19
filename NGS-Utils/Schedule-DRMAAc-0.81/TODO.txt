@@ -1,0 +1,11 @@
+*  line 115 of TODO/dispose_aborts.pl seg faults if $dispose set to 1
+
+*  Make sure installation is SGE independant, this module will
+	remain alpha at ver 0.8 until it is verified to work with a
+	DRM other than SGE
+
+*  Make tests for actual job distribution and job failure diagnosis
+
+*  following line causes core, why?  Related to extraneous ':'.  Problem
+	probably lies in SGE's DRMAA C binding code.
+( $error, $diagnosis ) = drmaa_set_attribute( $jt, $DRMAA_OUTPUT_PATH, ':' . ":$DRMAA_PLACEHOLDER_WD" );
