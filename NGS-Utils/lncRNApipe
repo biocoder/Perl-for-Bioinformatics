@@ -935,7 +935,7 @@ sub setup_lncRNApipe {
     cpanm_status($pm_install_dir, 'YAML', $install_dir, $cpanm_args);
     cpanm_status($pm_install_dir, 'Data::Uniqid', $install_dir, $cpanm_args);
 
-    if (!ask_user("\n\nDo you already have BioPerl installed?")) {
+    if (!ask_user("\n\nDo you already have BioPerl installed?", 120)) {
 	print "\nOK ... This may take a while ... Grab a snack or a cup of coffee!\n";
 	cpanm_status($pm_install_dir, 'BioPerl', $install_dir, $cpanm_args);
     }
@@ -1100,7 +1100,7 @@ sub setup_lncRNApipe {
     }
 
     if (!exists $ENV{'CPC_HOME'}) {
-	if (ask_user("\n\nDo you want me to attempt to install CPC?")) {
+	if (ask_user("\n\nDo you want me to attempt to install CPC?", 120)) {
 	    	setup_cpc($dl_util_slave, $dep_fh);
 		succ_or_fail(1, 'CPC');
 	}
@@ -1161,7 +1161,7 @@ sub setup_cpc {
     my $format_db = 'uniref90.fasta';
     
     if (!ask_user("\nIf you already have uniref90.fasta file somewhere, then there is no point in wasting time to download it again.\n" .
-		  "Do you already have uniref90.fasta somewhere on this system?")) {
+		  "Do you already have uniref90.fasta somewhere on this system?", 300)) {
 	
 	print "\nAttempting protein database download...\n\n";
 	$dl_util =~ s/$cpc_saved/uniref90\.fasta\.gz/;
@@ -1183,7 +1183,7 @@ sub setup_cpc {
     else {
 	my $uniref90_fasta_err = '';
 	until (-r $format_db && -e $format_db && -s $format_db) {
-	    $format_db = ask_user("$uniref90_fasta_err\nEnter full path to uniref90.fasta:", 'fasta|fa');
+	    $format_db = ask_user("$uniref90_fasta_err\nEnter full path to uniref90.fasta:", 300, 'fasta|fa');
 	    $uniref90_fasta_err = "\nCannot find $format_db or the file is empty or not readable...\n\nCPC [ ERROR: $! ] !!\n";
 	}
     }
@@ -1410,19 +1410,22 @@ sub get_annot {
 # Ask for user input
 sub ask_user {
  my $msg = shift;
+ my $timeout = shift;
  my $general = shift;
  my $ans;
+
+ $timeout = 60 if (!$timeout);
 
  while (1) {
      print $msg, ' [ y/n ]: ';
      
      eval {
 	 local $SIG{ALRM} = sub { die "DidNotAnswer" };
-	 alarm 300;
+	 alarm $timeout;
 	 chomp($ans = <STDIN>);
      };
      
-     succ_or_fail(0, "\n\nAborted! [ No answer for 5 minutes. ] ??") if ($@ =~ m/DidNotAnswer/i);
+     succ_or_fail(0, "\n\nAborted! [ No answer for $timeout seconds. ] ??") if ($@ =~ m/DidNotAnswer/i);
      
      if ($general && $ans !~ m/^y|n|$general$/i) {
 	 print "\nInvalid answer!\n";
@@ -2445,8 +2448,8 @@ sub get_job_dependency_chain {
 		     '*' x 70 .
 		     "\n\n$job_deps_str\n\n" .
 		     '*' x 70 .
-		     "\n\nAre the above job ID(s) we got from STDERR / STDOUT correct?\n" .
-		     "Type 'y' and press ENTER to submit the job script")) {
+		     "\n\nAre the above job ID(s) we got (sandwiched between ######################### lines)\nfrom STDERR / STDOUT correct?\n\n" .
+		     "Type 'y' and press ENTER to submit the job script", 900)) {
 	    
 	    $io->c_time("YAY! We got it right!!");
 	}
@@ -2623,18 +2626,27 @@ $sandbox_bin_path@$cmds};
 	$io->c_time('Submitting job script [ '. $io->file_basename($job_script_name, 'suffix') . '  ]...');
 	
 	if ($deps_str !~ m/NO_DEPENDENCY_CHAIN/i) {
-	    $grid_job_id = $io->execute_get_sys_cmd_output("$params->{'batchSubCmd'} $deps_str $job_script_name", 
-							   #0,
-							   "Command call:\n" .
-							   "-------------\n" .
-							   "$params->{'batchSubCmd'} $deps_str $job_script_name");
-	    print STDOUT $grid_job_id;
-	    
 	    if ($jobID_rudimentary) {
+		print "\n", '#' x 70, "\n";
+		my $grid_job_id = $io->execute_get_sys_cmd_output("$params->{'batchSubCmd'} $deps_str $job_script_name", 
+								  #0,
+								  "Command call:\n" .
+								  "-------------\n" .
+								  "$params->{'batchSubCmd'} $deps_str $job_script_name");
+		print STDOUT $grid_job_id;
+		print "\n", '#' x 70, "\n"; 
+       
 		$grid_job_id = get_grid_jobID_rudimentary($grid_job_id);
 		$io->execute_system_command("echo $grid_job_id >> $job_scripts_dir/$job_ids_file")
 		    if ($grid_job_id !~ m/could not capture/i && $grid_job_id);
-	    }	
+	    }
+	    else {
+		$io->execute_system_command("$params->{'batchSubCmd'} $deps_str $job_script_name", 
+					    #0,
+					    "Command call:\n" .
+					    "-------------\n" .
+					    "$params->{'batchSubCmd'} $deps_str $job_script_name");
+	    }
 	}
 	else {
 	    # bsub special case
