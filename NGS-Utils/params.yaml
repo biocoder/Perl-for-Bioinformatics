@@ -299,6 +299,11 @@ cuffmerge:
 # Provide cuffdiff options if you want to run differential expression
 # tests between known ncRNAs and between novel ncRNAs in your samples.
 #
+# Normally, cuffdiff is only run on identified known and novel ncRNAs.
+# If you want to run cuffdiff on all transcripts, i.e to identify
+# differentially expressed transcripts (end of typical tuxedo pipeline),
+# then change "runCuffdiffForAllTranscripts" to YES.
+#
 # If you have mentioned "-sample-names " above in "categorize_ncRNAs: ",
 # no need to mention -L, else provide -L option here.
 #
@@ -309,6 +314,7 @@ cuffmerge:
 # If "performTranscriptAssembly" is NO, then provide your own BAM files here prefixed by
 # -bam option. Separate replicate BAM files with comma as you generally do with cuffdiff command.
 #
+runCuffdiffForAllTranscripts: YES
 cuffdiff:
  - -u
 # - -b /data/ref_fasta/mm9_UCSC/genome.fa

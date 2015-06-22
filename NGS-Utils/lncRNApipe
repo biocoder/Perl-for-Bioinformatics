@@ -1654,6 +1654,8 @@ sub run_lncRNApipe_from_conf {
     verify_config_file($io, $beverb, $params->{'sourceDB'}, 'sourceDB', 'ensembl|ucsc');
     verify_config_file($io, $beverb, $params->{'scheduler'}, 'scheduler', 'pbs|sge|lsf|slurm|none');
     verify_config_file($io, $beverb, $params->{'batchSubCmd'}, 'batchSubCmd', 'qsub|bsub|sbatch') if (defined $params->{'scheduler'});
+    verify_config_file($io, $beverb, $params->{'runCuffdiffForAllTranscripts'}, 
+		       'runCuffdiffForAllTranscripts', 'yes|no');
 
     if ($params->{'scheduler'} =~ m/^SGE$/i) {
 	# -hold_jid jobid1,jobid2,jobid3
@@ -2222,24 +2224,24 @@ perl $USER_HOME/lncRNApipe --run $cuffdiff_known --cpu $params->{'CPUs'} --get $
 
     my $cuffmerge_cmd = my $cuffdiff_cmd = '';
     
-    if (defined $params->{'cuffmerge'}) {
+    if (defined $params->{'cuffmerge'} || defined $params->{'cuffdiff'}) {
 	my $cuffmerge_opts = join(' ', @{$params->{'cuffmerge'}});
 	$cuffmerge_cmd .= qq {
 
 #
-# Merge all known and novel ncRNAs
+# Merge all known and novel ncRNAs.
 #
 #
 
 #
-# Known ncRNAs
+# Known ncRNAs.
 #
 find $cuffdiff_known/get_unique_features -type f -name '.gtf' > $cuffmerge_known/lncRNApipe_known_ncRNAs_tr_list.txt
 
 cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffmerge_novel -r $nc_annot_gtf -s $params->{'genomeFasta'} $cuffmerge_novel/lncRNApipe_known_ncRNAs_tr_list.txt > $params->{'outputDir'}/cuffmerge.combined.run_$conf_run_id.log 2>&1
 
 #
-# Novel ncRNAs
+# Novel ncRNAs.
 #
 find $params->{'outputDir'}/lncRNApipe.final -type f -name '.final.gtf' > $cuffmerge_novel/lncRNApipe_novel_ncRNAs_tr_list.txt
 
@@ -2297,6 +2299,59 @@ cuffdiff -o $cuffdiff_novel -L $sample_names $cuffdiff_opts $cuffmerge_novel/mer
 			 $params,
 			 $io,
 			 [$lncRNApipe_opts, $cuffmerge_cmd, $cuffdiff_cmd]);
+
+    my $cuffdiff4all_trs = '';
+    
+    if (defined $params->{'runCuffdiffForAllTranscripts'}) {
+	my $cuffdiff_on_tr_dir = "$params->{'outputDir'}/cuffdiff_on_transcripts";
+	mkdirs($io, [$cuffdiff_on_tr_dir, "$cuffdiff_on_tr_dir/cuffmerge"]);
+
+	my $sample_names = is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample');
+	($sample_names) = ($sample_names =~ m/.+\s+(.+)/);
+
+	my $cuffdiff_opts = join(' ', @{$params->{'cuffdiff'}});
+	my $cuffmerge_opts = join(' ', @{$params->{'cuffmerge'}});
+
+    	$cuffdiff4all_trs .= qq {
+
+#
+# Merge all transcripts from cufflinks.
+#
+#
+find $cufflinks_o_dir -type f -name 'transcripts.gtf' > $cuffdiff_on_tr_dir/cufflinks_tr_list.txt
+
+cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffdiff_on_tr_dir/cuffmerge -r $annot_gtf -s $params->{'genomeFasta'} $cuffdiff_on_tr_dir/cufflinks_tr_list.txt > $cuffdiff_on_tr_dir/cuffmerge_on_cufflinks_transcripts.run_$conf_run_id.log 2>&1
+
+#
+# Find differentially expressed transcripts.
+#
+#
+cuffdiff -o $cuffdiff_on_tr_dir -L $sample_names $cuffdiff_opts $cuffdiff_on_tr_dir/cuffmerge/merged.gtf $cuffdiff_bam_files > $cuffdiff_on_tr_dir/cuffdiff_on_all_transcripts.run_$conf_run_id.combined.log 2>&1};
+	
+	$cuffdiff4all_trs .= add_exit_check("$cuffdiff_on_tr_dir/cuffdiff_on_all_transcripts.run_$conf_run_id.combined.log",
+					    "$cuffdiff_on_tr_dir/status.log",
+					    'writing run info',
+					    'isCuffdiffAllTrsRunComplete',
+					    'Cuffdiff');
+
+	$check_these_log_files .= "$cuffdiff_on_tr_dir/cuffmerge_on_cufflinks_transcripts.run_$conf_run_id.log\n" .
+	    "$cuffdiff_on_tr_dir/cuffdiff_on_all_transcripts.run_$conf_run_id.combined.log\n";
+
+	$cuffdiff4all_trs = "\n\n# Cuffdiff run on all assembled Cufflinks' transcripts has passed. Skipping...\n"
+	    if (is_job_done("$cuffdiff_on_tr_dir/status.log", $io, 0));
+	
+	$io->c_time("cuffdiff run on all cufflinks' transcripts requested...");
+	$io->c_time("Generating separate job script using the same job dependency chain...");
+
+	write_and_submit_job("lncRNApipe_postAssembly_diffExp.run_$conf_run_id.sh",
+			     $job_deps_str_lncRNApipe_post_assembly,
+			     'NO_DEPENDENCY_CHAIN',
+			     $scheduler_job_depends,
+			     $job_scripts_dir,
+			     $params,
+			     $io,
+			     [$cuffdiff4all_trs]);
+    }
     
     $io->c_time('All job scripts have been submitted. Please check these log files for any results / errors.' . "\n\n$check_these_log_files");
     exit 0;
@@ -2448,7 +2503,7 @@ sub get_job_dependency_chain {
 		     '*' x 70 .
 		     "\n\n$job_deps_str\n\n" .
 		     '*' x 70 .
-		     "\n\nAre the above job ID(s) we got (sandwiched between ######################### lines)\nfrom STDERR / STDOUT correct?\n\n" .
+		     "\n\nAre the above job ID(s) we got from STDERR / STDOUT (sandwiched -\nbetween #################################### lines) correct?\n\n" .
 		     "Type 'y' and press ENTER to submit the job script", 900)) {
 	    
 	    $io->c_time("YAY! We got it right!!");
@@ -2784,13 +2839,6 @@ sub verify_config_file {
     
     return; 
 }
-
-# Check if parameter is defined
-sub is_param_defined {
-    my $param = shift;
-    my $io = shift;
-}
-    
 
 __END__
 
