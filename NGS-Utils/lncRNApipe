@@ -2701,7 +2701,7 @@ $sandbox_bin_path@$cmds};
 		}
 		else  {
 		    $io->warning("Cannot get job ID from STDOUT / STDERR.\n" .
-				 "Please report this error with output from the command to lncRNApipe@gmail.com so that we can fix it", 'ERROR!');
+				 'Please report this error with output from the command to lncRNApipe@gmail.com so that we can fix it', 'ERROR!');
 		    $io->c_time("Attempting to kill already submitted jobs...");
 		    kill_jobs_and_exit("$job_scripts_dir/$job_ids_file", $io, $params);
 		}
@@ -2734,7 +2734,7 @@ $sandbox_bin_path@$cmds};
 		}
 		else  {
 		    $io->warning("Cannot get job ID from STDOUT / STDERR.\n" .
-				 "Please report this error with the output from the command to lncRNApipe@gmail.com so that we can fix it", 'ERROR!');
+				 'Please report this error with the output from the command to lncRNApipe@gmail.com so that we can fix it', 'ERROR!');
 		    $io->c_time("Attempting to kill already submitted jobs...");
 		    kill_jobs_and_exit("$job_scripts_dir/$job_ids_file", $io, $params);
 		}
