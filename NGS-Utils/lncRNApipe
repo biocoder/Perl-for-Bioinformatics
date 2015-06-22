@@ -26,7 +26,7 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $skip_get_uq, $lncRNApipe_succ, $num_cpu_by_2,
     $skip_cpc, $debug, $sp_list, $pipe_config,
     $kill_jobs_thru_conf, $conf_run_id, $setup_compiler,
-    $cpanm_args);
+    $cpanm_args, $donot_wait4jobIDs);
 
 my $is_valid_option = GetOptions('help:s'                           => \$help,
                                  'quiet'                            => \$quiet,
@@ -54,7 +54,8 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'list=s'                           => \$sp_list,
 				 'configuration=s'                  => \$pipe_config,
 				 'kill-conf-jobs=s'                 => \$kill_jobs_thru_conf,
-				 'setup-compiler=s'                 => \$setup_compiler);
+				 'setup-compiler=s'                 => \$setup_compiler,
+				 'dont-wait-4-job-ids'              => \$donot_wait4jobIDs);
 
 # Initialize known defaults
 my $CAT_SC = 'categorize_ncRNAs.pl';
@@ -1851,7 +1852,8 @@ sub run_lncRNApipe_from_conf {
     $io->error("Error while trying to create requested annotation files:\n\n$post_dl_status" . $beverb)
 	if ($post_dl_status !~ m/could not capture/i);
     
-    
+    my $job_submission_rudimentary = 0;
+
     if ($params->{'performTranscriptAssembly'} =~ m/^YES$/i) {
 
 	# If users asks to perform transcript assembly, check min required options.
@@ -2051,7 +2053,8 @@ sub run_lncRNApipe_from_conf {
 		    if (is_job_done("$tophat_o_dir/status.log", $io, 0, $sample_name));
 
 		#print "\n$tophat_cmd\n";
-		
+		$job_submission_rudimentary = 'jobID_is_rudimentary' if (defined $donot_wait4jobIDs);
+
 		write_and_submit_job("lncRNApipe_alignment_stage_$sample_name" . ".sh",
 				     'NO_DEPENDENCY_CHAIN',
 				     "job_IDs_tophat.$conf_run_id",
@@ -2059,7 +2062,8 @@ sub run_lncRNApipe_from_conf {
 				     $job_scripts_dir,
 				     $params,
 				     $io,
-				     [$trim_cmd, $tophat_cmd]);
+				     [$trim_cmd, $tophat_cmd],
+				     $job_submission_rudimentary);
 	    }
 	
 	    #chop $bam_files if ($bam_files =~ m/\s$/); # Remove last space;
@@ -2692,8 +2696,15 @@ $sandbox_bin_path@$cmds};
 		print "\n", '#' x 70, "\n"; 
        
 		$grid_job_id = get_grid_jobID_rudimentary($grid_job_id);
-		$io->execute_system_command("echo $grid_job_id >> $job_scripts_dir/$job_ids_file")
-		    if ($grid_job_id !~ m/could not capture/i && $grid_job_id);
+		if ($grid_job_id !~ m/could not capture/i && $grid_job_id) {
+		    $io->execute_system_command("echo $grid_job_id >> $job_scripts_dir/$job_ids_file");
+		}
+		else  {
+		    $io->warning("Cannot get job ID from STDOUT / STDERR.\n" .
+				 "Please report this error with output from the command to lncRNApipe@gmail.com so that we can fix it", 'ERROR!');
+		    $io->c_time("Attempting to kill already submitted jobs...");
+		    kill_jobs_and_exit("$job_scripts_dir/$job_ids_file", $io, $params);
+		}
 	    }
 	    else {
 		$io->execute_system_command("$params->{'batchSubCmd'} $deps_str $job_script_name", 
@@ -2706,11 +2717,35 @@ $sandbox_bin_path@$cmds};
 	else {
 	    # bsub special case
 	    $job_script_name = "< $job_script_name" if ($params->{'batchSubCmd'} =~ m/^bsub$/i);
-	    $io->execute_system_command("$params->{'batchSubCmd'} $job_script_name", 
-					#0,
-					"Command call:\n" .
-					"-------------\n" .
-					"$params->{'batchSubCmd'} $job_script_name");
+	     
+	    if ($jobID_rudimentary) {
+		print "\n+", '-' x 68, "+\n";
+		my $grid_job_id = $io->execute_get_sys_cmd_output("$params->{'batchSubCmd'} $job_script_name", 
+								  #0,
+								  "Command call:\n" .
+								  "-------------\n" .
+								  "$params->{'batchSubCmd'} $job_script_name");
+		print STDOUT $grid_job_id;
+		print "\n+", '-' x 68, "+\n";
+       
+		$grid_job_id = get_grid_jobID_rudimentary($grid_job_id);
+		if ($grid_job_id !~ m/could not capture/i && $grid_job_id) {
+		    $io->execute_system_command("echo $grid_job_id >> $job_scripts_dir/$job_ids_file");
+		}
+		else  {
+		    $io->warning("Cannot get job ID from STDOUT / STDERR.\n" .
+				 "Please report this error with the output from the command to lncRNApipe@gmail.com so that we can fix it", 'ERROR!');
+		    $io->c_time("Attempting to kill already submitted jobs...");
+		    kill_jobs_and_exit("$job_scripts_dir/$job_ids_file", $io, $params);
+		}
+	    }
+	    else {
+		$io->execute_system_command("$params->{'batchSubCmd'} $job_script_name", 
+					    #0,
+					    "Command call:\n" .
+					    "-------------\n" .
+					    "$params->{'batchSubCmd'} $job_script_name");
+	    }
 	}
     }
     else {
