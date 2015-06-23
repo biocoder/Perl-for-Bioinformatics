@@ -10,7 +10,7 @@
 # In the example below, a  new output directory called "lncRNApipe_test"
 # will be created at the mentioned path /Users/krantikonganti/Projects/scratch_test.
 #
-outputDir: /scratch/user/konganti/test-lncRNApipe
+outputDir: /data/konganti/FASTQ_RNAseq/new-lncRNApipe2
 
 #
 # Indicate, if we should overwrite the output directory if it already exists.
@@ -31,20 +31,20 @@ performTranscriptAssembly: YES
 # If running on a grid, each job script will run with this many
 # number of CPUs.
 # 
-CPUs: 4
+CPUs: 10
 
 #
 # Specify scheduler type.
 # Valid options are PBS, SGE, LSF or NONE to disable grid computing.
 #
-scheduler: LSF
+scheduler: SGE
 
 #
 # Mention batch submission command.
 # For example, for LSF, it is bsub, for PBS or SGE, it
 # is qsub.
 #
-batchSubCmd: bsub
+batchSubCmd: qsub
 
 #
 # Specify scheduler options on separate line
@@ -76,31 +76,14 @@ batchSubCmd: bsub
 # Ex for SGE (job parameters start with $ sign):
 #
 # $ -N lncRNApipe
-# $ -l num_threads=16
-#
-# Ex for LSF (job parameters start with BSUB directive):
-# BSUB -n 1
-# BSUB -L /bin/bash
-# BSUB -M 4098
-# BSUB -W 00:60
+# $ -l num_threads=4
 #
 schedulerOpts:
- - BSUB -n 4
- - BSUB -L /bin/bash
- - BSUB -M 4098
- - BSUB -W 00:60
 # - $ -l mem_free=10G
-# - $ -l num_threads=16
+ - $ -l num_threads=10
 
-#
-# Mention any other lines that should be included at the beginning of
-# the job script, after creating the job submission parameters.
-# For example, you can add commands to load software
-# environments specific to your cluster.
-#
 clusterOpts:
- - module load Java/1.7.0_10 Perl/5.20.0-ictce-7.1.2
-
+ - module load java1.7.0 perl5.14.2
 #
 # Specify if your reads are in FASTA or FASTQ format.
 #
@@ -128,18 +111,18 @@ sourceDB: UCSC
 # ENSEMBL and UCSC represents species name differently in the URLs.
 # To view species names for ENSEMBL do, "perl lncRNApipe --list ENSEMBL".
 # Go to https://genome.ucsc.edu/FAQ/FAQreleases.html#TOP to view UCSC version names.
-# For example, at UCSC, for mouse, it is mm9 or mm9, for rat, it is rn5 or rn6 etc...
+# For example, at UCSC, for mouse, it is mm9 or mm10, for rat, it is rn5 or rn6 etc...
 #
-species: rn4
+#species: rn4
 
 #
 # If you want to use your own annoation file, provide full path to the annotation
 # file of your choice. This option overrides "sourceDB: " and "species: " options above.
 # Again, "PLEASE MAKE SURE", you are providing the same genome index from the
-# same source. In the example below, "bowtieGenomeIndex" is mm9 genome index created
+# same source. In the example below, "bowtieGenomeIndex" is rn4 genome index created
 # from FASTA files from UCSC.
 #
-useThisAnnotation: /scratch/user/konganti/test-lncRNApipe/ref_annotation/rn4_UCSC.gtf
+useThisAnnotation: /data/ref_annotation/rn4_UCSC/genes.gtf
 
 #
 # Provide Unix path to directory where the read files are located and also
@@ -151,11 +134,9 @@ useThisAnnotation: /scratch/user/konganti/test-lncRNApipe/ref_annotation/rn4_UCS
 # WE HAVE NO WAY OF KNOWING WHICH READ FILE IS _1 or _2.
 #
 reads:
- readsDir: /scratch/user/konganti/rn4_UCSC
- r1: cca-1103.fastq,cca-2106.fastq|cca-1103.fastq,cca-2106.fastq
+ readsDir: /data/konganti/FASTQ_RNAseq/reads
+ r1: cca-2111.fastq,cca-2108.fastq,cca-2107.fastq,cca-1103.fastq,cca-2106.fastq|fpa-2410.fastq,fpa-2409.fastq,fpa-2408.fastq,fpa-1405.fastq,fpa-1403.fastq,fpa-1402.fastq|cpa-2210.fastq,cpa-2209.fastq,cpa-2207.fastq,cpa-1205.fastq,cpa-1204.fastq,cpa-1202.fastq|fca-2311.fastq,fca-2306.fastq,fca-1305.fastq,fca-1303.fastq,fca-1302.fastq,fca-1301.fastq|ccs-2506.fastq,ccs-2504.fastq,ccs-2505.fastq,ccs-1503.fastq,ccs-1502.fastq,ccs-1501.fastq|cps-2605.fastq,cps-2606.fastq,cps-2604.fastq,cps-1603.fastq,cps-1601.fastq,cps-1602.fastq|fcs-2706.fastq,fcs-2705.fastq,fcs-1703.fastq,fcs-2704.fastq,fcs-1702.fastq,fcs-1701.fastq|fps-2806.fastq,fps-2805.fastq,fps-2804.fastq,fps-1803.fastq,fps-1802.fastq,fps-1801.fastq
  r2: 
-#sample1_rep1_read1.fq,sample1_rep2_read1.fq|sample2_rep1_read1.fq,sample2_rep2_read1.fq
-#r2: sample1_rep1_read2.fq,sample1_rep2_read2.fq|sample2_rep1_read2.fq,sample2_rep2_read2.fq
 
 #
 # If you want to use TRIMMOMATIC to trim reads, then provide
@@ -189,13 +170,14 @@ trimmomatic:
 # No need to provide -o, as it will be handled by lncRNApipe.
 # No need to provide -p, as it will be handled by lncRNApipe.
 #
-genomeFasta: /scratch/user/konganti/rn4_UCSC/genome.fa
-bowtieGenomeIndex: /scratch/user/konganti/rn4_UCSC/genome
+genomeFasta: /data/ref_fasta/rn4_UCSC/genome.fa
+bowtieGenomeIndex: /data/ref_indexes/bowtie2/rn4_UCSC/genome
 tophat:
  - -x 1
  - -M
  - --b2-sensitive
-# - --transcriptome-index=/data/konganti/projects/dwthreadgill/mm9_transcriptome
+ - --transcriptome-index=/data/konganti/FASTQ_RNAseq/transcriptome_index/rn4
+ - --no-coverage-search
 
 #
 # Provide cufflinks options and also "PLEASE MAKE SURE" you provide the same reference
@@ -208,7 +190,7 @@ tophat:
 #
 cufflinks:
  - -u
- - -b /scratch/user/konganti/rn4_UCSC/genome.fa
+ - -b /data/ref_fasta/rn4_UCSC/genome.fa
 
 #
 # Provide cuffcompare options.
@@ -231,16 +213,15 @@ cuffcompare:
  - -i /data/cufflinks/assembly_list.txt
 
 #
-# Provide categorize_ncRNAs.pl options.
-# See "perl lncRNApipe --h cat" for description of options.
+# Provide categorize_ncRNAs.pl options
+# See "perl lncRNApipe -h cat" for description of options.
 # 
 categorize_ncRNAs:
- - -sample-names "cca,ccb"
- - -fpkm 0.1
- - -len 200
- - -max-len 1000000
- - -min-exons 2
+ - -sample-names "cca,fpa,cpa,fca,ccs,cps,fcs,fps"
+ - -len 150
+ - -min-exons 1
  - -ov 80
+ - -inc
 
 #
 # Provide get_unique_features.pl options.
@@ -248,25 +229,36 @@ categorize_ncRNAs:
 # case of [performTranscriptAssembly: YES] or
 # [performTranscriptAssembly: NO].
 #
+# When you supply your own known ncRNAs file to
+# compare against with "-sf", then you MUST also
+# specify it's file format (Ex: gtf or bed) with
+# "-sff" option.
+# 
 # See "perl lncRNApipe --h get" for description of options.
 #
 get_unique_features:
  - -ov 10
+ - -sf test
+ - -sff gtf
 
 #
 # By, default, RNAfold is not run since it is very slow.
 # It is generally recommended to generate RNAfold plots
 # based on the transcript of your interest after you have
 # investigated the results, but you can still enable it
-# in the pipeline by uncommenting "RNAfold: " and any 
-# preciding lines below, which describe its options.
+# in the pipeline by uncommenting "runRNAfold: YES" to
+# run RNAfold with default options.
+#
+# To pass command line options to RNAfold, define it's
+# after line "RNAfold:" 
 #
 # Mention any other option other than "-p" and "--noPS" as they
 # are automatically handled by lncRNApipe.
 #
 # See "perl lncRNApipe -h rna" for description of options.
 #
-#RNAfold:
+runRNAfold: YES
+RNAfold:
 # - --circ
 
 #
@@ -275,14 +267,20 @@ get_unique_features:
 # most cases, but in any case you want to add
 # extra options, do it here.
 #
+# To run cmscan with default options, use
+# "runcmscan: YES".
+#
+# Add additional options you want to pass to cmscan
+# after line "cmscan:". 
 # Provide any options other than "-o", "--tblout"
 # and "--cpu" as they are automatically handled by 
 # lncRNApipe.
 #
 # See "perl lncRNApipe -h inf" for description of options.
 #
-#cmscan:
-# - -E 9.0 
+runcmscan: YES
+cmscan:
+# - -E 9.0
 
 #
 # Provide cuffmerge options.
@@ -297,11 +295,11 @@ cuffmerge:
 #
 # Provide cuffdiff options if you want to run differential expression
 # tests between known ncRNAs and between novel ncRNAs in your samples.
-#
+# 
 # Normally, cuffdiff is only run on identified known and novel ncRNAs.
 # If you want to run cuffdiff on all transcripts, i.e to identify
 # differentially expressed transcripts (end of typical tuxedo pipeline),
-# then change "runCuffdiffForAllTranscripts" to YES.
+# then change "runCuffdiffForAllTranscripts" to YES. 
 #
 # If you have mentioned "-sample-names " above in "categorize_ncRNAs: ",
 # no need to mention -L, else provide -L option here.
@@ -311,11 +309,12 @@ cuffmerge:
 # No need to provide input files, if you have run tophat, cufflinks above.
 #
 # If "performTranscriptAssembly" is NO, then provide your own BAM files here prefixed by
-# -bam option. Separate replicate BAM files with comma as you generally do with cuffdiff command.
+# -bam option.
+# Separate replicate BAM files with comma as you generally do with cuffdiff command.
 #
 runCuffdiffForAllTranscripts: YES
 cuffdiff:
  - -u
-# - -b /data/ref_fasta/mm9_UCSC/genome.fa
- - -bam /data/aligned_mm9_UCSC/sample1/rep1.bam,/data/aligned_mm9_UCSC/sample1/rep2.bam /data/aligned_mm9_UCSC/sample2/rep1.bam,/data/aligned_mm9_UCSC/sample2/rep2.bam
+ - -b /data/ref_fasta/rn4_UCSC/genome.fa
+# - -bam /data/aligned_rn4_UCSC/sample1/rep1.bam,/data/aligned_rn4_UCSC/sample1/rep2.bam /data/aligned_rn4_UCSC/sample2/rep1.bam,/data/aligned_rn4_UCSC/sample2/rep2.bam
 
