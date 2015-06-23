@@ -243,11 +243,10 @@ while (my $line = <$c_fh>) {
 		my $ex_ov_per = ($s_ex_len / $c_ex_len) * 100 if ($c_ex_len > 0);
 
 		# Set new tree for "unique"
-		if (defined $unique) {
-		    $uq_tr_tree->insert($cols[$chr_c] . ":$left_coord-$right_coord | $insert_line", $left_coord, $right_coord);
-		    $insert_line++;
+		if (defined $unique && ($left_coord != $right_coord)) {
+		    $insert_line++;		    
+		    $uq_tr_tree->insert($cols[$chr_c] . ":$left_coord-$right_coord|$insert_line", $left_coord, $right_coord);
 		}
-
 
 		if (defined $logfold4cuff && !defined($unique)) {
 		    my ($s_fpkm_line, $c_fpkm_line) = get_cuff_values($logFoldCuff{$cols[$chr_c] . $left_coord . $right_coord}, $cols[$#cols]);

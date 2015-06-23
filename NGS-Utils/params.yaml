@@ -253,7 +253,6 @@ categorize_ncRNAs:
 get_unique_features:
  - -ov 10
 
-
 #
 # By, default, RNAfold is not run since it is very slow.
 # It is generally recommended to generate RNAfold plots
