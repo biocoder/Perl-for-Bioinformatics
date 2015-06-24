@@ -331,6 +331,8 @@ sub run_lncRNApipe {
     } if (defined($categorize_sc_opts) && $categorize_sc_opts ne '');
 
     # Run get_unique_features.pl ######################################################################
+    my $known_or_unique_suffix_keyword = 'unique';
+    my $novel_or_known_suffix_keyword = 'novel';
     do {
 
 	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
@@ -358,15 +360,19 @@ sub run_lncRNApipe {
 
         $lncRNApipe_succ = pipeline_status($io, 'ERROR!', "Required options not mentioned for -get module.\nSee '" .
 					   "$0 --h get" . "' for required options.") if ($get_uq_sc_opts !~ m/sf|cf/);
-	
+
+	if ($get_uq_sc_opts =~ m/-known/i) {
+	    $known_or_unique_suffix_keyword = $novel_or_known_suffix_keyword = 'known';
+	}
+	    
 	foreach my $lncRNApipe_class_file (@lncRNApipe_class_files) {
 	    	    
 	    $cpu->start and next if (defined $num_cpu);
-	    
+	   
 	    $lncRNApipe_class_file = $outdir . 'categorize_ncRNAs/' . $lncRNApipe_class_file;
-	    my $unique_ncRNAs = $cat_dir . '/' . $io->file_basename($lncRNApipe_class_file) . '.unique.gtf';
-	    $unique_ncRNAs = $cat_dir . '/' . $io->file_basename($lncRNApipe_class_file) . '.known.gtf'
-		if ($get_uq_sc_opts =~ m/-known/i);
+	    my $unique_ncRNAs = $cat_dir . '/' . $io->file_basename($lncRNApipe_class_file) . ".$known_or_unique_suffix_keyword.gtf";
+	    $unique_ncRNAs = $cat_dir . '/' . $io->file_basename($lncRNApipe_class_file) . ".$known_or_unique_suffix_keyword.gtf";
+	
 	    unlink $unique_ncRNAs if (-e $unique_ncRNAs);
 
 	    my $sff_opt = '';
@@ -403,7 +409,7 @@ sub run_lncRNApipe {
 		$skip_get_uq = 1;
 	    }
 	    else {
-		disp_ncRNA_counts($io, $unique_ncRNAs, 'Total number of putative unique ncRNAs');
+		disp_ncRNA_counts($io, $unique_ncRNAs, "Total number of putative $known_or_unique_suffix_keyword ncRNAs");
 	    }
 	    $cpu->finish(0, {'lncRNApipe_succ' => $lncRNApipe_succ}) if (defined $num_cpu);
 	}
@@ -435,7 +441,7 @@ sub run_lncRNApipe {
 	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
 	$lncRNApipe_succ = get_pipeline_status_code($cpu) if (defined $num_cpu);
 	my $uq_tr_feat_dir = 'get_unique_features';
-	my $tr_feat_here_suffix = 'putative\.class\.lncRNAs\.unique\.gtf$';
+	my $tr_feat_here_suffix = 'putative\.class\.lncRNAs\.' . $known_or_unique_suffix_keyword . '\.gtf$';
 
 	module_header($io, 'Module 4: Running fetch_seq_from_ucsc.pl');
 	
@@ -759,7 +765,7 @@ sub run_lncRNApipe {
 		$lncRNApipe_succ = 1;
 	    }
 
-	    disp_ncRNA_counts($io, $lncRNApipe_final_trs, 'Final putative novel lncRNA count');
+	    disp_ncRNA_counts($io, $lncRNApipe_final_trs, "Final putative $novel_or_known_suffix_keyword lncRNA count");
 	    $cpu->finish(0, {'lncRNApipe_test' => $lncRNApipe_succ}) if (defined $num_cpu);
 
 	    unlink $CPC_out_file if (defined $skip_cpc);
@@ -1657,7 +1663,9 @@ sub run_lncRNApipe_from_conf {
     my $beverb = "\n\nPlease check your config file [ " . $io->file_basename($pipe_config, 'suffix') . ' ] and provide correct value(s).';
     my $scheduler_job_depends = my $job_deps_str_lncRNApipe_post_assembly = '';
     my $cufflinks_after_assembly_check = my $check_these_log_files = my $cuffdiff_bam_files = '';
-    my $job_scripts_dir_name = 'job_scripts';
+    my $autogen_job_scripts_timestamp = localtime;
+    $autogen_job_scripts_timestamp =~ s/(\s+|\:)/\_/g;
+    my $job_scripts_dir_name = 'job_scripts.' . $autogen_job_scripts_timestamp;
 
     # Verify minimum required params.
     verify_config_file($io, $beverb, $params->{'overwriteOutputDir'}, 'overwriteOutputDir', 'yes|no');
@@ -1719,15 +1727,15 @@ sub run_lncRNApipe_from_conf {
 	#	   "Use [overwriteOutputDir: YES] to overwrite output directory." . $beverb);
     #}
            
-    $io->error('No information regarding reference annotation provided. [sourceDB: ?], [species: ?], [useThisAnnotation: ?]')
+    $io->error('No information regarding reference annotation provided. [sourceDB: ?], [species: ?], [useThisAnnotation: ?]' . $beverb)
 	if ( (!defined $params->{'sourceDB'} || !defined $params->{'species'}) && !defined $params->{'useThisAnnotation'});
 
-    $io->error('Annotation file [ ' . $params->{'useThisAnnotation'} . ' ] does not exist or is empty.')
+    $io->error('Annotation file [ ' . $params->{'useThisAnnotation'} . ' ] does not exist or is empty.' . $beverb)
 	if (defined $params->{'useThisAnnotation'} && 
 	    ( !-e $params->{'useThisAnnotation'} || -z $params->{'useThisAnnotation'}) );
 
     $io->error("[genomeFasta: ] not mentioned OR\n" .
-	       "cannot find genome FASTA file OR\nthe genome FASTA file is empty.")
+	       "cannot find genome FASTA file OR\nthe genome FASTA file is empty." . $beverb)
 	if (!defined $params->{'genomeFasta'} || !-e $params->{'genomeFasta'} || !-s $params->{'genomeFasta'});
 
     $io->error("[categorize_ncRNAs: ] options not mentioned.\nIt is required in either case, [performTranscriptAssembly: YES]" .
@@ -2133,7 +2141,7 @@ sub run_lncRNApipe_from_conf {
 	    $cufflinks_assembled_trs .= "$cufflinks_samp_o_dir/transcripts.gtf ";
 	    $check_these_log_files .= "$cufflinks_samp_o_dir/run.log\n";
 	    $scheduler_job_depends = "'$sample_name_grand'" if ($params->{'scheduler'} =~ m/^none$/i);
-	    $cuffdiff_bam_files .= "$cufflinks_input_bam_str ";
+	    $cuffdiff_bam_files .= join(',', (split/\s+/, $bam_files_per_sample)) . ' ';
 
 	    #my $is_cufflinks_job_done = is_job_done("$cufflinks_o_dir/status.log", $io, 0, $sample_name_grand);
 
@@ -2229,7 +2237,7 @@ perl $USER_HOME/lncRNApipe --run $params->{'outputDir'} --cpu $params->{'CPUs'} 
 ln -s $params->{'outputDir'}/cuffcompare $cuffdiff_known/.
 ln -s $params->{'outputDir'}/categorize_ncRNAs $cuffdiff_known/.
 
-perl $USER_HOME/lncRNApipe --run $cuffdiff_known --cpu $params->{'CPUs'} --get $thru_conf_get_uq_feat_opts_k >> $params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log 2>&1};
+perl $USER_HOME/lncRNApipe --run $cuffdiff_known --cpu $params->{'CPUs'} --get '$thru_conf_get_uq_feat_opts_k -extract' $thru_conf_inf_opts $thru_conf_rna_fold_opts >> $params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log 2>&1};
 
     $lncRNApipe_opts .= add_exit_check("$params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log",
 				       "$params->{'outputDir'}/lncRNApipe.postAssembly.status.log",
@@ -2260,16 +2268,16 @@ perl $USER_HOME/lncRNApipe --run $cuffdiff_known --cpu $params->{'CPUs'} --get $
 #
 # Known ncRNAs.
 #
-find $cuffdiff_known/get_unique_features -type f -name '.gtf' > $cuffmerge_known/lncRNApipe_known_ncRNAs_tr_list.txt
+find $cuffdiff_known/get_unique_features -type f -name '*.gtf' > $cuffmerge_known/lncRNApipe_known_ncRNAs_tr_list.txt
 
-cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffmerge_novel -g $nc_annot_gtf -s $params->{'genomeFasta'} $cuffmerge_novel/lncRNApipe_known_ncRNAs_tr_list.txt > $params->{'outputDir'}/cuffmerge.combined.run_$conf_run_id.log 2>&1
+cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffmerge_known -g $nc_annot_gtf -s $params->{'genomeFasta'} $cuffmerge_known/lncRNApipe_known_ncRNAs_tr_list.txt > $cuffmerge_known/cuffmerge_known_ncRNAs.run_$conf_run_id.log 2>&1
 
 #
 # Novel ncRNAs.
 #
-find $params->{'outputDir'}/lncRNApipe.final -type f -name '.final.gtf' > $cuffmerge_novel/lncRNApipe_novel_ncRNAs_tr_list.txt
+find $params->{'outputDir'}/lncRNApipe.final -type f -name '*.final.gtf' > $cuffmerge_novel/lncRNApipe_novel_ncRNAs_tr_list.txt
 
-cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffmerge_novel $cuffmerge_novel/lncRNApipe_novel_ncRNAs_tr_list.txt >> $params->{'outputDir'}/cuffmerge.combined.run_$conf_run_id.log 2>&1};
+cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffmerge_novel $cuffmerge_novel/lncRNApipe_novel_ncRNAs_tr_list.txt >> $cuffmerge_novel/cuffmerge_novel_ncRNAs.run_$conf_run_id.log 2>&1};
 	
 	#$cuffmerge_cmd .= add_exit_check("$params->{'outputDir'}/cuffmerge.combined.run.log",
 	#				 "$params->{'outputDir'}/cuffmerge.combined.status.log",
@@ -2277,7 +2285,8 @@ cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffmerge_novel $cuffmerge_no
 	#				 'isCuffmergeRunComplete',
 	#				 'Cuffmerge');
 
-	$check_these_log_files .= "$params->{'outputDir'}/cuffmerge.combined.run_$conf_run_id.log\n";
+	$check_these_log_files .= "$cuffmerge_known/cuffmerge_known_ncRNAs.run_$conf_run_id.log\n" .
+	    "$cuffmerge_novel/cuffmerge_novel_ncRNAs.run_$conf_run_id.log\n";
 
     }
        
@@ -2296,24 +2305,34 @@ cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffmerge_novel $cuffmerge_no
 #
 # Differentially expressed known ncRNAs.
 #
-cuffdiff -o $cuffdiff_known -L $sample_names $cuffdiff_opts $cuffmerge_known/merged.gtf $cuffdiff_bam_files> $params->{'outputDir'}/cuffdiff.run_$conf_run_id.combined.log 2>&1
+cuffdiff -o $cuffdiff_known -L $sample_names $cuffdiff_opts $cuffmerge_known/merged.gtf $cuffdiff_bam_files> $cuffdiff_known/cuffdiff_on_known_ncRNAs.run_$conf_run_id.log 2>&1
 
 #
-# Differentiall expressed novel ncRNAs.
+# Differentially expressed novel ncRNAs.
 #
-cuffdiff -o $cuffdiff_novel -L $sample_names $cuffdiff_opts $cuffmerge_novel/merged.gtf $cuffdiff_bam_files>> $params->{'outputDir'}/cuffdiff.run_$conf_run_id.combined.log 2>&1};
+cuffdiff -o $cuffdiff_novel -L $sample_names $cuffdiff_opts $cuffmerge_novel/merged.gtf $cuffdiff_bam_files>> $cuffdiff_novel/cuffdiff_on_novel_ncRNAs.run_$conf_run_id.log 2>&1};
 	
-	$cuffdiff_cmd .= add_exit_check("$params->{'outputDir'}/cuffdiff.combined.run_$conf_run_id.log",
-					"$params->{'outputDir'}/cuffdiff.combined.status.log",
+	$cuffdiff_cmd .= add_exit_check("$cuffdiff_known/cuffdiff_on_known_ncRNAs.run_$conf_run_id.log",
+					"$cuffdiff_known/status.log",
 					'writing run info',
-					'isCuffdiffRunComplete',
-					'Cuffdiff');
+					'isCuffdiffKnownRunComplete',
+					'Cuffdiff on known ncRNAs');
+
+	$cuffdiff_cmd .= add_exit_check("$cuffdiff_novel/cuffdiff_on_novel_ncRNAs.run_$conf_run_id.log",
+					"$cuffdiff_novel/status.log",
+					'writing run info',
+					'isCuffdiffNovelRunComplete',
+					'Cuffdiff on novel ncRNAs');
 	
-	$check_these_log_files .= "$params->{'outputDir'}/cuffdiff.combined.run_$conf_run_id.log\n";
+	$check_these_log_files .= "$cuffdiff_known/cuffdiff_on_known.run_$conf_run_id.log\n" .
+	    "$cuffdiff_novel/cuffdiff_on_novel.run_$conf_run_id.log\n";
     }
     
     $lncRNApipe_opts = "\n\n# We have already identified known and novel ncRNAs. Will resume from cuffmerge and cuffdiff ...\n"
 	if (is_job_done("$params->{'outputDir'}/lncRNApipe.postAssembly.status.log", $io));
+
+    $cuffmerge_cmd = $cuffdiff_cmd = "\n\n# Cuffmerge and Cuffdiff runs on known and novel ncRNAs have passed.\n"
+	if (is_job_done("$cuffdiff_known/status.log", $io) && is_job_done("$cuffdiff_novel/status.log", $io));
 
     write_and_submit_job("lncRNApipe_postAssembly.run_$conf_run_id.sh",
 			 $job_deps_str_lncRNApipe_post_assembly,
@@ -2351,16 +2370,16 @@ cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffdiff_on_tr_dir/cuffmerge 
 # Find differentially expressed transcripts.
 #
 #
-cuffdiff -o $cuffdiff_on_tr_dir -L $sample_names $cuffdiff_opts $cuffdiff_on_tr_dir/cuffmerge/merged.gtf $cuffdiff_bam_files> $cuffdiff_on_tr_dir/cuffdiff_on_all_transcripts.run_$conf_run_id.combined.log 2>&1};
+cuffdiff -o $cuffdiff_on_tr_dir -L $sample_names $cuffdiff_opts $cuffdiff_on_tr_dir/cuffmerge/merged.gtf $cuffdiff_bam_files> $cuffdiff_on_tr_dir/cuffdiff_on_all_transcripts.run_$conf_run_id.log 2>&1};
 	
-	$cuffdiff4all_trs .= add_exit_check("$cuffdiff_on_tr_dir/cuffdiff_on_all_transcripts.run_$conf_run_id.combined.log",
+	$cuffdiff4all_trs .= add_exit_check("$cuffdiff_on_tr_dir/cuffdiff_on_all_transcripts.run_$conf_run_id.log",
 					    "$cuffdiff_on_tr_dir/status.log",
 					    'writing run info',
 					    'isCuffdiffAllTrsRunComplete',
 					    'Cuffdiff');
 
 	$check_these_log_files .= "$cuffdiff_on_tr_dir/cuffmerge_on_cufflinks_transcripts.run_$conf_run_id.log\n" .
-	    "$cuffdiff_on_tr_dir/cuffdiff_on_all_transcripts.run_$conf_run_id.combined.log\n";
+	    "$cuffdiff_on_tr_dir/cuffdiff_on_all_transcripts.run_$conf_run_id.log\n";
 
 	$cuffdiff4all_trs = "\n\n# Cuffdiff run on all assembled Cufflinks' transcripts has passed. Skipping...\n"
 	    if (is_job_done("$cuffdiff_on_tr_dir/status.log", $io, 0));
@@ -2503,13 +2522,20 @@ sub get_job_dependency_chain {
     my $params = shift;
     my $wait_for_jobs = shift;
     my $check_file_presence = shift;
-    my $only_these_jobs = $wait_for_jobs;
+    my $only_these_jobs = '';
 
     $io->error('Do not know how many jobs to wait for')
 	if (!$wait_for_jobs);
 
-    ($wait_for_jobs, $only_these_jobs) = split/\:/, $wait_for_jobs
-	if ($wait_for_jobs =~ m/\d+\:\d+/);
+    if ($wait_for_jobs =~ m/\d+\:\d+/) {
+	($wait_for_jobs, $only_these_jobs) = split/\:/, $wait_for_jobs
+    }
+    elsif ($wait_for_jobs =~ m/^\d+$/)  {
+	$only_these_jobs = $wait_for_jobs - 1;
+    }
+    else {
+	$io->error('$WAIT_FOR_JOBS is not numeric!!');
+    }
 
     my $job_ids_fh = my $job_ids = my $job_deps_str = '';
 

@@ -79,7 +79,7 @@ $keyword_col-- if(defined($keyword_col) && ($keyword_col ne ''));
 my ($cf_filename, $path, $suffix) = $io->file_basename($cf, 'all');
 
 $io->warning('Both --known and --unique switches are on. Getting only known ncRNAs...')
-    if (defined $unique && defined $known);
+    if (defined $unique && defined $known && !defined $extract4pipeline);
 undef $unique if ( defined $known || (defined $known && defined $unique) );
 
 if (defined $unique) {
@@ -257,7 +257,7 @@ while (my $line = <$c_fh>) {
 		
 
                 if ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
-		    if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line)) {
+		    if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($from_cat_ncRNA_tr_id)) {
 			if (defined $extract4pipeline) {
 			    extract_tr($from_cat_ncRNA_tr_id);
 			}
@@ -267,7 +267,7 @@ while (my $line = <$c_fh>) {
 		    }
 		}
                 elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
-                    if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line)) {
+                    if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($from_cat_ncRNA_tr_id)) {
                         if (defined $extract4pipeline) {
 			    extract_tr($from_cat_ncRNA_tr_id);
 			}
@@ -277,7 +277,7 @@ while (my $line = <$c_fh>) {
                     }
                 }
                 elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord) {
-                    if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line)) {
+                    if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($from_cat_ncRNA_tr_id)) {
                         if (defined $extract4pipeline) {
 			    extract_tr($from_cat_ncRNA_tr_id);
 			}
@@ -287,7 +287,7 @@ while (my $line = <$c_fh>) {
                     }
                 }
 		elsif ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord) {
-                    if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($line)) {
+                    if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($from_cat_ncRNA_tr_id)) {
                         if (defined $extract4pipeline) {
 			    extract_tr($from_cat_ncRNA_tr_id);
 			}
@@ -381,11 +381,13 @@ sub extract_tr {
     #print 'grep -P \'' . $tr_id . '\' ' . $cf, "\n";
     
     if ($get && $get eq 'GET') {
-	my $tr_lines = $io->execute_get_sys_cmd_output('grep -P \'' . $tr_id . '\' ' . $cf);
+	my $tr_lines = $io->execute_get_sys_cmd_output("grep -P '" . $tr_id . "' " . $cf);
 	return \$tr_lines;
     }
     else {
-	$io->execute_system_command('grep -P \'' . $tr_id . '\' ' . $cf);
+	my $tr_lines = $io->execute_get_sys_cmd_output("grep -P '" . $tr_id . "' " . $cf);
+	print $j_fh $tr_lines;
+	#$io->execute_system_command('grep -P \'' . $tr_id . '\' ' . $cf);
     }
     return;
 }
@@ -562,10 +564,6 @@ get_unique_features.pl takes the following arguments:
  The column number of the --compare-keyword.
 
  Ex: For GTF file, it is -ck 'transcript' -kc '3'
-
-=item -extract
-
- Extract unique or common features using grep from the compare file.
 
 =item -fpkm-logfold
 
