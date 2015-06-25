@@ -1745,6 +1745,12 @@ sub run_lncRNApipe_from_conf {
     $io->error('-sample-names option is required for [categorize_ncRNAs: ].' . $beverb)
 	if (!is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample'));
 
+    $io->error('-annot option is not required for [categorize_ncRNAs: ].' . $beverb)
+	if (is_option_exists_in_anon($params->{'categorize_ncRNAs'}, '-annot'));
+
+    $io->error('-cuff option is not required for [categorize_ncRNAs: ].' . $beverb)
+	if (is_option_exists_in_anon($params->{'categorize_ncRNAs'}, '-cuff'));
+
     $io->error('In [get_unique_features: ] options, "-sff" is required when you are specifying a list of known ncRNAs.' . $beverb)
 	if (defined $params->{'get_unique_features'} &&
 	    !is_option_exists_in_anon($params->{'get_unique_features'}, '-sff\s+') &&
