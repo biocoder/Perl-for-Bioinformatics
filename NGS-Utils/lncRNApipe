@@ -1750,7 +1750,10 @@ sub run_lncRNApipe_from_conf {
 
     $io->error('-cuff option is not required for [categorize_ncRNAs: ].' . $beverb)
 	if (is_option_exists_in_anon($params->{'categorize_ncRNAs'}, '-cuff'));
-
+    
+    $io->error('-L option is not required for [cufflinks: ].' . $beverb)
+	if (is_option_exists_in_anon($params->{'cufflinks'}, '-L'));
+    
     $io->error('In [get_unique_features: ] options, "-sff" is required when you are specifying a list of known ncRNAs.' . $beverb)
 	if (defined $params->{'get_unique_features'} &&
 	    !is_option_exists_in_anon($params->{'get_unique_features'}, '-sff\s+') &&
@@ -2135,6 +2138,7 @@ sub run_lncRNApipe_from_conf {
 	    $cufflinks_cmd .= "\n\n#\n# Cufflinks Run\n#\n#\ncufflinks ".
 		join(' ', @{$params->{'cufflinks'}}) .
 		" -o $cufflinks_samp_o_dir" .
+		" -L $sample_name_grand" .
 		" -p $params->{'CPUs'}" .
 		" -g $annot_gtf $cufflinks_input_bam_str >> $cufflinks_samp_o_dir/run.log 2>&1" .
 		add_exit_check("$cufflinks_samp_o_dir/run.log",
@@ -2465,11 +2469,11 @@ sub is_option_exists_in_anon {
     my $negate = shift;
 
     foreach my $val (@$arr) {
-	if ($val =~ m/$regex/i && !$negate) {
+	if ($val =~ m/$regex/ && !$negate) {
 	    my $sample_name_exists = $val;
 	    return $sample_name_exists;
 	}
-	elsif ($val !~ m/$regex/i && $negate) {
+	elsif ($val !~ m/$regex/ && $negate) {
 	    my $sample_name_exists = $val;
 	    return $sample_name_exists;
 	}
