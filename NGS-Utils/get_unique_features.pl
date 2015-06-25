@@ -17,11 +17,11 @@ my $s_time = $io->start_timer();
 my ($help, $quiet, $sc1, $sc2, $cc1, $cc2,
     $sf, $cf, $chr_s, $chr_c,
     %seen_coord, %store_s_coords, %seen_s,
-    %seen_cat_tr, $extract4pipeline, %logFoldCuff,
+    %seen_cat_tr, %ids_only, $extract4pipeline,
     $unique, $known, $pipe2stdout, $j_fh, $overlap, 
-    $tr_coords, $tr_start_col,
+    $tr_coords, $tr_start_col, %logFoldCuff,
     $tr_end_col, $trans_bd_on_chr, $keyword, $keyword_col,
-    $sff, $cff, $logfold4cuff, $new_f, $output);
+    $sff, $cff, $logfold4cuff, $new_f, $output, $id_only);
 
 my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'source-column-2|sc-2|s2=s'  => \$sc2,
@@ -44,7 +44,8 @@ my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 				 'compare-file-format|cff=s'  => \$cff,
 				 'extract'                    => \$extract4pipeline,
 				 'fpkm-logfold'               => \$logfold4cuff,
-				 'output=s'                   => \$output
+				 'output=s'                   => \$output,
+				 'ids=s'                      => \$id_only
 				);
 
 # Check if sff or cff is defined
@@ -52,7 +53,7 @@ my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 ($chr_c, $cc1, $cc2) = gtf_or_bed($cff);
 
 $io->verify_options([$is_valid_option, $sc1, $sc2, $cc1, $cc2,
-                     $chr_s, $chr_c],
+                     $chr_s, $chr_c, $id_only],
 		    $help);
 
 $io->verify_files([$sf, $cf],
@@ -154,6 +155,8 @@ while (my $line = <$s_fh>) {
     my ($left_coords, $right_coords) = [];
     
     $line = $io->strip_leading_and_trailing_spaces($line);
+    my ($source_tr_id) = ($line =~ m/$id_only\s+\"(.+?)\"/);
+    
     my @cols = split/\t/, $line;
     #$io->error('Cannot find chromosome column in file [ ' . $sf . ' ]' .
 	       #"\nError occured on line:\n\n" . $line) if ($cols[$chr_s] !~ m/^chr/i);
@@ -177,6 +180,7 @@ while (my $line = <$s_fh>) {
 	if (!exists $seen_s{$cols[$chr_s] . $left_coords->[$_] . $right_coords->[$_]}) {
 	    $seen_s{$cols[$chr_s] . $left_coords->[$_] . $right_coords->[$_]} = 1;
 	    push @{$store_s_coords{$cols[$chr_s]}{$left_coords->[$_]}}, $right_coords->[$_];
+	    $ids_only{$cols[$chr_s]}{$left_coords->[$_] . $right_coords->[$_]} = $source_tr_id;
 	    
 	    if ($logfold4cuff && !defined($unique)) {
 		$logFoldCuff{$cols[$chr_s] . $left_coords->[$_] . $right_coords->[$_]} = $cols[$#cols];
@@ -242,6 +246,8 @@ while (my $line = <$c_fh>) {
 		my $c_ex_len = $cols[$cc2] - $cols[$cc1];
 		my $ex_ov_per = ($s_ex_len / $c_ex_len) * 100 if ($c_ex_len > 0);
 
+		my $source_tr_id = $ids_only{$cols[$chr_c]}{$left_coord . $right_coord};
+
 		# Set new tree for "unique"
 		if (defined $unique && ($left_coord != $right_coord)) {
 		    $insert_line++;		    
@@ -259,7 +265,7 @@ while (my $line = <$c_fh>) {
                 if ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
 		    if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($from_cat_ncRNA_tr_id)) {
 			if (defined $extract4pipeline) {
-			    extract_tr($from_cat_ncRNA_tr_id);
+			    extract_tr($from_cat_ncRNA_tr_id, 'NOGET', $source_tr_id);
 			}
 			else {
 			    print $j_fh $line, "\n";
@@ -269,7 +275,7 @@ while (my $line = <$c_fh>) {
                 elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] <= $right_coord) {
                     if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($from_cat_ncRNA_tr_id)) {
                         if (defined $extract4pipeline) {
-			    extract_tr($from_cat_ncRNA_tr_id);
+			    extract_tr($from_cat_ncRNA_tr_id, 'NOGET', $source_tr_id);
 			}
 			else {
 			    print $j_fh $line, "\n";
@@ -279,7 +285,7 @@ while (my $line = <$c_fh>) {
                 elsif ($cols[$cc1] >= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord) {
                     if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($from_cat_ncRNA_tr_id)) {
                         if (defined $extract4pipeline) {
-			    extract_tr($from_cat_ncRNA_tr_id);
+			    extract_tr($from_cat_ncRNA_tr_id, 'NOGET', $source_tr_id);
 			}
 			else {
 			    print $j_fh $line, "\n";
@@ -289,7 +295,7 @@ while (my $line = <$c_fh>) {
 		elsif ($cols[$cc1] <= $left_coord && $cols[$cc1] <= $right_coord && $cols[$cc2] >= $left_coord && $cols[$cc2] >= $right_coord) {
                     if (!defined($unique) && defined($overlap) && ($ex_ov_per >= $overlap) && !is_duplicate($from_cat_ncRNA_tr_id)) {
                         if (defined $extract4pipeline) {
-			    extract_tr($from_cat_ncRNA_tr_id);
+			    extract_tr($from_cat_ncRNA_tr_id, 'NOGET', $source_tr_id);
 			}
 			else {
 			    print $j_fh $line, "\n";
@@ -376,17 +382,40 @@ close $j_fh if (defined $j_fh);
 sub extract_tr {
     my $tr_id = shift;
     my $get = shift;
+    my $source_tr_id = shift;
+
+    $source_tr_id = 'NA' if (!$source_tr_id);
+
     $tr_id =~ s/"/\\\"/g;
     $tr_id =~ s/\./\\\./g;
     #print 'grep -P \'' . $tr_id . '\' ' . $cf, "\n";
     
     if ($get && $get eq 'GET') {
-	my $tr_lines = $io->execute_get_sys_cmd_output("grep -P '" . $tr_id . "' " . $cf);
-	return \$tr_lines;
+	if (defined $id_only) {
+	    $tr_id =~ s/transcript_id//;
+	    $tr_id =~ s/\\//g;
+	    $tr_id =~ s/\"//g;
+	    $tr_id =~ s/\s+//g;
+	    $tr_id = "$source_tr_id\t$tr_id";
+	    return \$tr_id;
+	}
+	else {
+	    my $tr_lines = $io->execute_get_sys_cmd_output("grep -P '" . $tr_id . "' " . $cf);
+	    return \$tr_lines;
+	}
     }
     else {
-	my $tr_lines = $io->execute_get_sys_cmd_output("grep -P '" . $tr_id . "' " . $cf);
-	print $j_fh $tr_lines;
+	if (defined $id_only) {
+            $tr_id =~ s/transcript_id//;
+            $tr_id =~ s/\\//g;
+            $tr_id =~ s/\"//g;
+	    $tr_id =~ s/\s+//g;
+            print $j_fh "$source_tr_id\t$tr_id\n";
+        }
+	else {
+	    my $tr_lines = $io->execute_get_sys_cmd_output("grep -P '" . $tr_id . "' " . $cf);
+	    print $j_fh $tr_lines;
+	}
 	#$io->execute_system_command('grep -P \'' . $tr_id . '\' ' . $cf);
     }
     return;
