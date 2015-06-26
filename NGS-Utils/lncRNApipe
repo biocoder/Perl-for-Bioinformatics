@@ -1547,7 +1547,7 @@ sub disp_ncRNA_counts {
     chomp (my $num_ex_ov = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?exonic\\s+overlap.*?.*?(Infernal)?' $file | wc -l"));
     $num_ex_ov = 0 if ($num_ex_ov =~ m/^could not capture/i);
 
-    chomp (my $num_inf_ann = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?Infernal_prediction' $file | grep -iP '\ttranscript\t' | wc -l"));
+    chomp (my $num_inf_ann = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?BitScore' $file | grep -iP '\ttranscript\t' | wc -l"));
     $num_inf_ann = 0 if ($num_inf_ann =~ m/^could not capture/i);
 
     print("\n\nlncRNA Summary [ " . $c_io->file_basename($file, 'suffix') . " ] :\n" .

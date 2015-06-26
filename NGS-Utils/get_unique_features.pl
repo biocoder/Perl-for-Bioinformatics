@@ -53,7 +53,7 @@ my $is_valid_option = GetOptions('source-column-1|sc-1|s1=s'  => \$sc1,
 ($chr_c, $cc1, $cc2) = gtf_or_bed($cff);
 
 $io->verify_options([$is_valid_option, $sc1, $sc2, $cc1, $cc2,
-                     $chr_s, $chr_c, $id_only],
+                     $chr_s, $chr_c],
 		    $help);
 
 $io->verify_files([$sf, $cf],
@@ -155,7 +155,7 @@ while (my $line = <$s_fh>) {
     my ($left_coords, $right_coords) = [];
     
     $line = $io->strip_leading_and_trailing_spaces($line);
-    my ($source_tr_id) = ($line =~ m/$id_only\s+\"(.+?)\"/);
+    my ($source_tr_id) = ($line =~ m/$id_only\s+\"(.+?)\"/) if (defined $id_only);
     
     my @cols = split/\t/, $line;
     #$io->error('Cannot find chromosome column in file [ ' . $sf . ' ]' .
@@ -245,8 +245,9 @@ while (my $line = <$c_fh>) {
 		my $s_ex_len = $right_coord -  $left_coord;
 		my $c_ex_len = $cols[$cc2] - $cols[$cc1];
 		my $ex_ov_per = ($s_ex_len / $c_ex_len) * 100 if ($c_ex_len > 0);
-
-		my $source_tr_id = $ids_only{$cols[$chr_c]}{$left_coord . $right_coord};
+		
+		my $source_tr_id = 'NA';
+		$source_tr_id = $ids_only{$cols[$chr_c]}{$left_coord . $right_coord} if (defined $id_only);
 
 		# Set new tree for "unique"
 		if (defined $unique && ($left_coord != $right_coord)) {
@@ -391,32 +392,15 @@ sub extract_tr {
     #print 'grep -P \'' . $tr_id . '\' ' . $cf, "\n";
     
     if ($get && $get eq 'GET') {
-	if (defined $id_only) {
-	    $tr_id =~ s/transcript_id//;
-	    $tr_id =~ s/\\//g;
-	    $tr_id =~ s/\"//g;
-	    $tr_id =~ s/\s+//g;
-	    $tr_id = "$source_tr_id\t$tr_id";
-	    return \$tr_id;
-	}
-	else {
-	    my $tr_lines = $io->execute_get_sys_cmd_output("grep -P '" . $tr_id . "' " . $cf);
-	    return \$tr_lines;
-	}
+	my $tr_lines = $io->execute_get_sys_cmd_output("grep -P '" . $tr_id . "' " . $cf);
+	$tr_lines =~ s/$id_only\s+\"(.+?)\";/$id_only \"$1 | $source_tr_id\";/g if ($id_only);
+	return \$tr_lines;
     }
     else {
-	if (defined $id_only) {
-            $tr_id =~ s/transcript_id//;
-            $tr_id =~ s/\\//g;
-            $tr_id =~ s/\"//g;
-	    $tr_id =~ s/\s+//g;
-            print $j_fh "$source_tr_id\t$tr_id\n";
-        }
-	else {
-	    my $tr_lines = $io->execute_get_sys_cmd_output("grep -P '" . $tr_id . "' " . $cf);
-	    print $j_fh $tr_lines;
-	}
-	#$io->execute_system_command('grep -P \'' . $tr_id . '\' ' . $cf);
+	my $tr_lines = $io->execute_get_sys_cmd_output("grep -P '" . $tr_id . "' " . $cf);
+	$tr_lines =~ s/$id_only\s+\"(.+?)\";/$id_only \"$1 | $source_tr_id\";/g if ($id_only);
+	print $j_fh $tr_lines;
+   	#$io->execute_system_command('grep -P \'' . $tr_id . '\' ' . $cf);
     }
     return;
 }
