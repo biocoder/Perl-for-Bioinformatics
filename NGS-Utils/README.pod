@@ -184,6 +184,8 @@ Example:
 
 =head2 params.yaml's Options:
 
+=over 4
+
 =item outputDir: /data/konganti/FASTQ_RNAseq/new-lncRNApipe2
 
 Specify output directory. In the example above, a new output directory called C<< new-lncRNApipe2 >> will be created at the mentioned path /data/konganti/FASTQ_RNAseq
@@ -336,6 +338,8 @@ Ex:
   - --b2-sensitive
   - --transcriptome-index=/data/konganti/FASTQ_RNAseq/transcriptome_index/rn4
   - --no-coverage-search
+
+=back
 
 =head1 CAVEATS
 
