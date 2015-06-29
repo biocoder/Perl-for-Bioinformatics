@@ -53,25 +53,25 @@ lncRNApipe is a complete automated pipeline to:
 
 =over 4
 
-=item 1. Trim B<FASTQ> reads.
+=item * Trim B<FASTQ> reads.
 
 
-=item 2. Map reads using spliced read mapper Tophat.
+=item * Map reads using spliced read mapper Tophat.
 
 
-=item 3. Assemble transcripts using Cufflinks.
+=item * Assemble transcripts using Cufflinks.
 
 
-=item 4. Identify known non-coding RNAs and any putative novel non-coding RNAs based on reference annotation. 
+=item * Identify known non-coding RNAs and any putative novel non-coding RNAs based on reference annotation. 
 
 
-=item 5. Run cuffdiff to identify differentially expressed known ncRNAs and novel ncRNAs.
+=item * Run cuffdiff to identify differentially expressed known ncRNAs and novel ncRNAs.
 
-=item 6. Optionally, run cuffdiff on all transcripts to identify differentially expressed transcripts as you would normally do with the L<Tuxedo protocol|http://www.nature.com/nprot/journal/v7/n3/full/nprot.2012.016.html>
+=item * Optionally, run cuffdiff on all transcripts to identify differentially expressed transcripts as you would normally do with the L<Tuxedo protocol|http://www.nature.com/nprot/journal/v7/n3/full/nprot.2012.016.html>
 
-The pipeline is very flexible and can be run in two ways: from B<I<assembly stage>> or from B<I<identification stage>> and maitains several checkpoints at each stage so that you can resume from a failed run, if possible.
+=back
 
-=back 
+The pipeline is very flexible and can be run in two ways: from B<I<assembly stage>> or from B<I<identification stage>> and maitains several checkpoints at each stage so that you can resume from a failed run, if possible. 
 
 =head2 ASSEMBLY STAGE
 
@@ -85,7 +85,7 @@ lncRNApipe uses L<TRIMMOMATIC|http://www.usadellab.org/cms/?page=trimmomatic> to
 
 =head3 Mapping
 
-lncRNApipe uses <Tophat|https://ccb.jhu.edu/software/tophat/index.shtml> to perform spliced mapping of RNA-Seq reads. You can speicfy Tophat options using C<< tophat: >> parameter in C<< params.yaml >>. L<sambamba|https://github.com/lomereiter/sambamba> is used to merge replicate data before running Cufflinks.
+lncRNApipe uses L<Tophat|https://ccb.jhu.edu/software/tophat/index.shtml> to perform spliced mapping of RNA-Seq reads. You can speicfy Tophat options using C<< tophat: >> parameter in C<< params.yaml >>. L<Sambamba|https://github.com/lomereiter/sambamba> is used to merge replicate data before running Cufflinks.
 
 =head3 Transcript Assembly
 
@@ -99,7 +99,7 @@ In the identification stage, the pipeline will bind the functionality of the too
 
 =item 1. Cuffcompare (lncRNApipe Option: --cuff or --cuffcompare)
 
-The transcript assembly can be compared to known annotation of choice to classify them into different class codes (http://cufflinks.cbcb.umd.edu/manual.html#class_codes) using Cuffcompare. The assembled transcripts should be in GTF format. Cufflinks generates the output files in GTF format. If you are using other software such as Scripture, you can convert the output file in BED format into GTF using Scripture as:
+The transcript assembly can be compared to known annotation of choice to classify them into different L<class codes|http://cole-trapnell-lab.github.io/cufflinks/cuffcompare/#transfrag-class-codes> using Cuffcompare. The assembled transcripts should be in GTF format. Cufflinks generates the output files in GTF format. If you are using other software such as Scripture, you can convert the output file in BED format into GTF using Scripture as:
 
  java -jar /path/to/scripture.jar -task toGFF -cufflinks -in scripture.out.bed -source SCRIPTURE -out scripture.out.gtf
 
@@ -109,7 +109,7 @@ To get help documentation about this module, run:
 
 =item 2. categorize_ncRNAs.pl (lncRNApipe Option: --cat or --cat-ncRNAs)
     
-lncRNApipe uses the tracking file (*.tracking) produced by Cuffcompare, annotation data in gene prediction format and a list of supplied transcripts in GTF format to produce and categorize lncRNAs into different classes as mentioned in the paper: http://genome.cshlp.org/content/22/3/577.full. In brief, the lncRNAs are classified into 5 categories: Long intergenic lncRNAs (LincRNAs), Intronic contained lncRNAs (Incs), Partially overlapping lncRNAs (Poncs), Completely overlapping lncRNAs (Concs) and Exonic overlaps (LncRNAs with sense or antisense overlap with reference exon).
+lncRNApipe uses the tracking file (*.tracking) produced by Cuffcompare, annotation data in gene prediction format and a list of supplied transcripts in GTF format to produce and categorize lncRNAs into different classes as mentioned in this L<paper|http://genome.cshlp.org/content/22/3/577.full>. In brief, the lncRNAs are classified into 5 categories: Long intergenic lncRNAs (LincRNAs), Intronic contained lncRNAs (Incs), Partially overlapping lncRNAs (Poncs), Completely overlapping lncRNAs (Concs) and Exonic overlaps (LncRNAs with sense or antisense overlap with reference exon).
 
 To get help documentation about this module, run:
 
@@ -160,7 +160,7 @@ To get help documentation about this module, run:
 
 =head1 RUNNING lncRNApipe
 
-lncRNApipe can be run either completely via the configuration file a.k.a C<< params.yaml >> or the B<I<identification stage>> i.e the pipeline from C<< cuffcompare >> can be run independently without specifying the configuration file C<< params.yaml >> i.e you specify everything  needed through the command line options but we recommend that you use the configuration file for sake of clarity and simplicity.
+lncRNApipe can be run either completely via the configuration file a.k.a C<< params.yaml >> or the B<I<identification stage>> i.e the pipeline from C<< cuffcompare >> can be run independently without specifying the configuration file C<< params.yaml >>, where you specify everything needed through the command line options, but we recommend that you use the configuration file for sake of clarity and simplicity.
 
 The file C<< params.yaml >> contains all options required to run the pipeline from start to finish. Once you have entered the options as per your requirements, then run the pipeline using the following command:
 
@@ -168,13 +168,13 @@ The file C<< params.yaml >> contains all options required to run the pipeline fr
 
 =head1 params.yaml
 
-C<< params.yaml >> is the configuration file, where you can specify the command line options for each of the modules of lncRNApipe to run the complete pipeline to go from reads to results. If you do not wish to run any of the modules, simply, disable them and all the lines following it (if, any) by prefixing it with C<< # >>. The comment lines in the C<< params.yaml >> generally start with C<< # >>. The options in the file C<< params.yaml >> follow a specific syntax. The parameters where you specify B<YES> or B<NO> generally end with a colon (:).
+C<< params.yaml >> is the configuration file, where you can specify the command line options for each of the modules of lncRNApipe to run the complete pipeline to go from B<I<reads to results>>. If you do not wish to run any of the modules, simply, disable them and all the lines following it (if, any) by prefixing it with C<< # >>. The comment lines in the C<< params.yaml >> generally start with C<< # >>. The options in the file C<< params.yaml >> follow a specific syntax. The parameters where you specify B<YES> or B<NO> generally end with a colon (C<< : >>).
 
 Example:
 
  performTranscriptAssembly: YES
 
-The parameters where you specify tools' options end with tool's name followed by a tool's options with a dash prefix (-)
+The parameters where you specify tools' options end with tool's name followed by tool's options with a dash prefix (C<< - >>).
 
 Example:
 
@@ -182,11 +182,11 @@ Example:
   - -x 1
   - -M
 
-=head2 params.yaml Options:
+=head2 params.yaml's Options:
 
 =item outputDir: /data/konganti/FASTQ_RNAseq/new-lncRNApipe2
 
-Specify output directory. In the example above, a new output directory called "new-lncRNApipe2" will be created at the mentioned path /data/konganti/FASTQ_RNAseq
+Specify output directory. In the example above, a new output directory called C<< new-lncRNApipe2 >> will be created at the mentioned path /data/konganti/FASTQ_RNAseq
 
 =item overwriteOutputDir: NO
 
@@ -204,47 +204,45 @@ Specify number of threads / CPUs to use where possible. If running on a grid, pl
 
 =item scheduler: SGE
 
-Specify scheduler type. Valid options are PBS, SGE, LSF or NONE to disable grid computing.
+Specify scheduler type. Valid options are C<< PBS >>, C<< SGE >>, C<< LSF>>, C<< SLURM >> or NONE to disable grid computing.
 
 =item batchSubCmd: qsub
 
 Mention batch submission command.
-For example, for LSF, it is bsub, for PBS or SGE, it is qsub, for SLURM, it is sbatch
+For example, for C<< LSF >>, it is C<< bsub >>, for C<< PBS >> or C<< SGE >>, it is C<< qsub >>, for C<< SLURM >>, it is C<< sbatch >>.
 
 =item schedulerOpts:
 
 Specify scheduler options on separate line specific to your job running environment.
 
-********************* !! IMPORTANT !! ***********************
-*************************************************************
+********************* B<!! IMPORTANT !!> ************************************************************************************
 
 Different clusters uses different job parameter names. For
 example our cluster uses num_threads as parameter name to
 request number of CPUs in SGE. Some clusters may use
 num_cpu. Since it is difficult to guess, please provide
 number of CPUs you want to use based on your grid environment
-below, which is equal to "CPUs:" option above. Yes, we know that
+below, which is equal to C<< CPUs: >> option above. Yes, we know that
 this is kind of redundant but it is necessary evil. What ever
-job parameters you provide after the - , they will appear
+job parameters you provide after the C<< - >> , they will appear
 exactly in the job script.
 
-IF IT IS NOT PROVIDED, THE JOB WILL RUN ON SINGLE CPU OR
-MAY RUN ON MULTIPLE CPUs WHEN IT IS NOT SUPPOSED TO.
+B<IF IT IS NOT PROVIDED, THE JOB WILL RUN ON SINGLE CPU OR
+MAY RUN ON MULTIPLE CPUs WHEN IT IS NOT SUPPOSED TO>.
 
-*************************************************************
-*************************************************************
+******************************************************************************************************************************
 
-Ex for PBS (job parameters start with a PBS directive):
+Ex for PBS (job parameters start with a C<< PBS >> directive):
 
  PBS -V
  PBS -l nodes=1:ppn=16,walltime=24:00:00
 
-Ex for SGE (job parameters start with $ sign):
+Ex for C<< SGE >> (job parameters start with C<< $ >> sign):
 
  $ -N lncRNApipe
  $ -l num_threads=4
 
-So, if my scheduler is SGE, the parameters would look like:
+So, my scheduler is C<< SGE >>, the parameters on my cluster would look like:
 
  schedulerOpts:
   - $ -l mem_free=10G
@@ -261,36 +259,36 @@ Ex:
 
 =item readType: FASTQ
 
-Specify if your reads are in FASTA or FASTQ format. In the example above, reads are in FASTQ format.
+Specify if your reads are in C<< FASTA >> or C<< FASTQ >> format. In the example above, reads are in C<< FASTQ >> format.
 
 =item libType: SE
 
-Specify if your reads are SE (single-end only), PE (paried-end only) or MIXED.
+Specify if your reads are C<< SE >> (single-end only), C<< PE >> (paried-end only) or C<< MIXED >>.
 
 =item sourceDB: UCSC
 
-Specify if you want to use ENSEMBL or UCSC as source for annotation if you do not want to use C<< useThisAnnotation: >>. "PLEASE MAKE SURE" that you are using the same sourceDB for tophat alignments, i.e. bowtie indexes created from the same sourceDB for the same assembly version. As downloding genome indices on-the-fly is time consuming and since many users may have genome indices installed for various NGS analysis anyways, we leave it to you to provide "CORRECT" genome index below in tophat and cufflinks options' configuration.
+Specify if you want to use C<< ENSEMBL >> or C<< UCSC >> as source for annotation if you do not want to use C<< useThisAnnotation: >>. B<PLEASE MAKE SURE> that you are using the same sourceDB for tophat alignments, i.e. bowtie indexes created from the same sourceDB for the same assembly version. As downloding genome indices on-the-fly is time consuming and since many users may have genome indices installed for various NGS analysis anyways, we leave it to you to provide B<CORRECT> genome index below in tophat and cufflinks options' configuration.
 
 =item species: rn4
 
-Choose assembly version if you do not want to use C<< useThisAnnotation: >> so that we can download up-to-date annotation on the fly. You can choose to supply your own annotation file for consistency below. ENSEMBL and UCSC represents species name differently in the URLs. To view species names for ENSEMBL do:
+Choose assembly version if you do not want to use C<< useThisAnnotation: >> so that we can download up-to-date annotation on the fly. You can choose to supply your own annotation file for consistency below. C<< ENSEMBL >> and C<< UCSC >> represents species name differently in the URLs. To view species names for C<< ENSEMBL >> do:
 
  perl lncRNApipe --list ENSEMBL
 
 Go to https://genome.ucsc.edu/FAQ/FAQreleases.html#TOP to view UCSC version names.
-For example, at UCSC, for mouse, it is mm9 or mm10, for rat, it is rn5 or rn6 etc...
+For example, at C<< UCSC >>, for mouse, it is C<< mm9 >> or C<< mm10 >>, for rat, it is C<< rn5 >> or C<< rn6 >> etc...
 
 =item useThisAnnotation: /data/ref_annotation/rn4_UCSC/genes.gtf
 
-If you want to use your own annoation file, provide full path to the annotation file of your choice. This option overrides "sourceDB: " and "species: " options above. Again, "PLEASE MAKE SURE", you are providing the same genome index from the same source. In the example below, "bowtieGenomeIndex" is rn4 genome index created from FASTA files from UCSC.
+If you want to use your own annoation file, provide full path to the annotation file of your choice. This option overrides C<< sourceDB: >> and C<< species: >> options above. Again, B<PLEASE MAKE SURE>, you are providing the same genome index from the same source. In the example below, C<< bowtieGenomeIndex >> is C<< rn4 >> genome index created from C<< FASTA >> files from C<< UCSC >>.
 
 =item reads: 
 
-Provide Unix path to directory where the read files are located and also provide read file names that are present in that directory. If your data is just SE, then disable "r2: " below by prefixing it with a #. Separate replicates of sample by a comma. Separate different samples by a |.
+Provide Unix path to directory where the read files are located and also provide read file names that are present in that directory. If your data is just C<< SE >>, then disable C<< r2: >> below by prefixing it with a C<< # >>. Separate replicates of sample by a comma. Separate different samples by a C<< | >>.
 
-PLEASE MAKE SURE THE READS ARE IN ORDER. DO NOT MIX AND MATCH READ ORDERS. WE HAVE NO WAY OF KNOWING WHICH READ FILE IS _1 or _2.
+B<PLEASE MAKE SURE THE READS ARE IN ORDER. DO NOT MIX AND MATCH READ ORDERS. WE HAVE NO WAY OF KNOWING WHICH READ FILE IS _1 or _2>.
 
-In the example below, I have 6 samples and each sample has about 5-6 replicates. The read library is SE.
+In the example below, I have 6 samples and each sample has about 5-6 replicates. The read library is C<< SE >>.
 
  reads:
   readsDir: /data/konganti/FASTQ_RNAseq/reads
@@ -301,7 +299,7 @@ In the example below, I have 6 samples and each sample has about 5-6 replicates.
 
 If you want to use TRIMMOMATIC to trim reads, then provide TRIMMOMATIC options. TRIMMOMATIC provides the following adapter files: NexteraPE-PE.fa, TruSeq2-PE.fa, TruSeq2-SE.fa, TruSeq3-PE-2.fa, TruSeq3-PE.fa and TruSeq3-SE.fa. These adapter files are COPYRIGHTED by ILLUMINA and I am in the process of obtaining permission to redesitribute them with TRIMMOMATIC. For now, choose one or provide full path to the adapter sequence file you want to use.
 
-No need to provide -threads, as it will be handled by lncRNApipe.
+No need to provide C<< -threads >>, as it will be handled by lncRNApipe.
 
 Ex:
 
@@ -314,19 +312,21 @@ Ex:
 
 =item genomeFasta: /data/ref_fasta/rn4_UCSC/genome.fa
 
-Provide full path to genome FASTA file. In the example above, it is a multi FASTA for rn4 downloaded from UCSC.
+Provide full path to genome C<< FASTA >> file. In the example above, it is a multi C<< FASTA >> for C<< rn4 >> downloaded from C<< UCSC >>.
 
 =item bowtieGenomeIndex: /data/ref_indexes/bowtie2/rn4_UCSC/genome
 
-Provide bowtie genome index. "PLEASE MAKE SURE" that you are using the same genome indices for the C<< sourceDB: >>  mentioned above. Do not use UCSC genome indices if you requested ENSEMBL above in C<< sourceDB: >> or vice versa. In the example above, I am using genome indices for rn4 created from /data/ref_fasta/rn4_UCSC/genome.fa with C<< bowtie2-build >> command.
+Provide bowtie genome index. B<PLEASE MAKE SURE> that you are using the same genome indices for the C<< sourceDB: >>  mentioned above. Do not use C<< UCSC >> genome indices if you requested C<< ENSEMBL >> above in C<< sourceDB: >> or vice versa. In the example above, I am using genome indices for C<< rn4 >> created from C<< /data/ref_fasta/rn4_UCSC/genome.fa >> with C<< bowtie2-build >> command.
 
 =item tophat:
 
-In the example below, it is assumed that you have already created a transcriptome index. If you have not created one, go through tophat manual on how to just create transcriptome index L<https://ccb.jhu.edu/software/tophat/manual.shtml>. If you use C<< --trancriptome-index >> below and the index does not exist, it will keep overwriting while the jobs are running.
+In the example below, it is assumed that you have already created a transcriptome index. If you have not created one, go through tophat manual on how to L<just create transcriptome index|https://ccb.jhu.edu/software/tophat/manual.shtml>. If you use C<< --trancriptome-index >> below and the index does not exist, it will keep overwriting while the jobs are running.
 
-No need to provide FASTQ files, as they will be handled by lncRNApipe.
-No need to provide -o, as it will be handled by lncRNApipe.
-No need to provide -p, as it will be handled by lncRNApipe.
+No need to provide C<< FASTQ >> files, as they will be handled by lncRNApipe.
+
+No need to provide C<< -o >>, as it will be handled by lncRNApipe.
+
+No need to provide C<< -p >>, as it will be handled by lncRNApipe.
 
 Ex:
 
