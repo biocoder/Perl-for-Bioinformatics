@@ -638,7 +638,7 @@ mentioned with C<< --cuffcompare >> option.
 
 =item --skip-get (--fetch-seq option required)
 
-Run the << fetch_seq_from_ucsc.pl >> module without running C<< get_unique_features.pl >> module.
+Run the C<< fetch_seq_from_ucsc.pl >> module without running C<< get_unique_features.pl >> module.
 In some cases, you may not have a file of known non-coding RNAs. In such cases,
 you can skip C<< get_unique_features.pl >> module, and directly fetch FASTA sequences for
 features from C<< --categorize_ncRNAs.pl >> module.
@@ -675,7 +675,7 @@ Run Infernal module of the pipeline. No options required
 =item --skip-cmscan-core
 
 Skip runnning C<< cmscan >> process once you know you have output from a successful 
-<< cmscan >> run. This option can be used when you want lncRNApipe to extract 
+C<< cmscan >> run. This option can be used when you want lncRNApipe to extract 
 annotation from infernal and attempt to annotate putative novel lncRNAs.
 
 =item --cov-inf or --coverage-infernal
