@@ -3628,7 +3628,7 @@ annotation from infernal and attempt to annotate putative novel lncRNAs.
 
 =item --cov-inf or --coverage-infernal
 
-Only annotate final putative lncRNAs which have cmscan match over this much percentage of sequence.
+Only annotate final putative lncRNAs which have C<< cmscan >> match over this much percentage of sequence.
 
 Default: 10
 
