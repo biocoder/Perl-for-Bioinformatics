@@ -378,7 +378,7 @@ If you only want to run lncRNApipe without the transcript assembly stage, then p
 
 No need to provide C<< -r >>, as it will be handled by lncRNApipe.
 
-Provide C<< -i transcript_assembly_list.txt>> if you did not run assembly stage, where C<< transcript_assembly_list.txt >> contains full path to assembled transcript files.
+Provide C<< -i transcript_assembly_list.txt >> if you did not run assembly stage, where C<< transcript_assembly_list.txt >> contains full path to assembled transcript files.
 
 Ex:
 
