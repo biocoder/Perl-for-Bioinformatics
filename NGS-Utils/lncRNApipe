@@ -998,7 +998,7 @@ sub setup_lncRNApipe {
     $io->error('It is not a 64-bit machine!' . 
 	       "\nIt is your responsibility to make sure that you have the following tools" .
 	       " installed for your system architecture and also must be found in \$PATH:\n" .
-	       "\nblastall, gtfToGenePred, cuffcompare and RNAfold\n\nBailing out!") 
+	       "\nblastall, gtfToGenePred, genePredToGtf, bowtie, tophat, trimmomatic-0.33.jar\ncufflinks, cuffcompare, cuffdiff, cmscan, sambamba, formatdb, and RNAfold\n\nBailing out!") 
 	if ($sys_arch_info !~ m/x86\_64/i);
 
 
@@ -2957,7 +2957,7 @@ __END__
 
 =head1 SYNOPSIS
 
-lncRNApipe is a reference annotation based automated pipeline to identify non-coding RNAs, both known and novel from RNA-Seq reads. It takes FASTQ / FASTA reads as input, trims reads, assembles transcripts, and identifies any possible known and novel ncRNAs, categorizes them into 5 catgories: Long intergenic lncRNAs (LincRNAs), Intronic contained lncRNAs (Incs), Partially overlapping lncRNAs (Poncs), Completely overlapping lncRNAs (Concs) and Exonic overlaps (LncRNAs with sense or antisense overlap with reference exon) and annotates the novel ncRNAs.
+lncRNApipe is a reference annotation based automated pipeline to identify non-coding RNAs, both known and novel from RNA-Seq reads. It takes FASTQ / FASTA reads as input, trims reads, assembles transcripts, and identifies any possible known and novel ncRNAs, categorizes them into 5 catgories: Long intergenic lncRNAs (B<I<LincRNAs>>), Intronic contained lncRNAs (B<I<Incs>>), Partially overlapping lncRNAs (B<I<Poncs>>), Completely overlapping lncRNAs (B<I<Concs>>) and Exonic overlaps (B<I<LncRNAs with sense or antisense overlap with reference exon>>) and annotates the novel ncRNAs, where possible.
 
 See complete description: 
 
@@ -2965,11 +2965,19 @@ See complete description:
 
 Examples:
 
+View this documentation:
+
  perl lncRNApipe --h
+
+Run the complete pipeline from the configuration file params.yaml:
 
  perl lncRNApipe --conf params.yaml
 
+Run the complete pipeline on the grid from the configuration file params.yaml and do not wait for user confirmation of Grid job IDs:
+
  perl lncRNApipe --conf params.yaml --dont-wait
+
+Run the B<I<identification stage>> of the pipeline through command-line options without mentioning the configuration file params.yaml:
 
  perl lncRNApipe --run /data/lncRNApipe/ \
                  --cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' \
@@ -2982,16 +2990,18 @@ Examples:
 
 =head1 INSTALLATION
 
-lncRNApipe was designed in Linux environment and can be installed on UNIX based machines. If it is a 64-bit machine, all required prerequisites are sandboxed with the software and taken care of, which should run in most instances. lncRNApipe will attempt to find any available prerequisites on your machine and will default to them before using sandboxed binaries. All you need to do is run the following command to install the pipeline and all of its required dependencies:
+lncRNApipe was developed in Linux environment and can be installed on UNIX based machines. If it is a 64-bit machine, all required prerequisites are sandboxed with the software and taken care of, which should run in most instances. lncRNApipe will attempt to find any available prerequisites on your machine and will default to them before using sandboxed binaries. All you need to do is run the following command to install the pipeline and all of its required dependencies:
  
  cd /change/into/my/preferred/path/of/installation
  perl lncRNApipe --setup
 
-If you are on a 32-bit machine, run the same command as show above, and lncRNApipe will let you know, which tools must to be installed and be available in your C<< $PATH >>
+If you are on a 32-bit machine, run the same command as show above, and lncRNApipe will let you know, which tools must to be installed and be available in your C<< $PATH >>.
 
 In any case, the setup process will prompt you to specify whether or not you want to install B<I<BioPerl>> and whether or not B<I<uniref90.fasta>> file should be downloaded and formatted to be used with C<< blastall >> command.
 
-If the setup process fails due to compiler issues, or if any Perl module installation fails, try setting different compiler specific to your machine state with the following command
+If the setup process fails due to compiler issues, or if any Perl module installation fails, try setting different compiler specific to your machine state with the following command:
+
+Example (Using g++ as the compiler):
 
  perl lncRNApipe --setup --setup-compiler CC=g++
 
@@ -3001,7 +3011,7 @@ lncRNApipe is a complete automated pipeline to:
 
 =over 4
 
-=item * Trim B<FASTQ> reads.
+=item * Trim B<FASTQ> reads using Trimmomatic.
 
 
 =item * Map reads using spliced read mapper Tophat.
@@ -3012,6 +3022,7 @@ lncRNApipe is a complete automated pipeline to:
 
 =item * Identify known non-coding RNAs and any putative novel non-coding RNAs based on reference annotation. 
 
+=item * Annotate novel non-coding RNAs using C<< cmscan >> from Infernal.
 
 =item * Run cuffdiff to identify differentially expressed known ncRNAs and novel ncRNAs.
 
@@ -3019,21 +3030,21 @@ lncRNApipe is a complete automated pipeline to:
 
 =back
 
-The pipeline is very flexible and can be run in two ways: from B<I<assembly stage>> or from B<I<identification stage>> and maitains several checkpoints at each stage so that you can resume from a failed run, if possible. 
+The pipeline is very flexible and can be run in two ways: from B<I<assembly stage>> or from B<I<identification stage>> and maitains checkpoints at each stage so that you can resume from a failed run, if possible. 
 
 =head2 ASSEMBLY STAGE
 
-The most simple way to run the complete pipeline is from the B<I<assembly stage>>.
+The most simplest way to run the complete pipeline is from the B<I<assembly stage>>.
 
 This is where you supply the raw B<FASTQ> reads you got from your sequencing center, configure the parameters in a file called C<< params.yaml >> and run the jobs either or on a compute cluster or on your local work station. The assembly stage can be further broken down into following steps:
 
 =head3 Filtering
 
-lncRNApipe uses L<TRIMMOMATIC|http://www.usadellab.org/cms/?page=trimmomatic> to trim reads. Any options you generally specify to TRIMMOMATIC can be entered in the C<< params.yaml >> file. 
+lncRNApipe uses L<Trimmomatic|http://www.usadellab.org/cms/?page=trimmomatic> to trim reads. Any options you generally specify to Trimmomatic can be entered in the C<< params.yaml >> file. 
 
 =head3 Mapping
 
-lncRNApipe uses L<Tophat|https://ccb.jhu.edu/software/tophat/index.shtml> to perform spliced mapping of RNA-Seq reads. You can speicfy Tophat options using C<< tophat: >> parameter in C<< params.yaml >>. L<Sambamba|https://github.com/lomereiter/sambamba> is used to merge replicate data before running Cufflinks.
+Next, we run L<Tophat|https://ccb.jhu.edu/software/tophat/index.shtml> to perform spliced mapping of RNA-Seq reads. You can speicfy Tophat options using C<< tophat: >> parameter in C<< params.yaml >>. L<Sambamba|https://github.com/lomereiter/sambamba> is used to merge replicate data before running Cufflinks.
 
 =head3 Transcript Assembly
 
@@ -3041,7 +3052,7 @@ L<Cufflinks|http://cole-trapnell-lab.github.io/cufflinks/> is used to perform tr
 
 =head2 IDENTIFICATION STAGE
 
-In the identification stage, the pipeline will bind the functionality of the tools / scripts: C<< cuffcompare >>, C<< categorize_ncRNAs.pl >>, C<< get_unique_features.pl >>, C<< fetch_seq_from_ucsc.pl >>, C<< RNAfold >>, C<< Infernal >> and B<I<Coding Potential Calculator>> (C<< CPC >>). Transcriptome construction tools such as Cufflinks produces a set of assembled transcripts in GTF format. lncRNApipe uses this data in addition to known gene annotation to extract putative lncRNAs constructed by the ab initio assemblers. The pipeline relies on the proper transcript-exon features generated by these assemblers and validates it against the known reference gene and non coding RNA information to identify putative novel lncRNAs. In brief, the pipeline steps are as follows:
+In the identification stage, the pipeline will bind the functionality of the tools / scripts: C<< cuffcompare >>, C<< categorize_ncRNAs.pl >>, C<< get_unique_features.pl >>, C<< fetch_seq_from_ucsc.pl >>, C<< RNAfold >>, C<< Infernal >> and B<I<Coding Potential Calculator>> (C<< CPC >>). Transcriptome construction tools such as Cufflinks produces a set of assembled transcripts in GTF format. lncRNApipe uses this data in addition to known gene annotation to extract putative lncRNAs constructed by the ab initio assemblers. The pipeline relies on the proper transcript-exon features generated by the assembler and validates it against the known reference gene and non coding RNA information to identify putative novel lncRNAs. In brief, the pipeline steps in the B<I<identification stage>>are as follows:
 
 =over 5
 
@@ -3057,7 +3068,7 @@ To get help documentation about this module, run:
 
 =item 2. categorize_ncRNAs.pl (lncRNApipe Option: --cat or --cat-ncRNAs)
     
-lncRNApipe uses the tracking file (*.tracking) produced by Cuffcompare, annotation data in gene prediction format and a list of supplied transcripts in GTF format to produce and categorize lncRNAs into different classes as mentioned in this L<paper|http://genome.cshlp.org/content/22/3/577.full>. In brief, the lncRNAs are classified into 5 categories: B<Long intergenic lncRNAs> (B<I<LincRNAs>>), B<Intronic contained lncRNAs> (B<I<Incs>>), B<Partially overlapping lncRNAs> (B<I<Poncs>>), B<Completely overlapping lncRNAs> (B<I<Conc>>) and B<Exonic overlaps> (LncRNAs with sense or antisense overlap with reference exon).
+lncRNApipe uses the tracking file (C<< *.tracking >>) produced by Cuffcompare, annotation data in gene prediction format and a list of supplied transcripts in GTF format to produce and categorize lncRNAs into different classes as mentioned in this L<paper|http://genome.cshlp.org/content/22/3/577.full>. In brief, the lncRNAs are classified into 5 categories: B<Long intergenic lncRNAs> (B<I<LincRNAs>>), B<Intronic contained lncRNAs> (B<I<Incs>>), B<Partially overlapping lncRNAs> (B<I<Poncs>>), B<Completely overlapping lncRNAs> (B<I<Concs>>) and B<Exonic overlaps> (B<I<LncRNAs with sense or antisense overlap with reference exon>>).
 
 To get help documentation about this module, run:
 
@@ -3065,7 +3076,7 @@ To get help documentation about this module, run:
 
 =item 3. get_unique_features.pl (lncRNApipe Option: --get or --get--uq-feat)
     
-It then compares the putative list with supplied known lncRNAs in BED format to get features that do not overlap any known lncRNAs. To extract known lncRNAs from your assembled transcripts for downstream analysis, include --known with --get option of lncRNAscan (--known option with lncRNApipe is experimental).
+It then compares the putative list with supplied known lncRNAs in BED format to get features that do not overlap any known lncRNAs. To extract known lncRNAs from your assembled transcripts for downstream analysis, include C<< --known >> with C<< --get >> option of lncRNAscan.
 
 To get help documentation about this module, run:
 
@@ -3081,7 +3092,7 @@ To get help documentation about this module, run:
 
 =item 5. CPC.sh (lncRNApipe Option --cpc or --cpc)
     
-In this step, the fetched FASTA sequences are used to determine the coding potential and those that are flagged as "noncoding" are used to create the final list of high confidence lncRNAs. This step may take a while to finish.
+In this step, the fetched FASTA sequences are used to determine the coding potential and those that are flagged as B<noncoding> are used to create the final list of high confidence lncRNAs. This step may take a while to finish.
 
 To get help documentation about this module, run:
 
@@ -3089,7 +3100,7 @@ To get help documentation about this module, run:
 
 =item 6. RNAfold (lncRNApipe Option --rna or --rnafold)
 
-Here, lncRNApipe pipeline invokes RNAfold program to calculate minimum free energy structure of the predicted non-coding RNA. This step may take a while to finish.
+Here, lncRNApipe pipeline invokes C<< RNAfold >> program to calculate minimum free energy structure of the predicted non-coding RNA. This step may take a while to finish.
                                                                                                                                                                 
 To get help documentation about this module, run:
     
@@ -3097,7 +3108,7 @@ To get help documentation about this module, run:
 
 =item 7. Infernal (lncRNApipe Option --inf or --infernal)
 
-In the final step, lncRNApipe pipeline invokes cmscan from Infernal package to search Rfam databases for sturcture and sequence similarities to annotate the putative lncRNAs .
+In the final step, lncRNApipe pipeline invokes C<< cmscan >> from B<Infernal> package to search Rfam databases for sturcture and sequence similarities to annotate the putative lncRNAs .
 
  
 To get help documentation about this module, run:
@@ -3108,7 +3119,7 @@ To get help documentation about this module, run:
 
 =head1 RUNNING lncRNApipe
 
-lncRNApipe can be run either completely via the configuration file a.k.a C<< params.yaml >> or the B<I<identification stage>> i.e the pipeline from C<< cuffcompare >> can be run independently without specifying the configuration file C<< params.yaml >>, where you specify everything needed through the command line options, but we recommend that you use the configuration file for sake of clarity and simplicity.
+lncRNApipe can be run either completely via the configuration file a.k.a C<< params.yaml >> or the B<I<identification stage>> i.e the pipeline from C<< cuffcompare >> can be run independently without specifying the configuration file (C<< params.yaml >>), where you specify everything needed through the command line options, but we recommend that you use the configuration file for sake of clarity and simplicity.
 
 The file C<< params.yaml >> contains all options required to run the pipeline from start to finish. Once you have entered the options as per your requirements, then run the pipeline using the following command:
 
@@ -3136,7 +3147,7 @@ Example:
 
 =item outputDir: /data/konganti/FASTQ_RNAseq/new-lncRNApipe2
 
-Specify output directory. In the example above, a new output directory called C<< new-lncRNApipe2 >> will be created at the mentioned path /data/konganti/FASTQ_RNAseq
+Specify output directory. In the example above, a new output directory called C<< new-lncRNApipe2 >> will be created at the mentioned path C<< /data/konganti/FASTQ_RNAseq >>
 
 =item overwriteOutputDir: NO
 
@@ -3154,7 +3165,7 @@ Specify number of threads / CPUs to use where possible. If running on a grid, pl
 
 =item scheduler: SGE
 
-Specify scheduler type. Valid options are C<< PBS >>, C<< SGE >>, C<< LSF >>, C<< SLURM >> or NONE to disable grid computing.
+Specify scheduler type. Valid options are C<< PBS >>, C<< SGE >>, C<< LSF >>, C<< SLURM >> or C<< NONE >> to disable grid computing.
 
 =item batchSubCmd: qsub
 
@@ -3165,12 +3176,12 @@ For example, for C<< LSF >>, it is C<< bsub >>, for C<< PBS >> or C<< SGE >>, it
 
 Specify scheduler options on separate line specific to your job running environment.
 
-******************* B<!! IMPORTANT !!> *****************************
+********************* B<!! IMPORTANT !!> *****************************
 
 Different clusters uses different job parameter names. For
-example our cluster uses num_threads as parameter name to
+example our cluster uses C<< num_threads >> as parameter name to
 request number of CPUs in SGE. Some clusters may use
-num_cpu. Since it is difficult to guess, please provide
+C<< num_cpu >>. Since it is difficult to guess, please provide
 number of CPUs you want to use based on your grid environment
 below, which is equal to C<< CPUs: >> option above. Yes, we know that
 this is kind of redundant but it is necessary evil. What ever
@@ -3180,7 +3191,6 @@ exactly in the job script.
 B<IF IT IS NOT PROVIDED, THE JOB WILL RUN ON SINGLE CPU OR
 MAY RUN ON MULTIPLE CPUs WHEN IT IS NOT SUPPOSED TO>.
 
-********************************************************************
 
 Ex for PBS (job parameters start with a C<< PBS >> directive):
 
@@ -3217,7 +3227,7 @@ Specify if your reads are C<< SE >> (single-end only), C<< PE >> (paried-end onl
 
 =item sourceDB: UCSC
 
-Specify if you want to use C<< ENSEMBL >> or C<< UCSC >> as source for annotation if you do not want to use C<< useThisAnnotation: >>. B<PLEASE MAKE SURE> that you are using the same sourceDB for tophat alignments, i.e. bowtie indexes created from the same sourceDB for the same assembly version. As downloding genome indices on-the-fly is time consuming and since many users may have genome indices installed for various NGS analysis anyways, we leave it to you to provide B<CORRECT> genome index below in tophat and cufflinks options' configuration.
+Specify if you want to use C<< ENSEMBL >> or C<< UCSC >> as source for annotation if you do not want to use C<< useThisAnnotation: >>. B<PLEASE MAKE SURE> that you are using the same C<< sourceDB >> for tophat alignments, i.e. bowtie indexes created from the same C<< sourceDB >> for the same assembly version. As downloding genome indices on-the-fly is time consuming and since many users may have genome indices installed for various NGS analysis anyways, we leave it to you to provide B<CORRECT> genome index below in tophat and cufflinks options' configuration.
 
 =item species: rn4
 
@@ -3230,7 +3240,7 @@ For example, at C<< UCSC >>, for mouse, it is C<< mm9 >> or C<< mm10 >>, for rat
 
 =item useThisAnnotation: /data/ref_annotation/rn4_UCSC/genes.gtf
 
-If you want to use your own annoation file, provide full path to the annotation file of your choice. This option overrides C<< sourceDB: >> and C<< species: >> options above. Again, B<PLEASE MAKE SURE>, you are providing the same genome index from the same source. In the example below, C<< bowtieGenomeIndex >> is C<< rn4 >> genome index created from C<< FASTA >> files from C<< UCSC >>.
+If you want to use your own annoation file, provide full path to the annotation file of your choice. This option overrides C<< sourceDB: >> and C<< species: >> options above. Again, B<PLEASE MAKE SURE>, you are providing the same genome index from the same source annotation file. In the example below, C<< bowtieGenomeIndex >> is C<< rn4 >> genome index created from C<< FASTA >> files from C<< UCSC >>.
 
 =item reads: 
 
@@ -3238,7 +3248,7 @@ Provide Unix path to directory where the read files are located and also provide
 
 B<PLEASE MAKE SURE THE READS ARE IN ORDER. DO NOT MIX AND MATCH READ ORDERS. WE HAVE NO WAY OF KNOWING WHICH READ FILE IS _1 or _2>.
 
-In the example below, I have 6 samples and each sample has about 5-6 replicates. The read library is C<< SE >>.
+In the example below, I have 8 samples and each sample has about 5-6 replicates. The read library is C<< SE >>.
 
  reads:
   readsDir: /data/konganti/FASTQ_RNAseq/reads
@@ -3247,7 +3257,7 @@ In the example below, I have 6 samples and each sample has about 5-6 replicates.
 
 =item trimmomatic:
 
-If you want to use TRIMMOMATIC to trim reads, then provide TRIMMOMATIC options. TRIMMOMATIC provides the following adapter files: NexteraPE-PE.fa, TruSeq2-PE.fa, TruSeq2-SE.fa, TruSeq3-PE-2.fa, TruSeq3-PE.fa and TruSeq3-SE.fa. These adapter files are COPYRIGHTED by ILLUMINA and I am in the process of obtaining permission to redesitribute them with TRIMMOMATIC. For now, choose one or provide full path to the adapter sequence file you want to use.
+If you want to use Trimmomatic to trim reads, then provide TRIMMOMATIC options. TRIMMOMATIC provides the following adapter files: B<I<NexteraPE-PE.fa>>, B<I<TruSeq2-PE.fa>>, B<I<TruSeq2-SE.fa>>, B<I<TruSeq3-PE-2.fa>>, B<I<TruSeq3-PE.fa>> and B<I<TruSeq3-SE.fa>>. These adapter files are COPYRIGHTED by ILLUMINA and I am in the process of obtaining permission to redesitribute them with TRIMMOMATIC. For now, provide full path to the adapter sequence file you want to use.
 
 No need to provide C<< -threads >>, as it will be handled by lncRNApipe.
 
@@ -3287,6 +3297,160 @@ Ex:
   - --transcriptome-index=/data/konganti/FASTQ_RNAseq/transcriptome_index/rn4
   - --no-coverage-search
 
+=item cufflinks:
+
+Provide cufflinks options and also "PLEASE MAKE SURE" you provide the same reference FASTA for the sourceDB you want to use in case of bias correction.
+
+No need to provide C<< -g >>, as it will be handled by lncRNApipe.
+
+No need to provide C<< -o >>, as it will be handled by lncRNApipe.
+
+No need to provide C<< -p >>, as it will be handled by lncRNApipe.
+
+No need to provide input files, as they will be handled by lncRNApipe.
+
+Ex:
+
+ cufflinks:
+  - -u
+  - -b /data/ref_fasta/rn4_UCSC/genome.fa
+
+=item cuffcompare:
+
+Provide cuffcompare options.
+
+********************* B<!! IMPORTANT !!> *****************************
+
+If you only want to run lncRNApipe without the transcript assembly stage, then provide assembled transcripts in GTF format, otherwise, no options are needed.
+# 
+
+No need to provide -r, as it will be handled by lncRNApipe.
+
+Provide "-i transcript_assembly_list.txt" if you did not run assembly stage, where transcript_assembly_list.txt contains full path to assembled transcript files.
+
+Ex:
+
+ cuffcompare:
+  - -i /data/cufflinks/assembly_list.txt
+
+=item categorize_ncRNAs:
+
+Provide categorize_ncRNAs.pl's options. See C<< perl lncRNApipe --h cat >> for description of options.
+
+No need to provide C<< -annot >> option as it is handled by lncRNApipe.
+
+Ex:
+
+ categorize_ncRNAs:
+  - -sample-names "cca,fpa,cpa,fca,ccs,cps,fcs,fps"
+  - -len 150
+  - -min-exons 1
+  - -ov 80
+  - -inc
+
+=item get_unique_features:
+
+Provide get_unique_features.pl options. Generally only "-ov" is required in either case of C<< [performTranscriptAssembly: YES] >> or C<< [performTranscriptAssembly: NO] >>.
+
+When you supply your own known ncRNAs file to compare against with C<< -sf >>, then you MUST also specify it's file format (Ex: gtf or bed) with
+C<< -sff >> option.
+ 
+See C<< perl lncRNApipe --h get >> for description of options.
+
+Ex:
+
+ get_unique_features:
+  - -ov 10
+  - -sf test
+  - -sff gtf
+
+=item runRNAfold:
+
+By, default, C<< RNAfold >> is not run since it is very slow.
+It is generally recommended to generate C<< RNAfold >> plots
+based on the transcript of your interest after you have
+investigated the results, but you can still enable it
+in the pipeline by uncommenting << runRNAfold: YES >> to
+run C<< RNAfold>>  with default options.
+
+To pass command line options to RNAfold, define it's
+after line "RNAfold:" 
+
+Mention any other option other than C<< -p >> and C<< --noPS >> as they
+are automatically handled by lncRNApipe.
+
+See C<< perl lncRNApipe -h rna >> for description of options.
+
+Ex:
+
+ runRNAfold: YES
+ RNAfold:
+  - --circ
+
+=item runcmscan:
+
+Provide options to cmscan. Running cmscan with
+default options provides good matches in
+most cases, but in any case you want to add
+extra options, do it here.
+
+To run cmscan with default options, use
+C<< runcmscan: YES >>.
+
+Add additional options you want to pass to cmscan
+after line "C<< cmscan: >>. Provide any options other than C<< -o >>, C<< --tblout >>
+and C<< --cpu >> as they are automatically handled by lncRNApipe.
+
+See C<< "perl lncRNApipe -h inf >> for description of options.
+
+Ex:
+
+ runcmscan: YES
+ cmscan:
+ # - -E 9.0
+
+=item cuffmerge:
+
+Provide cuffmerge options. If you have replicates, final predicted lncRNAs will be merged.
+
+No need to provide C<< -s >>, as it will be handled by lncRNApipe.
+
+No need to provide C<< -g >>, as it will be handled by lncRNApipe.
+
+Ex:
+
+ cuffmerge:
+  - --min-isoform-fraction 0.05
+ 
+=item cuffdiff:
+
+Provide cuffdiff options if you want to run differential expression
+tests between known ncRNAs and between novel ncRNAs in your samples.
+
+Normally, cuffdiff is only run on identified known and novel ncRNAs.
+If you want to run cuffdiff on all transcripts, i.e to identify
+differentially expressed transcripts (end of typical tuxedo pipeline),
+then change "runCuffdiffForAllTranscripts" to YES. 
+
+If you have mentioned C<< -sample-names >> above in C<< categorize_ncRNAs: >>,
+no need to mention C<< -L >>, else provide << -L >> option here.
+
+No need to provide C<< -o >>, as it will be handled by lncRNApipe.
+
+No need to provide C<< -p >>, as it will be handled by lncRNApipe.
+
+No need to provide input files, if you have run tophat, cufflinks above.
+
+If C<< performTranscriptAssembly >> is C<< NO >>, then provide your own BAM files here prefixed by C<< -bam >> option. Separate replicate BAM files with comma as you generally do with cuffdiff command.
+
+Ex:
+
+ runCuffdiffForAllTranscripts: YES
+ cuffdiff:
+  - -u
+  - -b /data/ref_fasta/rn4_UCSC/genome.fa
+  # - -bam /data/aligned_rn4_UCSC/sample1/rep1.bam,/data/aligned_rn4_UCSC/sample1/rep2.bam /data/aligned_rn4_UCSC/sample2/rep1.bam,/data/aligned_rn4_UCSC/sample2/rep2.bam
+
 =back
 
 =head1 CAVEATS
@@ -3311,71 +3475,59 @@ The final output is a putative list of annotated lncRNAs in GTF format that can 
 
 =over 5
 
-=item * Output from "cuffcompare" is stored in the directory called "cuffcompare". lncRNApipe uses "lncRNApipe_cuffcmp.tracking" file from this folder for the next module.
+=item * Output from C<< cuffcompare >> is stored in the directory called B< cuffcompare >. lncRNApipe uses C<< lncRNApipe_cuffcmp.tracking >> file from this folder for the next module.
 
-=item * Output from "categorize_ncRNAs.pl" is stored in the directory called "categorize_ncRNAs". lncRNApipe uses files ending with suffix ".putative.class.lncRNAs.gtf" for the next module.
+=item * Output from C<< categorize_ncRNAs.pl >> is stored in the directory called B<categorize_ncRNAs>. lncRNApipe uses files ending with suffix C<< .putative.class.lncRNAs.gtf >> for the next module.
 
-=item * Output from "get_unique_features.pl" output is stored in the directory called "get_unique_features". lncRNApipe uses files ending with suffix ".putative.class.lncRNAs.unique.gtf" for the next module
+=item * Output from C<< get_unique_features.pl >> output is stored in the directory called B<get_unique_features>. lncRNApipe uses files ending with suffix C<< .putative.class.lncRNAs.unique.gtf >> or C<< .putative.class.lncRNAs.known.gtf  >> for the next module.
 
-=item * Output from "fetch_seq_from_ucsc.pl" is stored in the directory called "fetch_seq_from_ucsc". lncRNApipe uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules. The file ending in suffix ".noncoding.FASTA" is used for the next modules.
+=item * Output from C<< fetch_seq_from_ucsc.pl >> is stored in the directory called B<fetch_seq_from_ucsc>. lncRNApipe uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules. The file ending in suffix C<< .noncoding.noncoding.FASTA >> is used for the next modules.
 
-=item * CPC predictions are stored in a directory called "CPC".
+=item * C<< CPC >>predictions are stored in a directory called B<CPC>.
 
-=item * The final result files are stored in a directory called "lncRNApipe.final" and have a suffix ".final.gtf".
+=item * The final result files are stored in a directory called B<I<lncRNApipe.final>> and have a suffix B<.final.gtf>.
 
-=item * The RNAfold plots are stored in directories inside "lncRNApipe.final" directory ending in suffix ".final.RNAfold".
+=item * The C<< RNAfold >> plots are stored in directories inside B<lncRNApipe.final> directory ending in suffix C<< .final.RNAfold >>.
 
-=item * The result files from "cmscan" (Infernal) are stored in directories inside "lncRNApipe.final" directory ending with suffix ".infernal". The file ending in suffix ".allInfernalHits.gtf" contains all RNA hmm and cm model matches from "cmscan" (Infernal) and the best hit is applied to file ending in suffix ".final.gtf" based on the sequence coverage ("--coverage-infernal") filter requested.
+=item * The result files from C<< cmscan >> (B<Infernal>) are stored in directories inside B<lncRNApipe.final> directory ending with suffix C<< .infernal >>. The file ending in suffix C<< .allInfernalHits.gtf >> contains all RNA hmm and cm model matches from C<< cmscan >> (B<Infernal>) and the best hit is applied to file ending in suffix C<<.final.gtf>> based on the sequence coverage (C<< --coverage-infernal >>) filter requested.
 
 =back
 
 The pipeline has the ability to run each of these individual modules if any of them fail during the initial run.
 
-=head1 EXAMPLE
-
-=head2 Installation:
+=head2 Start the pipeline without using the configuration file:
 
 =over 5
 
-=item * This script will try its best to setup the pipeline on the suitable architecture.
-
- perl lncRNApipe --setup
-
-=back
-
-=head2 Start the Pipeline:
-
-=over 5
-
-=item * Run the complete pipeline:
+=item * Run the complete pipeline without using the configuration file through command line options:
 
  perl lncRNApipe --run /data/lncRNApipe/ --cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 80 -len 200 -max-len 10000 -min-exons 1 -fpkm 2 -antisense -sample-names "M0,M1,M2"' --get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed' --fetch --cpc --inf
 
-=item * Run categorize_ncRNAs module of the pipeline:
+=item * Run B<I<categorize_ncRNAs>> module of the pipeline:
     
  perl lncRNApipe --run /data/lncRNApipe/ --cat '-clean -overlap 80 -len 200 -max-len 10000 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf'
 
-=item * Run get_unique_features module of the pipeline to extract novel lncRNAs:
+=item * Run B<I<get_unique_features>> module of the pipeline to extract novel lncRNAs:
     
  perl lncRNApipe -run /data/lncRNApipe --get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed'
 
-=item * Run get_unique_features module of the pipeline to extract known lncRNAs:
+=item * Run B<I<get_unique_features module>> of the pipeline to extract known lncRNAs:
     
  perl lncRNApipe --run /data/lncRNApipe --get '--known -sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed'
 
-=item * Run fetch_unique_features module of the pipeline:
+=item * Run B<I<fetch_unique_features module>> of the pipeline:
 
- perl lncRNApipe --run /data/lncRNApipe --fetch '-db mm10'
+ perl lncRNApipe --run /data/lncRNApipe --fetch '-local /data/ref_fasta/mm10_UCSC/genome.fa'
 
-=item * Run CPC module of the pipeline:
+=item * Run B<I<CPC>> module of the pipeline:
 
  perl lncRNApipe --run /data/lncRNApipe --cpc
 
-=item * Run RNAfold module of the pipeline:
+=item * Run B<I<RNAfold>> module of the pipeline:
 
  perl lncRNApipe --run /data/lncRNApipe --rna
 
-=item * Run Infernal module of the pipeline:
+=item * Run B<I<Infernal>> module of the pipeline:
 
  perl lncRNApipe --run /data/lncRNApipe --inf
 
@@ -3403,10 +3555,22 @@ Displays this helpful message.
     
 Try to setup the pipeline with all its dependencies.
 
+=item --setup-compiler
+
+If any of the perl module installation fails during the setup process, change
+the compiler that works with your machine state.
+
+Ex:
+
+ perl lncRNApipe --setup --setup-compiler CC=icpc
+
 =item --run or --run
 
 Run the lncRNApipe pipeline with output directory supplied as option.
-Ex: perl lncRNApipe -run /home/konganti/lncRNApipe_output ...
+
+Ex: 
+ 
+ perl lncRNApipe -run /home/konganti/lncRNApipe_output ...
 
 =item --cuff or --cuffcompare
 
@@ -3495,6 +3659,10 @@ a log file. Ex:
 and then, if the run fails or if you wish to discuss other issues. Use:
  
      perl lncRNApipe --send-run-report '-email your_email@gmail.com -log lncRNApipe.run.log -m "I cannot run lncRNApipe because lorem ipsum ...."'
+
+=item --dont-wait
+
+Initially, when designing the pipeline, using Schedule::DRMAAc was considered to submit jobs via DRMAA API in grid computing environment. I later found that C<< drmaa.h >> is not present on all cluster insllations and cluster admins can install that request, but it defeats the purpose of simply installing the pipeline and just run the jobs. I then used perl regex to parse the output of the batch submission command and create dependency chain from it. It works on most of the cluster installations where the scheduler is either SGE, PBS, SLURM or LSF. Using this option will not wait for user confirmation to verify that the program has parsed the job IDs correctly. When this option is not used, the program will prompt for user to verify that the job IDs gathered are in fact correct. Yes, this is rudimentary, but as I explained above, it gets the job done.
 
 =back
 
