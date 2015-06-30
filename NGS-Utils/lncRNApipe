@@ -2969,15 +2969,15 @@ View this documentation:
 
  perl lncRNApipe --h
 
-Run the complete pipeline from the configuration file params.yaml:
+Run the complete pipeline from the configuration file C<< params.yaml >>:
 
  perl lncRNApipe --conf params.yaml
 
-Run the complete pipeline on the grid from the configuration file params.yaml and do not wait for user confirmation of Grid job IDs:
+Run the complete pipeline on the grid from the configuration file C<< params.yaml >> and do not wait for user confirmation of Grid job IDs:
 
  perl lncRNApipe --conf params.yaml --dont-wait
 
-Run the B<I<identification stage>> of the pipeline through command-line options without mentioning the configuration file params.yaml:
+Run the B<I<identification stage>> of the pipeline through command-line options without mentioning the configuration file C<< params.yaml >>:
 
  perl lncRNApipe --run /data/lncRNApipe/ \
                  --cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' \
@@ -3153,7 +3153,7 @@ Specify output directory. In the example above, a new output directory called C<
 
 Indicate, if we should overwrite the output directory if it already exists.
 
-WARNING: THIS WILL REMOVE ANY FILES / DIRECTORIES
+B<WARNING: THIS WILL REMOVE ANY FILES / DIRECTORIES>
 
 =item performTranscriptAssembly: YES
 
@@ -3299,7 +3299,7 @@ Ex:
 
 =item cufflinks:
 
-Provide cufflinks options and also "PLEASE MAKE SURE" you provide the same reference FASTA for the sourceDB you want to use in case of bias correction.
+Provide cufflinks options and also "PLEASE MAKE SURE" you provide the same reference FASTA for the C<< sourceDB >> you want to use in case of bias correction.
 
 No need to provide C<< -g >>, as it will be handled by lncRNApipe.
 
@@ -3324,9 +3324,9 @@ Provide cuffcompare options.
 If you only want to run lncRNApipe without the transcript assembly stage, then provide assembled transcripts in GTF format, otherwise, no options are needed.
 # 
 
-No need to provide -r, as it will be handled by lncRNApipe.
+No need to provide C<< -r >>, as it will be handled by lncRNApipe.
 
-Provide "-i transcript_assembly_list.txt" if you did not run assembly stage, where transcript_assembly_list.txt contains full path to assembled transcript files.
+Provide C<< -i transcript_assembly_list.txt>> if you did not run assembly stage, where C<< transcript_assembly_list.txt >> contains full path to assembled transcript files.
 
 Ex:
 
@@ -3335,7 +3335,7 @@ Ex:
 
 =item categorize_ncRNAs:
 
-Provide categorize_ncRNAs.pl's options. See C<< perl lncRNApipe --h cat >> for description of options.
+Provide C<< categorize_ncRNAs.pl >>'s options. See C<< perl lncRNApipe --h cat >> for description of options.
 
 No need to provide C<< -annot >> option as it is handled by lncRNApipe.
 
@@ -3350,9 +3350,9 @@ Ex:
 
 =item get_unique_features:
 
-Provide get_unique_features.pl options. Generally only "-ov" is required in either case of C<< [performTranscriptAssembly: YES] >> or C<< [performTranscriptAssembly: NO] >>.
+Provide C<< get_unique_features.pl >>'s options. Generally only C<< -ov >> is required in either case of C<< [performTranscriptAssembly: YES] >> or C<< [performTranscriptAssembly: NO] >>.
 
-When you supply your own known ncRNAs file to compare against with C<< -sf >>, then you MUST also specify it's file format (Ex: gtf or bed) with
+When you supply your own known ncRNAs file to compare against with C<< -sf >>, then you B<MUST> also specify it's file format (Ex: gtf or bed) with
 C<< -sff >> option.
  
 See C<< perl lncRNApipe --h get >> for description of options.
@@ -3370,16 +3370,16 @@ By, default, C<< RNAfold >> is not run since it is very slow.
 It is generally recommended to generate C<< RNAfold >> plots
 based on the transcript of your interest after you have
 investigated the results, but you can still enable it
-in the pipeline by uncommenting << runRNAfold: YES >> to
-run C<< RNAfold>>  with default options.
+in the pipeline by uncommenting C<< runRNAfold: YES >> to
+run C<< RNAfold >>  with default options.
 
 To pass command line options to RNAfold, define it's
-after line "RNAfold:" 
+after line C<< RNAfold: >>
 
 Mention any other option other than C<< -p >> and C<< --noPS >> as they
 are automatically handled by lncRNApipe.
 
-See C<< perl lncRNApipe -h rna >> for description of options.
+See C<< perl lncRNApipe --h rna >> for description of options.
 
 Ex:
 
@@ -3389,19 +3389,13 @@ Ex:
 
 =item runcmscan:
 
-Provide options to cmscan. Running cmscan with
-default options provides good matches in
-most cases, but in any case you want to add
-extra options, do it here.
+Provide options to C<< cmscan >>. Running C<< cmscan >> with default options provides good matches in most cases, but in any case you want to add extra options, do it here.
 
-To run cmscan with default options, use
-C<< runcmscan: YES >>.
+To run C<< cmscan >> with default options, use C<< runcmscan: YES >>.
 
-Add additional options you want to pass to cmscan
-after line "C<< cmscan: >>. Provide any options other than C<< -o >>, C<< --tblout >>
-and C<< --cpu >> as they are automatically handled by lncRNApipe.
+Add additional options you want to pass to C<< cmscan >> after line C<< cmscan: >>. Provide any options other than C<< -o >>, C<< --tblout >> and C<< --cpu >> as they are automatically handled by lncRNApipe.
 
-See C<< "perl lncRNApipe -h inf >> for description of options.
+See C<< "perl lncRNApipe --h inf >> for description of options.
 
 Ex:
 
@@ -3424,16 +3418,16 @@ Ex:
  
 =item cuffdiff:
 
-Provide cuffdiff options if you want to run differential expression
+Provide C<< cuffdiff >> options if you want to run differential expression
 tests between known ncRNAs and between novel ncRNAs in your samples.
 
-Normally, cuffdiff is only run on identified known and novel ncRNAs.
-If you want to run cuffdiff on all transcripts, i.e to identify
+Normally, C<< cuffdiff >> is only run on identified known and novel ncRNAs.
+If you want to run C<< cuffdiff >> on all transcripts, i.e to identify
 differentially expressed transcripts (end of typical tuxedo pipeline),
-then change "runCuffdiffForAllTranscripts" to YES. 
+then change C<< runCuffdiffForAllTranscripts >> to C<< YES >>. 
 
 If you have mentioned C<< -sample-names >> above in C<< categorize_ncRNAs: >>,
-no need to mention C<< -L >>, else provide << -L >> option here.
+no need to mention C<< -L >>, else provide C<< -L >> option here.
 
 No need to provide C<< -o >>, as it will be handled by lncRNApipe.
 
@@ -3441,7 +3435,7 @@ No need to provide C<< -p >>, as it will be handled by lncRNApipe.
 
 No need to provide input files, if you have run tophat, cufflinks above.
 
-If C<< performTranscriptAssembly >> is C<< NO >>, then provide your own BAM files here prefixed by C<< -bam >> option. Separate replicate BAM files with comma as you generally do with cuffdiff command.
+If C<< performTranscriptAssembly >> is C<< NO >>, then provide your own BAM files here prefixed by C<< -bam >> option. Separate replicate BAM files with comma as you generally do with C<< cuffdiff >> command.
 
 Ex:
 
