@@ -640,25 +640,6 @@ get_unique_features.pl takes the following arguments:
  from cuffdiff program excluding the test_statistic, p_value and q_value. This option was designed
  to be used with lncRNApipe pipeline. 
 
-=item --merge-common-feat or -mcf
-
- If you have more than 1 file to get common features from, use this option multiple times to get
- common features from all files. The output will be the features from last file used with C<< -mcf >>.
- That means, that those features are common between all the files inquired. Using this option, will basically
- give you minimum set of features common between all files.
-
- Ex:
- 
-     perl get_unique_features.pl -mcf transcripts.cca.putative.class.lncRNAs.unique.final.gtf \
-                                 -mcf transcripts.cpa.putative.class.lncRNAs.unique.final.gtf \
-                                 -mcf transcripts.fpa.putative.class.lncRNAs.unique.final.gtf \
-                                 -mcf transcripts.fca.putative.class.lncRNAs.unique.final.gtf \
-                                 -mcf transcripts.cps.putative.class.lncRNAs.unique.final.gtf \
-                                 -mcf transcripts.ccs.putative.class.lncRNAs.unique.final.gtf \
-                                 -mcf transcripts.fcs.putative.class.lncRNAs.unique.final.gtf \
-                                 -mcf transcripts.fps.putative.class.lncRNAs.unique.final.gtf 
-                                 -sff gtf -cff gtf -extract -stdout -ov 80 -q > merged.ov80.putative.class.lncRNAs.unique.final.gtf
-
 =back
 
 =head1 AUTHOR
