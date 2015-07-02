@@ -3231,7 +3231,7 @@ Specify if your reads are C<< SE >> (single-end only), C<< PE >> (paried-end onl
 
 Specify if you want to use C<< ENSEMBL >> or C<< UCSC >> as source for annotation if you do not want to use C<< useThisAnnotation: >>. B<PLEASE MAKE SURE> that you are using the same C<< sourceDB >> for tophat alignments, i.e. bowtie indexes created from the same C<< sourceDB >> for the same assembly version. As downloding genome indices on-the-fly is time consuming and since many users may have genome indices installed for various NGS analysis anyways, we leave it to you to provide B<CORRECT> genome index below in tophat and cufflinks options' configuration.
 
-I<Currently> C<< sourceDB: >> I<is required to be either> C<< ENSEMBL >> I<or> << UCSC >>. I<In future release, you can upload your own custom reference annotation and custom ncRNA annotation in either BED or GTF format>.
+I<Currently> C<< sourceDB: >> I<is required to be either> C<< ENSEMBL >> I<or> C<< UCSC >>. I<In future release, you can upload your own custom reference annotation and custom ncRNA annotation in either BED or GTF format>.
 
 =item species: rn4
 
@@ -3683,11 +3683,11 @@ Initially, when designing the pipeline, using C<< Schedule::DRMAAc >> was consid
 
 =item --kill
 
-Kill jobs. If you have used either grid submission or not, all the job ids or PIDs will be present in 3 files: B<job_scripts_Day_Month_Day_Hour_Min_Sec_Year>/C<< job_IDs_tophat.RUNID >>, B<job_scripts_Day_Month_Day_Hour_Min_Sec_Year>/C<< job_IDs_cufflinks.RUNID >> and B<job_scripts_Day_Month_Day_Hour_Min_Sec_Year>/C<< job_IDs_lncRNApipe_postAssembly.RUNID >>. If you want to kill any jobs for any reason do:
+Kill jobs. If you have used either grid submission or not used grid submission, all the job ids or PIDs will be present in 3 files: B<job_scripts_Day_Month_Day_Hour_Min_Sec_Year>/C<< job_IDs_tophat.RUNID >>, B<job_scripts_Day_Month_Day_Hour_Min_Sec_Year>/C<< job_IDs_cufflinks.RUNID >> and B<job_scripts_Day_Month_Day_Hour_Min_Sec_Year>/C<< job_IDs_lncRNApipe_postAssembly.RUNID >>. If you want to kill any jobs for any reason do:
 
  perl lncRNApipe --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_tophat.2CphrqPLqFdCs
 
-If you want to kill jobs from multiple job IDs files, do:
+If you want to kill jobs from multiple job IDs' files, do:
 
  perl lncRNApipe --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_tophat.2CphrqPLqFdCs --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_cufflinks.2CphrqPLqFdCs --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_lncRNApipe_postAssembly.2CphrqPLqFdCs
 
