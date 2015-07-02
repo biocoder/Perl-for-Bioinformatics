@@ -51,11 +51,11 @@ grep noncoding $CPC_TXT_OUT | cut -f 1 | sort -n | uniq | while read unetrid; do
 	inf_ann_id=$(($inf_ann_id + 1));
 	
 	if [ "$strand" == "-" ]; then
-	    inf_match_en=$(($seq_from + $contig_st));
-	    inf_match_st=$(($seq_to + $contig_st));
+	    inf_match_en=$((seq_from + contig_st));
+	    inf_match_st=$((seq_to + contig_st));
 	else
-	    inf_match_en=$(($seq_to + $contig_st));
-	    inf_match_st=$(($seq_from + $contig_st));
+	    inf_match_en=$((seq_to + contig_st));
+	    inf_match_st=$((seq_from + contig_st));
 	fi
 	
 	if [ "$inc" == "!" ]; then

@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 
+# These are safe to load. Core modules distributed with Perl itself.
 use strict;
 use warnings;
 use Getopt::Long;
@@ -7,11 +8,12 @@ use File::Temp;
 use File::Basename;
 use Cwd qw (abs_path cwd);
 use Term::ANSIColor qw(:constants);
+use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-07-08 11:45:27 -0500 (Fri, 08 May 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0.7.9 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-07-02 14:21:27 -0500 (Thu, 02 July 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.0.0 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -22,11 +24,14 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $skip_rnafold_core, $skip_cmscan_core,
     $lncRNApipe_ver_info, $no_update_check, 
     $skip_get_uq, $lncRNApipe_succ, $num_cpu_by_2,
-    $skip_cpc, $debug);
+    $skip_cpc, $debug, $sp_list, $pipe_config,
+    $conf_run_id, $setup_compiler,
+    $cpanm_args, $donot_wait4jobIDs);
 
+my $kill_jobs_thru_conf = [];
 my $is_valid_option = GetOptions('help:s'                           => \$help,
                                  'quiet'                            => \$quiet,
-				 'setup'                            => \$setup,
+				 'setup:s'                          => \$setup,
 				 'run=s'                            => \$out, 
 				 'cuffcompare|cuffcmp=s'            => \$cuffcmp_opts,
 				 'cat-ncRNAs=s'                     => \$categorize_sc_opts,
@@ -46,7 +51,12 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'no-update-chk|noup|d'             => \$no_update_check,
 				 'skip-get|skip-get-uq'             => \$skip_get_uq,
 				 'skip-cpc'                         => \$skip_cpc,
-				 'send-run-report=s'                => \$debug);
+				 'send-run-report=s'                => \$debug,
+				 'list=s'                           => \$sp_list,
+				 'configuration=s'                  => \$pipe_config,
+				 'kill-conf-jobs=s'                 => $kill_jobs_thru_conf,
+				 'setup-compiler=s'                 => \$setup_compiler,
+				 'dont-wait-4-job-ids'              => \$donot_wait4jobIDs);
 
 # Initialize known defaults
 my $CAT_SC = 'categorize_ncRNAs.pl';
@@ -56,15 +66,17 @@ my $CPC_SH_SC = 'CPC.sh';
 my $ANN_INF_SC = 'annotate_final_ncRNAs.sh';
 my $RELPLOT_MOD_SC = 'relplot_mod.pl';
 my $SEND_MAIL_SC = 'send_lncRNApipe_log.pl';
+my $HGCONF = 'hg.conf.sh';
 my $USER_HOME = dirname(abs_path($0));
+$inf_cov = 10 if (!defined $inf_cov);
+$skip_get_uq = 1 if (defined $skip_get_uq || (!defined $get_uq_sc_opts && defined $fetch_sc_opts));
+
 if (defined $num_cpu) {
     $num_cpu_by_2 = sprintf("%.0f", $num_cpu / 2) - 1;
 } 
 else {
     $num_cpu_by_2 = 1;
 }
-$inf_cov = 10 if (!defined $inf_cov);
-$skip_get_uq = 1 if (defined $skip_get_uq || (!defined $get_uq_sc_opts && defined $fetch_sc_opts));
 
 if (!$is_valid_option) {
     die "\nInvalid / No Option(s) Provided:$! See $0 --help for valid options.\n\n";
@@ -79,6 +91,15 @@ elsif (defined $lncRNApipe_ver_info) {
     exit 0;
 }
 elsif (defined $setup) {
+    if (defined $setup_compiler) {
+	die "\nCompiler argument should be in the format COMPILER_VAR_NAME=COMPILER and your\n" .
+	    "compiler should be in your UNIX \$PATH.\n\nEx: --setup-compiler CC=g++\n\n"
+	    if ($setup_compiler !~ m/^\w+=\w+$/);
+	$cpanm_args = "--configure-args $setup_compiler";
+    }
+    else {
+	$cpanm_args = '';
+    }
     setup_lncRNApipe(`pwd`) 
 }
 elsif (defined $out || (defined $help && $help eq '')) {
@@ -89,7 +110,7 @@ elsif (defined $debug) {
     my $pl_dep_paths_fh = read_conf('/.lncRNApipe.PERLLIBS');
     my $pl_inc_string = source_env($pl_dep_paths_fh);
     get_deps($depconf_fh);
-    system("$deps->{'email'} $debug");
+    system("perl $pl_inc_string $deps->{'email'} $debug");
 }
 elsif (defined $help && $help ne '') {
     my $depconf_fh = read_conf('/.lncRNApipe.depconf');
@@ -106,6 +127,32 @@ elsif (defined $help && $help ne '') {
     close $depconf_fh;
     close $pl_dep_paths_fh;
 }
+elsif (defined $sp_list) {
+    my $io = run_lncRNApipe('version');
+    list($io);
+    exit 0;
+}
+elsif (defined $pipe_config) {
+    my $io = run_lncRNApipe('version');
+    $io->error('Cannot find the configuration file [ ' . $pipe_config . ' ] or the file is empty!')
+	if (!-s $pipe_config || !-e $pipe_config);
+
+    # Where were our modules installed.
+    my $depconf_fh = read_conf('/.lncRNApipe.depconf');
+    my $pl_dep_paths_fh = read_conf('/.lncRNApipe.PERLLIBS');
+    my $pl_inc_string = source_env($pl_dep_paths_fh);
+    
+    get_deps($depconf_fh);
+
+    # Will fail if not installed properly.
+    require YAML;
+    YAML->import( qw( LoadFile ) );
+    my $lncRNApipe_config = LoadFile($pipe_config);
+    #$io->c_time("Read parameters: \n\n" . Data::Dumper->Dump([$lncRNApipe_config], [qw(lncRNApipe_config)]));
+
+    # Now run lncRNApipe from config file
+    run_lncRNApipe($lncRNApipe_config);
+}
 else {
 
 ################################################################################################
@@ -114,7 +161,9 @@ else {
 #     =================================================================================        #
 #                                                                                              #
 ################################################################################################
+    print "\nHELP!\n--------\n\n\t$0 --h cuff\n\t$0 --h cat-ncRNAs\n\t$0 --h get-uq-feat\n\t$0 --h fetch\n\t$0 --h cpc\n\t$0 --h rnafold\n\t$0 --h inf\n\n";
     check_for_updates();
+    print "\n$0 called with no command line options. See $0 --help for options.\n\n";
 }
 
 ################################################################################################
@@ -139,7 +188,20 @@ sub run_lncRNApipe {
 
     return $io if ($shall_I_run eq 'version');
 
+    my $s_time = $io->start_timer;
+    binmode(STDOUT, ":utf8");
+
     $io->verify_options([$out, $is_valid_option]) if (defined $help && $help eq '');
+
+    # Validate options here after help documentation is printed
+    $io->c_time('Validating options...');
+    $io->c_time("Starting \x{2632}\x{2634} lncRNApipe Pipeline...");
+
+    my $dep_tools_fh = $io->open_file('<', $USER_HOME . '/.lncRNApipe.depconf');
+    get_deps($dep_tools_fh);
+    
+    # User has requested to run the pipeline from assembly stage. Handle it here.
+    run_lncRNApipe_from_conf($io, $shall_I_run, $s_time) if (ref($shall_I_run) eq 'HASH');
 
     if (!defined $out) {
 	$outdir = $io->validate_create_path($out, 'do not create',
@@ -149,16 +211,6 @@ sub run_lncRNApipe {
 	$outdir = $io->validate_create_path($out, 'create',
 					    'lncRNApipe pipeline output directory')
     }
-
-    my $s_time = $io->start_timer;
-    binmode(STDOUT, ":utf8");
-
-    # Validate options here after help documentation is printed
-    $io->c_time('Validating options...');
-    $io->c_time("Starting \x{2632}\x{2634} lncRNApipe Pipeline...");
-
-    my $dep_tools_fh = $io->open_file('<', $USER_HOME . '/.lncRNApipe.depconf');
-    get_deps($dep_tools_fh);
 
     $io->exist_sys_cmd(['mkdir']);
 
@@ -219,7 +271,7 @@ sub run_lncRNApipe {
 	if (defined $cuffcmp_opts && $cuffcmp_opts ne '') {
 
 	    $lncRNApipe_succ = pipeline_status($io, 'ERROR!', "Required options not mentioned for -cat module.\nSee '" .
-					       "$0 -h cat" . "' for required options.") if ($categorize_sc_opts !~ m/sample/);
+					       "$0 --h cat" . "' for required options.") if ($categorize_sc_opts !~ m/sample/);
 	    
 	    my ($tr_files, $tr_size) = get_num_tr_files($cuffcmp_opts);
 
@@ -240,7 +292,7 @@ sub run_lncRNApipe {
 		$gtfToGenePred_failed =~ s/[\s\r\n]+//g;
 		$io->error('gtfToGenePred quit with the following error:' . "\n\n$is_failed\nBailing out!"),
 		$lncRNApipe_succ = 0
-		    if ($gtfToGenePred_failed =~ m/invalid|error|not/i);
+		    if ($gtfToGenePred_failed !~ m/couldnotcapture|noversioninformation/i);
 	    }
 	    
 	    $categorize_sc_opts .= " -cpu $num_cpu" if (defined $num_cpu);
@@ -260,7 +312,7 @@ sub run_lncRNApipe {
 	else {
 	    		        
 	    $lncRNApipe_succ = pipeline_status($io, 'ERROR!', "Required options not mentioned for -cat module.\nSee '" .
-					       "$0 -h cat" . "' for required options.") if ($categorize_sc_opts !~ m/cuff|annot|out|sample/);
+					       "$0 --h cat" . "' for required options.") if ($categorize_sc_opts !~ m/cuff|annot|out|sample/);
 	    
 	    $deps->{'cat'} .= " -cpu $num_cpu" if (defined $num_cpu);
 	    
@@ -280,6 +332,8 @@ sub run_lncRNApipe {
     } if (defined($categorize_sc_opts) && $categorize_sc_opts ne '');
 
     # Run get_unique_features.pl ######################################################################
+    my $known_or_unique_suffix_keyword = 'unique';
+    my $novel_or_known_suffix_keyword = 'novel';
     do {
 
 	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
@@ -306,18 +360,24 @@ sub run_lncRNApipe {
 	}
 
         $lncRNApipe_succ = pipeline_status($io, 'ERROR!', "Required options not mentioned for -get module.\nSee '" .
-					   "$0 -h get" . "' for required options.") if ($get_uq_sc_opts !~ m/sf|cf/);
-	
+					   "$0 --h get" . "' for required options.") if ($get_uq_sc_opts !~ m/sf|cf/);
+
+	if ($get_uq_sc_opts =~ m/-known/i) {
+	    $known_or_unique_suffix_keyword = $novel_or_known_suffix_keyword = 'known';
+	}
+	    
 	foreach my $lncRNApipe_class_file (@lncRNApipe_class_files) {
 	    	    
 	    $cpu->start and next if (defined $num_cpu);
-	    
+	   
 	    $lncRNApipe_class_file = $outdir . 'categorize_ncRNAs/' . $lncRNApipe_class_file;
-	    my $unique_ncRNAs = $cat_dir . '/' . $io->file_basename($lncRNApipe_class_file) . '.unique.gtf';
+	    my $unique_ncRNAs = $cat_dir . '/' . $io->file_basename($lncRNApipe_class_file) . ".$known_or_unique_suffix_keyword.gtf";
+	    $unique_ncRNAs = $cat_dir . '/' . $io->file_basename($lncRNApipe_class_file) . ".$known_or_unique_suffix_keyword.gtf";
+	
 	    unlink $unique_ncRNAs if (-e $unique_ncRNAs);
 
 	    my $sff_opt = '';
-	    if ($get_uq_sc_opts !~ m/-sff/) {
+	    if ($get_uq_sc_opts !~ m/(-sff|--source-file-format)/) {
 		$io->c_time("Assuming supplied known ncRNAs to be in BED format...\n" .
 			    'You can change this option with -sff. Ex: -sff gtf');
 		$sff_opt = '-sff bed';
@@ -335,17 +395,23 @@ sub run_lncRNApipe {
 							 ' -unique -out ' .
 							 $unique_ncRNAs);
 	    
-	    $lncRNApipe_succ = pipeline_status($io, $is_failed);
+	    # This module does not output anything on success.
+	    if ($is_failed !~ m/could not capture/i) {
+		$lncRNApipe_succ = pipeline_status($io, $is_failed);
+	    }
+	    else {
+		$lncRNApipe_succ = 1;
+	    }
+
 	    if (-e $unique_ncRNAs && !-s $unique_ncRNAs) {
-		$lncRNApipe_succ = pipeline_status($io, 'ERROR', "No unique features found. In fact, this is not an error.\n" .
-						   'It just means that any putative lncRNAs that have been extracted from -cat module are all known ncRNAs.');
 		$io->warning("No unique features found. In fact, this is not an error.\n" .
-			     'It just means that any putative ncRNAs that have been extracted from -cat module are all known ncRNAs.');
+			     'It just means that any putative ncRNAs that have been extracted from --cat-ncRNAs module are all known ncRNAs.');
 		$io->warning('Proceeding with files from "categorize_ncRNAs" module.', 'INFO!!');
 		$skip_get_uq = 1;
 	    }
-		
-	    disp_ncRNA_counts($io, $unique_ncRNAs, 'Total number of putative unique ncRNAs');
+	    else {
+		disp_ncRNA_counts($io, $unique_ncRNAs, "Total number of putative $known_or_unique_suffix_keyword ncRNAs");
+	    }
 	    $cpu->finish(0, {'lncRNApipe_succ' => $lncRNApipe_succ}) if (defined $num_cpu);
 	}
 	
@@ -365,7 +431,8 @@ sub run_lncRNApipe {
 			 "\n** Requires Bio::SeqIO module to be installed and available **", 'INFO!!');
 	$fetch_sc_opts = "-local $local_ref_seq";
     }
-    elsif( ($local_ref_seq eq '' || !-s $local_ref_seq || !-e $local_ref_seq) && !defined $fetch_sc_opts) {
+    elsif( ($local_ref_seq eq '' || !-s $local_ref_seq || !-e $local_ref_seq) &&
+	   (defined $fetch_sc_opts && $fetch_sc_opts eq '')) {
 	$io->error("We need to know where to fetch FASTA sequences from [ -local or -db or -ncbi ] ??\n\nSee $0 --h fetch for options.");
     }
     
@@ -375,7 +442,7 @@ sub run_lncRNApipe {
 	my $cpu = do_parallel($num_cpu) if (defined $num_cpu);
 	$lncRNApipe_succ = get_pipeline_status_code($cpu) if (defined $num_cpu);
 	my $uq_tr_feat_dir = 'get_unique_features';
-	my $tr_feat_here_suffix = 'putative\.class\.lncRNAs\.unique\.gtf$';
+	my $tr_feat_here_suffix = 'putative\.class\.lncRNAs\.' . $known_or_unique_suffix_keyword . '\.gtf$';
 
 	module_header($io, 'Module 4: Running fetch_seq_from_ucsc.pl');
 	
@@ -699,7 +766,7 @@ sub run_lncRNApipe {
 		$lncRNApipe_succ = 1;
 	    }
 
-	    disp_ncRNA_counts($io, $lncRNApipe_final_trs, 'Final putative novel lncRNA count');
+	    disp_ncRNA_counts($io, $lncRNApipe_final_trs, "Final putative $novel_or_known_suffix_keyword lncRNA count");
 	    $cpu->finish(0, {'lncRNApipe_test' => $lncRNApipe_succ}) if (defined $num_cpu);
 
 	    unlink $CPC_out_file if (defined $skip_cpc);
@@ -735,8 +802,14 @@ sub setup_lncRNApipe {
     chomp(my $dl_util = `which wget 2>&1`);
 
     binmode(STDOUT, ":utf8");
-    print "\n\x{1f473}  Hi! I am Vayu and I will attempt to install lncRNApipe for you.";
-    print "\nChecking for platform independent prerequisites on UNIX based machines...\n";
+
+    if ($install_dir ne 'get_dl_UTIL') {
+	print "\n\x{1f473}  Hi! I am Vayu and I will attempt to install lncRNApipe for you.";
+	print "\nChecking for platform independent prerequisites and some of the GNU Core Utilities on UNIX based machines...\n";
+    }
+
+    # Find out if user wants to download master or devel
+    $setup = 'master' if (defined $setup && $setup eq '');
 
     # Wget or Curl
     if ($dl_util !~ m/.+?wget$/i) {
@@ -744,7 +817,7 @@ sub setup_lncRNApipe {
 	succ_or_fail(0, 'Curl|Wget')
 	    if ($dl_util !~ m/.+?curl$/i);
 	succ_or_fail(1, 'curl');
-        $dl_util .= ' -LkO ';
+        $dl_util .= ' -LksO ';
     }
     elsif ($dl_util =~ m/.+?(wget)$/i) {
 	succ_or_fail(1, $1);
@@ -753,6 +826,12 @@ sub setup_lncRNApipe {
     else{
 	succ_or_fail(0, 'Curl|Wget');
     }
+
+    # Return dl util only if requested
+    return $dl_util if ($install_dir eq 'get_dl_UTIL');
+
+    # BASH
+    check_util('bash');
 
     # Unzip
     check_util('unzip');
@@ -793,8 +872,28 @@ sub setup_lncRNApipe {
     # bc
     check_util('bc');
 
-    print "\n\nWe definetely need the custom module, IO::Routine.\n" .
-      "We also need good grace of cpanm to install remaining modules.\n\n" .
+    # head
+    check_util('head');
+
+    # sort
+    check_util('sort');
+
+    # cat
+    check_util('cat');
+
+    # ln
+    check_util('ln');
+
+    # wc
+    check_util('wc');
+
+    # ps
+    check_util('ps');
+
+    # Mandatory by Single UNIX Specification. Just checking for sanity
+    check_util('awk');
+    
+    print "\n\nWe definetely need the custom module, IO::Routine.\n\n" .
 	"Attempting to fetch IO::Routine from Perl-for-Bioinformatics repository on github...\n";
 
     if (-d "$install_dir/.build") {
@@ -808,29 +907,30 @@ sub setup_lncRNApipe {
     system("mkdir $install_dir/.build");
     succ_or_fail(0, '.build dir') if (!-d "$install_dir/.build");
 
-    system("rm $install_dir/master.zip") if (-e "$install_dir/master.zip");
+    system("rm $install_dir/$setup.zip") if (-e "$install_dir/$setup.zip");
 
     my $dl_util_slave = '';
     if ($dl_util =~ m/.*?wget\s+/i) {
-      $dl_util_slave = $dl_util . '-O master.zip';
+      $dl_util_slave = $dl_util . "-O $setup.zip";
     }
     else {
       $dl_util_slave = $dl_util;
     }
-    
-    print "\n$dl_util_slave https://github.com/biocoder/Perl-for-Bioinformatics/archive/master.zip\n\n";
-    system("$dl_util_slave https://github.com/biocoder/Perl-for-Bioinformatics/archive/master.zip > /dev/null 2>&1");
-    system("mv $install_dir/master.zip $install_dir/.build/master.zip");
 
-    succ_or_fail(0, 'master.zip')
-	if (!-e "$install_dir/.build/master.zip");
+    # Since the sandboxed binaries are large, let the $dl_util print download status.
+    print "\n$dl_util_slave https://github.com/biocoder/Perl-for-Bioinformatics/archive/$setup.zip\n\n";
+    system("$dl_util_slave https://github.com/biocoder/Perl-for-Bioinformatics/archive/$setup.zip");
+    system("mv $install_dir/$setup.zip $install_dir/.build/$setup.zip");
 
-    print "Inflating master.zip...\n";
-    print "\nunzip -d $install_dir/.build $install_dir/.build/master.zip\n";
-    system("unzip -d $install_dir/.build $install_dir/.build/master.zip  > /dev/null 2>&1");
+    succ_or_fail(0, '$setup.zip')
+	if (!-e "$install_dir/.build/$setup.zip");
 
-    # Use cpanm to install Set::IntervalTree
-    system("$dl_util https://raw.githubusercontent.com/miyagawa/cpanminus/master/cpanm  > /dev/null 2>&1");
+    print "Inflating $setup.zip...\n";
+    print "\nunzip -d $install_dir/.build $install_dir/.build/$setup.zip\n";
+    system("unzip -d $install_dir/.build $install_dir/.build/$setup.zip  > /dev/null 2>&1");
+
+    # Use cpanm to install required perl modules.
+    system("$dl_util https://raw.githubusercontent.com/miyagawa/cpanminus/$setup/cpanm  > /dev/null 2>&1");
     succ_or_fail(0, 'cpanm') if (!-e 'cpanm');
     system("mv cpanm $install_dir/.build");
     system("chmod 755 $install_dir/.build/cpanm");
@@ -841,28 +941,30 @@ sub setup_lncRNApipe {
 	$pm_install_dir = $local_lib;
     }
 
-    cpanm_status($pm_install_dir, 'Module::Load', $install_dir);
-    cpanm_status($pm_install_dir, 'Set::IntervalTree', $install_dir);
-    cpanm_status($pm_install_dir, 'LWP::Simple', $install_dir);
-    cpanm_status($pm_install_dir, 'XML::XPath', $install_dir);
-    cpanm_status($pm_install_dir, 'XML::XPath::XMLParser', $install_dir);
-    cpanm_status($pm_install_dir, 'Parallel::ForkManager', $install_dir);
-    cpanm_status($pm_install_dir, 'MIME::Lite', $install_dir);
-    cpanm_status($pm_install_dir, 'Email::Valid', $install_dir);
+    #cpanm_status($pm_install_dir, 'Module::Load', $install_dir); # This is a core module.
+    print "\nInstalling required Perl Modules...\n";    
+    cpanm_status($pm_install_dir, 'Set::IntervalTree', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'LWP::Simple', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'XML::XPath', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'XML::XPath::XMLParser', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'Parallel::ForkManager', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'MIME::Lite', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'Email::Valid', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'YAML', $install_dir, $cpanm_args);
+    cpanm_status($pm_install_dir, 'Data::Uniqid', $install_dir, $cpanm_args);
 
-    if (!ask_user("\n\nDo you already have BioPerl installed?")) {
-	print "\nOK ... This may take a while ... Grab a snack or coffee!\n";
-	cpanm_status($pm_install_dir, 'BioPerl', $install_dir);
+    if (!ask_user("\n\nDo you already have BioPerl installed?", 120)) {
+	print "\nOK ... This may take a while ... Grab a snack or a cup of coffee!\n";
+	cpanm_status($pm_install_dir, 'BioPerl', $install_dir, $cpanm_args);
     }
 
-
-    print "\nThank you cpanm!\n";
+    #print "\nThank you cpanm!\n";
 
     my $pm_path = "$pm_install_dir/PERLLIBS:$pm_install_dir/PERLLIBS/lib:$pm_install_dir/PERLLIBS/lib/perl5";
 
-    print "\nInstalling IO::Routine...\n\n";
+    print "\n\nInstalling IO::Routine...\n\n";
     system("mkdir $pm_install_dir/PERLLIBS") if (!-d "$pm_install_dir/PERLLIBS");
-    my $custom_pm_log = `cd $install_dir/.build/Perl-for-Bioinformatics-master/IO-Routine;perl Makefile.PL PREFIX=$pm_install_dir/PERLLIBS LIB=$pm_install_dir/PERLLIBS/lib && make && make test && make install; 2>&1`;
+    my $custom_pm_log = `cd $install_dir/.build/Perl-for-Bioinformatics-$setup/IO-Routine;perl Makefile.PL PREFIX=$pm_install_dir/PERLLIBS LIB=$pm_install_dir/PERLLIBS/lib && make && make test && make install; 2>&1`;
 
     if ($custom_pm_log =~ m/fail|error|cannot/i) {
 	succ_or_fail(0, 'IO::Routine');
@@ -879,8 +981,8 @@ sub setup_lncRNApipe {
     if (!-d "$lncRNApipe_root/.lncRNApipe.depbin") {
 	print "\n\nMoving required tools and scripts to current install path...\n";
 	system("mkdir $install_dir/.lncRNApipe.depbin");
-	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/.lncRNApipe.depbin/* $install_dir/.lncRNApipe.depbin/.");
-	system("mv $install_dir/.build/Perl-for-Bioinformatics-master/NGS-Utils/* $install_dir/.");
+	system("mv $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/.lncRNApipe.depbin/* $install_dir/.lncRNApipe.depbin/.");
+	system("mv $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/* $install_dir/.");
     }
     
     print "\n\nCleaning up build directory...\n";
@@ -897,7 +999,7 @@ sub setup_lncRNApipe {
     $io->error('It is not a 64-bit machine!' . 
 	       "\nIt is your responsibility to make sure that you have the following tools" .
 	       " installed for your system architecture and also must be found in \$PATH:\n" .
-	       "\nblastall, gtfToGenePred, cuffcompare and RNAfold\n\nBailing out!") 
+	       "\nblastall, gtfToGenePred, genePredToGtf, bowtie, tophat, trimmomatic-0.33.jar\ncufflinks, cuffcompare, cuffdiff, cmscan, sambamba, formatdb, and RNAfold\n\nBailing out!") 
 	if ($sys_arch_info !~ m/x86\_64/i);
 
 
@@ -980,7 +1082,7 @@ sub setup_lncRNApipe {
 
     if (-e "$install_dir/.lncRNApipe.depbin/Rfam.cm.1_1.bz2" &&
 	-e "$install_dir/.lncRNApipe.depbin/Rfam.cm.1_1.i1m.bz2") {
-	print "Decompressing Rfam CM files...\n\n";
+	print "Decompressing Rfam CM files...\n";
 	system("bunzip2 $install_dir/.lncRNApipe.depbin/Rfam.cm.1_1.bz2");
 	system("bunzip2 $install_dir/.lncRNApipe.depbin/Rfam.cm.1_1.i1m.bz2");
     }
@@ -989,6 +1091,12 @@ sub setup_lncRNApipe {
     print $dep_fh check_bio_util('blastall', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('RNAfold', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('gtfToGenePred', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('genePredToGtf', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('trimmomatic', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('bowtie', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('tophat', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('cufflinks', $install_dir, $sys_arch), "\n";
+    print $dep_fh check_bio_util('sambamba', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('cmscan', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('formatdb', $install_dir, $sys_arch), "\n";
     print $dep_fh "$install_dir/" . $CAT_SC, "\n" if (check_native("$install_dir/" . $CAT_SC));
@@ -998,6 +1106,7 @@ sub setup_lncRNApipe {
     print $dep_fh "$install_dir/" . $CPC_SH_SC, "\n" if (check_native("$install_dir/" . $CPC_SH_SC));
     print $dep_fh "$install_dir/" . $ANN_INF_SC, "\n" if (check_native("$install_dir/" . $ANN_INF_SC));
     print $dep_fh "$install_dir/" . $SEND_MAIL_SC, "\n" if (check_native("$install_dir/" . $SEND_MAIL_SC));
+    print $dep_fh "$install_dir/" . $HGCONF, "\n" if (check_native("$install_dir/" . $HGCONF));
 
     if (-e "$install_dir/.lncRNApipe.depbin/Rfam.cm.1_1" &&
 	-s "$install_dir/.lncRNApipe.depbin/Rfam.cm.1_1") {
@@ -1009,7 +1118,7 @@ sub setup_lncRNApipe {
     }
 
     if (!exists $ENV{'CPC_HOME'}) {
-	if (ask_user("\n\nDo you want me to attempt to install CPC?")) {
+	if (ask_user("\n\nDo you want me to attempt to install CPC?", 120)) {
 	    	setup_cpc($dl_util_slave, $dep_fh);
 		succ_or_fail(1, 'CPC');
 	}
@@ -1023,6 +1132,11 @@ sub setup_lncRNApipe {
 
     $io->execute_system_command(0,
 				"\n\nSetup complete. See \"perl lncRNApipe --h\" to run the pipeline with options.");
+   
+    # Finally copy .hg.conf to user home forcefully since we may have the updated version.
+    system("cp -f $install_dir/$HGCONF $ENV{'HOME'}/.hg.conf > /dev/null 2>&1");
+    system("chmod 600 $ENV{'HOME'}/.hg.conf > /dev/null 2>&1");
+    
     # For build check
     exit;
 }
@@ -1045,10 +1159,13 @@ sub setup_cpc {
     
     get_deps($depconf_fh);
 
+    my $cpc_saved = 'master.zip';
+    $cpc_saved = $setup . '.zip' if (defined $setup && $setup ne '');
+
     print "\n\nAttempting to setup CPC [ github.com/biocoder/cpc ]. \nThis may take a while. Stay put...\n\n";
     system("$dl_util https://github.com/biocoder/cpc/archive/master.zip > /dev/null 2>&1");
-    system("unzip -d $curr_dir master.zip > /dev/null 2>&1");
-    system("rm master.zip");
+    system("unzip -d $curr_dir $cpc_saved > /dev/null 2>&1");
+    system("rm $cpc_saved");
     system("mv $curr_dir/cpc-master/* $curr_dir/.");
     rmdir "$curr_dir/cpc-master";
 
@@ -1058,30 +1175,50 @@ sub setup_cpc {
     chdir "$curr_dir/cpc-master/libs/estate";
     system("make clean && make > /dev/null 2>&1");
 
-    my $format_db = 'uniref90.fasta.gz';
+    chdir "$curr_dir/data";
+    my $format_db = 'uniref90.fasta';
+    
     if (!ask_user("\nIf you already have uniref90.fasta file somewhere, then there is no point in wasting time to download it again.\n" .
-		  "Do you already have uniref90.fasta somewhere on this system?")) {
+		  "Do you already have uniref90.fasta somewhere on this system?", 300)) {
 	
 	print "\nAttempting protein database download...\n\n";
-	$dl_util =~ s/master\.zip/uniref90\.fasta\.gz/;
-	system("$dl_util ftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz");
+	$dl_util =~ s/$cpc_saved/uniref90\.fasta\.gz/;
+	
+	if (!-e "$curr_dir/data/uniref90.fa") {
+	    system("$dl_util ftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz");
+	    $format_db = "uniref90.fasta.gz";
+	}
+	else {
+	    print "\nFASTA file [ uniref90.fasta ] already exists in $curr_dir/data. Maybe download was incomplete ?";
+	    print "\nBailing out to make sure we are not formatting incomplete FASTA !" .
+		"\n\nMake sure you have properly downloaded uniref90.fasta file from:" .
+		"\n\tftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz" .
+		"\nand run the following command:\n" .
+		"\n\t$deps->{'formatdb'} -i $curr_dir/data/$format_db -p T -n prot_db\n\n";
+	    exit 0;
+	}
     }
     else {
-	$format_db = ask_user("\nEnter full path to uniref90.fasta: ");
-	succ_or_fail(0, "CPC [ ERROR: $! ]")
-	    if (!-r $format_db || !-e $format_db || !-s $format_db);
+	my $uniref90_fasta_err = '';
+	until (-r $format_db && -e $format_db && -s $format_db) {
+	    $format_db = ask_user("$uniref90_fasta_err\nEnter full path to uniref90.fasta:", 300, 'fasta|fa');
+	    $uniref90_fasta_err = "\nCannot find $format_db or the file is empty or not readable...\n\nCPC [ ERROR: $! ] !!\n";
+	}
     }
-
-    print "\nDecompressing uniref90.fasta.gz...\n",
-    system("gunzip uniref90.fasta.gz") if ($format_db =~ m/\.gz$/);
-	
+    
+    if ($format_db =~ m/\.gz$/) {
+	print "\nDecompressing uniref90.fasta.gz...\n";
+	system("gunzip uniref90.fasta.gz");
+	$format_db =~ s/\.gz$//;
+    }
+    	
     if (!-e "$curr_dir/data/formatdb.log" ||
 	!-s "$curr_dir/data/formatdb.log" ||
 	!-e "$curr_dir/data/prot_db.pal" ||
 	!-s "$curr_dir/data/prot_db.pal") {
+	
 	print "\nFormatting database...\n";
-	chdir "$curr_dir/data";
-	system($deps->{'formatdb'} . " -i $format_db -p T -n prot_db > /dev/null 2>&1");
+	system($deps->{'formatdb'} . " -i $format_db -p T -n prot_db");
     }
     
     return;
@@ -1091,7 +1228,8 @@ sub setup_cpc {
 # Check for pipeline scripts.
 sub check_native {
     my $nat_sc = shift;
-    
+
+    # Special case, match perl script, shell script and hg.conf.sh
     (my $sc) = ($nat_sc =~ m/.*\/(.+?\.pl|.+?\.sh)$/);
 
     if (-e $nat_sc) {
@@ -1228,16 +1366,26 @@ sub cpanm_status {
     my $install_dir = shift;
     my $pm = shift;
     my $cpanm_bin = shift;
+    my $cpanm_args = shift;
 
-    my $cpanm_log = `$cpanm_bin/.build/cpanm -f -l $install_dir/PERLLIBS $pm 2>&1`;
-    
-    if ($cpanm_log !~ m/.*?success.*/i && $pm =~ m/xml/i) {
+    my $cpanm_log = `$cpanm_bin/.build/cpanm $cpanm_args -l $install_dir/PERLLIBS $pm 2>&1`;
+       
+    if ($cpanm_log !~ m/.*?success|up to date.*/i && $pm =~ m/xml/i) {
 	print STDOUT "\n\nYou need to install XML parser C libraries.\n\n\t\* On Ubuntu / Debian based Linux distributions, as root user, do:\n\n\t\tapt-get install libexpat1 libexpat1-dev\n\n\t\* On RedHat / Fedora / CentOS based Linux distributions, as root user do:\n\n\t\tyum install expat expat-devel\n\n";
 	succ_or_fail(0, $pm);
     }
 
-    succ_or_fail(0, $pm) if ($cpanm_log !~ m/.*?success.*/i);
-    succ_or_fail(1, $pm);
+    if ($cpanm_log !~ m/.*?success|up to date.*/i) {
+	if (-e "$ENV{'HOME'}/.cpanm/build.log") {
+	    print "\n\n";
+	    system("cat $ENV{'HOME'}/.cpanm/build.log");
+	    print "\n";
+	}
+	succ_or_fail(0, $pm);
+    }
+    else {
+	succ_or_fail(1, $pm);
+    }
     return;
 }
 
@@ -1280,20 +1428,28 @@ sub get_annot {
 # Ask for user input
 sub ask_user {
  my $msg = shift;
+ my $timeout = shift;
+ my $general = shift;
  my $ans;
+
+ $timeout = 60 if (!$timeout);
 
  while (1) {
      print $msg, ' [ y/n ]: ';
      
      eval {
 	 local $SIG{ALRM} = sub { die "DidNotAnswer" };
-	 alarm 60;
+	 alarm $timeout;
 	 chomp($ans = <STDIN>);
      };
      
-     succ_or_fail(0, "\n\nAborted! [ No answer for 60 seconds. ] ??") if ($@ =~ m/DidNotAnswer/i);
+     succ_or_fail(0, "\n\nAborted! [ No answer for $timeout seconds. ] ??") if ($@ =~ m/DidNotAnswer/i);
      
-     if ($ans !~ m/^y|n|fasta|fa$/i) {
+     if ($general && $ans !~ m/^y|n|$general$/i) {
+	 print "\nInvalid answer!\n";
+	 next;
+     }
+     elsif (!$general && $ans !~ m/^y|n$/i) {
 	 print "\nInvalid answer!\n";
 	 next;
      }
@@ -1316,6 +1472,13 @@ sub get_deps {
     ($deps->{'blastall'}) = ($dep_tools =~ m/(.+?blastall)/i);
     ($deps->{'RNAfold'}) = ($dep_tools =~ m/(.+?rnafold)/i);
     ($deps->{'bin-gtfToGenePred'}) = ($dep_tools =~ m/(.+?gtfToGenePred)/i);
+    ($deps->{'bin-genePredToGtf'}) = ($dep_tools =~ m/(.+?genePredToGtf)/i);
+    ($deps->{'trimmomatic'}) = ($dep_tools =~ m/(.+?trimmomatic)/i);
+    ($deps->{'bowtie'}) = ($dep_tools =~ m/(.+?bowtie)/i);
+    ($deps->{'tophat'}) = ($dep_tools =~ m/(.+?tophat)/i);
+    ($deps->{'cufflinks'}) = ($dep_tools =~ m/(.+?cufflinks)/i);
+    ($deps->{'sambamba'}) = ($dep_tools =~ m/(.+?sambamba)/i);
+    ($deps->{'hgconf'}) = ($dep_tools =~ m/(.+?$HGCONF)/i);
     ($deps->{'cmscan'}) = ($dep_tools =~ m/(.+?cmscan)/i);
     ($deps->{'formatdb'}) = ($dep_tools =~ m/(.+?formatdb)/i);
     ($deps->{'rfam_cm'}) = ($dep_tools =~ m/(.+?Rfam\.cm\.1\_1)/i);
@@ -1326,8 +1489,8 @@ sub get_deps {
     ($deps->{'ann-inf'}) = ($dep_tools =~ m/(.+?$ANN_INF_SC)/i);
     ($deps->{'relplot'}) = ($dep_tools =~ m/(.+?$RELPLOT_MOD_SC)/i);
     ($deps->{'email'}) = ($dep_tools =~ m/(.+?$SEND_MAIL_SC)/i);
-    ($deps->{'cpc_home'}) = ($dep_tools =~ m/cpcHome\:(.+)/i) if (!exists $ENV{'CPC_HOME'}); 
-
+    ($deps->{'cpc_home'}) = ($dep_tools =~ m/cpcHome\:(.+)/i) if (!exists $ENV{'CPC_HOME'});
+    
     foreach my $dep (keys %$deps) {
 	die "\n\nCannot find required dependency [ " . $dep . " ]. May be reinstalling lncRNApipe will resolve the issue?\n\n"
 	    if (!$deps->{$dep} || !-e $deps->{$dep});
@@ -1370,22 +1533,22 @@ sub disp_ncRNA_counts {
     my $file = shift;
     my $total_desc = shift;
 
-    chomp (my $num_lincs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?lincrna.*?Infernal' $file | wc -l"));
+    chomp (my $num_lincs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?lincrna.*?(Infernal)?' $file | wc -l"));
     $num_lincs = 0 if ($num_lincs =~ m/^could not capture/i);
 
-    chomp (my $num_concs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?conc.*?.*?Infernal' $file | wc -l"));
+    chomp (my $num_concs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?conc.*?.*?(Infernal)?' $file | wc -l"));
     $num_concs = 0 if ($num_concs =~ m/^could not capture/i);
     
-    chomp (my $num_poncs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?ponc.*?.*?Infernal' $file | wc -l"));
+    chomp (my $num_poncs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?ponc.*?.*?(Infernal)?' $file | wc -l"));
     $num_poncs = 0 if ($num_poncs =~ m/^could not capture/i);    
 
-    chomp (my $num_incs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?\"inc.+?intronic.*?.*?Infernal' $file | wc -l"));
+    chomp (my $num_incs = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?\"inc.+?intronic.*?.*?(Infernal)?' $file | wc -l"));
     $num_incs = 0 if ($num_incs =~ m/^could not capture/i);
 
-    chomp (my $num_ex_ov = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?exonic\\s+overlap.*?.*?Infernal' $file | wc -l"));
+    chomp (my $num_ex_ov = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?exonic\\s+overlap.*?.*?(Infernal)?' $file | wc -l"));
     $num_ex_ov = 0 if ($num_ex_ov =~ m/^could not capture/i);
 
-    chomp (my $num_inf_ann = $c_io->execute_get_sys_cmd_output("grep -viP '\ttranscript\t.+?No Annotation' $file | grep -iP '\ttranscript\t' | wc -l"));
+    chomp (my $num_inf_ann = $c_io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?BitScore' $file | grep -iP '\ttranscript\t' | wc -l"));
     $num_inf_ann = 0 if ($num_inf_ann =~ m/^could not capture/i);
 
     print("\n\nlncRNA Summary [ " . $c_io->file_basename($file, 'suffix') . " ] :\n" .
@@ -1474,6 +1637,1313 @@ sub get_pipeline_status_code {
 	});
 }
 
+# Show users ENSEMBL species list.
+sub list {
+    my $io = shift;
+    my $release_only = shift;
+
+    $io->error('Currently, only ENSEMBL listing is supported.' .
+	       "\nGo to https://genome.ucsc.edu/FAQ/FAQreleases.html#TOP to view UCSC version names.")
+	if (defined $sp_list && $sp_list !~ m/^ENSEMBLE$/i);
+    
+    $io->c_time('Finding out latest release version at ENSEMBL...');
+    chomp(my $latest_release = $io->execute_get_sys_cmd_output("curl -Lks ftp://ftp.ensembl.org/pub/ -l | grep release | sort -nr -k9 | head -n 1"));
+    return $latest_release if ($release_only);
+    $io->c_time('Latest ENSEMBL release is: ' . $latest_release .
+		"\n\nSpecies List for $latest_release:\n==================================");
+    $io->execute_system_command("curl -Lks ftp://ftp.ensembl.org/pub/$latest_release/gtf/ -l");
+    print "\n";
+    return;
+}
+
+# Run the assembly stage of the pipeline.
+sub run_lncRNApipe_from_conf {
+    my $io = shift;
+    my $params = shift;
+    my $clock = shift;
+    my $beverb = "\n\nPlease check your config file [ " . $io->file_basename($pipe_config, 'suffix') . ' ] and provide correct value(s).';
+    my $scheduler_job_depends = my $job_deps_str_lncRNApipe_post_assembly = '';
+    my $cufflinks_after_assembly_check = my $check_these_log_files = my $cuffdiff_bam_files = '';
+    my $autogen_job_scripts_timestamp = localtime;
+    $autogen_job_scripts_timestamp =~ s/(\s+|\:)/\_/g;
+    my $job_scripts_dir_name = 'job_scripts.' . $autogen_job_scripts_timestamp;
+
+    # Verify minimum required params.
+    verify_config_file($io, $beverb, $params->{'overwriteOutputDir'}, 'overwriteOutputDir', 'yes|no');
+    verify_config_file($io, $beverb, $params->{'performTranscriptAssembly'}, 'performTranscriptAssembly', 'yes|no');
+    verify_config_file($io, $beverb, $params->{'sourceDB'}, 'sourceDB', 'ensembl|ucsc');
+    verify_config_file($io, $beverb, $params->{'scheduler'}, 'scheduler', 'pbs|sge|lsf|slurm|none');
+    verify_config_file($io, $beverb, $params->{'runRNAfold'}, 'runRNAfold', 'yes|no');
+    verify_config_file($io, $beverb, $params->{'runcmscan'}, 'runcmscan', 'yes|no');
+    verify_config_file($io, $beverb, $params->{'batchSubCmd'}, 'batchSubCmd', 'qsub|bsub|sbatch') if (defined $params->{'scheduler'});
+    verify_config_file($io, $beverb, $params->{'runCuffdiffForAllTranscripts'}, 
+		       'runCuffdiffForAllTranscripts', 'yes|no');
+
+    if ($params->{'scheduler'} =~ m/^SGE$/i) {
+	# -hold_jid jobid1,jobid2,jobid3
+	$scheduler_job_depends = '${JOB_ID}';
+	$params->{'killCmd'} = 'qdel';
+    }
+    elsif ($params->{'scheduler'} =~ m/^PBS$/i) {
+	# -W depend=afterok:jobid1:jobid2:jobid3
+	$scheduler_job_depends = '${PBS_JOBID}';
+	$params->{'killCmd'} = 'qdel';
+    }
+    elsif ($params->{'scheduler'} =~ m/^SLURM$/i) {
+	# -W depend=afterok:jobid1:jobid2:jobid3
+	$scheduler_job_depends = '${SLURM_JOBID}';
+	$params->{'killCmd'} = 'scancel';
+    }
+    elsif ($params->{'scheduler'} =~ m/^LSF$/i) {
+	# -w "done(jobid1) && done(jobid2) && done(jobid3)"
+	$scheduler_job_depends = '${LSB_JOBID}';
+	$params->{'killCmd'} = 'qdel';
+    }
+    else {
+	$params->{'batchSubCmd'} = 'bash';
+	$params->{'killCmd'} = 'kill -9';
+    }
+    
+    # Kill jobs and exit if requested.    
+    if (defined $kill_jobs_thru_conf) {
+	kill_jobs_and_exit($kill_jobs_thru_conf,
+			   $io,
+			   $params);
+    }
+    
+    if (defined $params->{'overwriteOutputDir'}) {
+	$io->c_time('OK. Removing output directory [ '. $io->file_basename($params->{'outputDir'}). ' ] ...'),
+	my $rm_output_dir = $io->execute_get_sys_cmd_output("rm -rf $params->{'outputDir'}")
+	    if (defined $params->{'outputDir'} &&
+		-d $params->{'outputDir'} &&
+		$params->{'overwriteOutputDir'} =~ /^YES$/i);
+	
+	$io->error("Error occcured while force deleting directory:\n" . $rm_output_dir)
+	    if ($rm_output_dir && $rm_output_dir !~ m/could not capture/i);
+
+	mkdirs($io, [$params->{'outputDir'}]);
+    }
+    #elsif (defined $params->{'outputDir'} || -d $params->{'outputDir'}) {
+	#$io->error("Output directory [ $params->{'outputDir'} ] exists.\n" .
+	#	   "Use [overwriteOutputDir: YES] to overwrite output directory." . $beverb);
+    #}
+           
+    $io->error('No information regarding reference annotation provided. [sourceDB: ?], [species: ?], [useThisAnnotation: ?]' . $beverb)
+	if ( (!defined $params->{'sourceDB'} || !defined $params->{'species'}) && !defined $params->{'useThisAnnotation'});
+
+    $io->error('Annotation file [ ' . $params->{'useThisAnnotation'} . ' ] does not exist or is empty.' . $beverb)
+	if (defined $params->{'useThisAnnotation'} && 
+	    ( !-e $params->{'useThisAnnotation'} || -z $params->{'useThisAnnotation'}) );
+
+    $io->error("[genomeFasta: ] not mentioned OR\n" .
+	       "cannot find genome FASTA file OR\nthe genome FASTA file is empty." . $beverb)
+	if (!defined $params->{'genomeFasta'} || !-e $params->{'genomeFasta'} || !-s $params->{'genomeFasta'});
+
+    $io->error("[categorize_ncRNAs: ] options not mentioned.\nIt is required in either case, [performTranscriptAssembly: YES]" .
+	       " OR [performTranscriptAssembly: NO]." . $beverb)
+	if (!defined $params->{'categorize_ncRNAs'});
+    
+    $io->error('-sample-names option is required for [categorize_ncRNAs: ].' . $beverb)
+	if (!is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample'));
+
+    $io->error('-annot option is not required for [categorize_ncRNAs: ].' . $beverb)
+	if (is_option_exists_in_anon($params->{'categorize_ncRNAs'}, '-annot'));
+
+    $io->error('-cuff option is not required for [categorize_ncRNAs: ].' . $beverb)
+	if (is_option_exists_in_anon($params->{'categorize_ncRNAs'}, '-cuff'));
+    
+    $io->error('-L option is not required for [cufflinks: ].' . $beverb)
+	if (is_option_exists_in_anon($params->{'cufflinks'}, '-L'));
+    
+    $io->error('In [get_unique_features: ] options, "-sff" is required when you are specifying a list of known ncRNAs.' . $beverb)
+	if (defined $params->{'get_unique_features'} &&
+	    !is_option_exists_in_anon($params->{'get_unique_features'}, '-sff\s+') &&
+	    is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+'));
+    
+    #$io->error('In [cuffdiff: ] options, "-b" is not required. We got that from [genomeFasta: ].' . $beverb)
+    #if (defined $params->{'cuffdiff'} && is_option_exists_in_anon($params->{'cuffdiff'}, '-b\s+'));
+    
+    #$io->error('In [cufflinks: ] options, "-b" is not required. We got that from [genomeFasta: ].' . $beverb)
+	#if (defined $params->{'cufflinks'} && is_option_exists_in_anon($params->{'cufflinks'}, '-b\s+'));
+          
+    $params->{'species'} = 'species' if (!defined $params->{'species'});
+    
+    # Necessary evil
+    my $tophat_o_dir = $params->{'outputDir'} . '/tophat';
+    my $cufflinks_o_dir = $params->{'outputDir'} . '/cufflinks';
+    my $trim_o_dir = $params->{'outputDir'} . '/trimmomatic';
+    my $job_scripts_dir = $params->{'outputDir'} . "/$job_scripts_dir_name";
+    my $ref_annot_dir = $params->{'outputDir'} . '/ref_annotation';
+    my $cuffdiff_known = $params->{'outputDir'} . '/cuffdiff_known_ncRNAs';
+    my $cuffdiff_novel = $params->{'outputDir'} . '/cuffdiff_novel_ncRNAs';
+    my $cuffmerge_known = $params->{'outputDir'} . '/cuffmerge_known_ncRNAs';
+    my $cuffmerge_novel = $params->{'outputDir'} . '/cuffmerge_novel_ncRNAs';
+            
+    $io->c_time('Preparing output directories...');
+
+    mkdirs($io, [$job_scripts_dir, $cuffdiff_novel, $cuffdiff_known,
+		 $cuffmerge_known, $cuffmerge_novel, $ref_annot_dir]);
+
+    # Create runID
+    if ( !-e "$params->{'outputDir'}/.lncRNApipe.runID" ||
+	 !is_job_done("$params->{'outputDir'}/.lncRNApipe.runID", $io, 'get_runID', 0) ) {
+	# Generate run id
+	require Data::Uniqid;
+	Data::Uniqid->import( qw( uniqid ) );
+	$conf_run_id = Data::Uniqid->uniqid;
+	$io->execute_system_command("echo \"Run=$conf_run_id\" > $params->{'outputDir'}/.lncRNApipe.runID");
+    }
+
+    unlink "$job_scripts_dir/job_IDs_tophat.$conf_run_id" if (-e "$job_scripts_dir/job_IDs_tophat.$conf_run_id");
+    unlink "$job_scripts_dir/job_IDs_cufflinks.$conf_run_id" if (-e "$job_scripts_dir/job_IDs_cufflinks.$conf_run_id");
+    $io->execute_system_command("touch $job_scripts_dir/job_IDs_tophat.$conf_run_id");
+    $io->execute_system_command("touch $job_scripts_dir/job_IDs_cufflinks.$conf_run_id");
+
+    my $dl_status = my $post_dl_status = 'could not capture'; # Assume the download went fine. It will fail otherwise.
+    my $nc_annot_gtf = "$ref_annot_dir/$params->{'species'}_$params->{'sourceDB'}_known_ncRNAs.gtf";
+    my $annot_gtf = "$ref_annot_dir/$params->{'species'}_$params->{'sourceDB'}.gtf";
+    
+    if (!defined $params->{'useThisAnnotation'}) {
+
+	$io->c_time('Checking for either wget or curl...');
+
+	$io->execute_system_command("rm $annot_gtf") if (-e $annot_gtf);
+	
+	if ($params->{'sourceDB'} =~ m/ensembl/i) {
+	    my $release = list($io, 'release');
+	    my $dl_util = setup_lncRNApipe('get_dl_UTIL');
+	
+	    print "\n";
+	    $io->c_time('Downloading annotation from ' . $params->{'sourceDB'} . '...');
+	    	    
+	    if ($dl_util =~ m/curl/i) {
+		chomp(my $file = $io->execute_get_sys_cmd_output("curl -s ftp://ftp.ensembl.org/pub/$release/gtf/$params->{'species'}/ |  grep -e '^-' | awk '{ print \$9 }' | grep -i gtf"));
+		$dl_util =~ s/O/ -o $ref_annot_dir\/$params->{'species'}_$params->{'sourceDB'}\.gtf\.gz/;
+		$dl_status = $io->execute_get_sys_cmd_output("$dl_util ftp://ftp.ensembl.org/pub/$release/gtf/$params->{'species'}/$file > /dev/null 2>&1");
+	    }
+	    else {
+		$dl_util .= "-O $ref_annot_dir/$params->{'species'}_$params->{'sourceDB'}.gtf.gz" if ($dl_util =~ m/wget/i);
+		$dl_status = $io->execute_get_sys_cmd_output("$dl_util ftp://ftp.ensembl.org/pub/$release/gtf/$params->{'species'}/*gtf.gz > /dev/null 2>&1");
+	    }
+	    $dl_status = $io->execute_get_sys_cmd_output("gunzip $ref_annot_dir/$params->{'species'}_$params->{'sourceDB'}.gtf.gz");
+	    $post_dl_status = $io->execute_get_sys_cmd_output("rm $ref_annot_dir/$params->{'species'}_$params->{'sourceDB'}.gtf.gz")
+		if (-e "$ref_annot_dir/$params->{'species'}_$params->{'sourceDB'}.gtf.gz");
+	}
+	elsif ($params->{'sourceDB'} =~ m/ucsc/i) {
+	    $io->c_time('Downloading annotation from ' . $params->{'sourceDB'} . '...');
+	    $dl_status = $io->execute_get_sys_cmd_output("$deps->{'bin-genePredToGtf'} $params->{'species'} refGene $ref_annot_dir/$params->{'species'}_$params->{'sourceDB'}.gtf");
+	}
+    }
+    elsif(defined $params->{'useThisAnnotation'}) {
+	$annot_gtf = $params->{'useThisAnnotation'};
+    }
+
+    # Create known ncRNAs.
+    if ($params->{'sourceDB'} =~ m/ensembl/i) {
+	$io->c_time('Creating a GTF file with gene_biotype which is not "protein_coding"...');
+	$post_dl_status = $io->execute_get_sys_cmd_output("grep -vi 'protein_coding' $annot_gtf > $nc_annot_gtf");
+    }
+    elsif ($params->{'sourceDB'} =~ m/ucsc/i) {
+	$io->c_time('Creating a GTF file with transcript_id other than "NM_"...');
+	$post_dl_status = $io->execute_get_sys_cmd_output("grep -vi 'NM_' $annot_gtf > $nc_annot_gtf");
+    }
+
+    # Figure out rest of the lncRNApipe options and finalize command calls.
+    # get_unique_features.pl options
+    my $thru_conf_get_uq_feat_opts_n = "'-sf $annot_gtf -sff gtf'";
+    $thru_conf_get_uq_feat_opts_n = "'" . join(' ', @{$params->{'get_unique_features'}}) . "'"
+	if (defined $params->{'get_unique_features'} && is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
+    $thru_conf_get_uq_feat_opts_n = "'-sf $annot_gtf -sff gtf " . join(' ', @{$params->{'get_unique_features'}}) . "'"
+	if (defined $params->{'get_unique_features'} && !is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
+    
+    my $thru_conf_get_uq_feat_opts_k = "'-sf $nc_annot_gtf -sff gtf --known -ov 10'";
+    $thru_conf_get_uq_feat_opts_k = "'--known "  . join(' ', @{$params->{'get_unique_features'}}) . "'"
+	if (defined $params->{'get_unique_features'} && is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
+    $thru_conf_get_uq_feat_opts_k = "'-sf $nc_annot_gtf -sff gtf --known " . join(' ', @{$params->{'get_unique_features'}}) . "'"
+	if (defined $params->{'get_unique_features'} && !is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
+
+    # RNAfold options.
+    my $thru_conf_rna_fold_opts = '--rna';
+    $io->error('In [RNAfold: ] options, "-p" or "--noPS" are not required.' . $beverb)
+	if ($params->{'runRNAfold'} =~ m/^yes$/i && is_option_exists_in_anon($params->{'RNAfold'}, 'p|noPS'));
+    $thru_conf_rna_fold_opts = "--rna '" . join(' ', @{$params->{'RNAfold'}}) . "'"
+	if ($params->{'runRNAfold'} =~ m/^yes$/i && defined $params->{'RNAfold'});
+
+    # cmscan options
+    my $thru_conf_inf_opts = '--inf';
+    $io->error('In [cmscan: ] options, "--cpu" or "--tblout" or "-o" are not required.' . $beverb)
+	if ($params->{'runcmscan'} =~ m/^yes$/i && is_option_exists_in_anon($params->{'cmscan'}, 'o|cpu|tblout'));
+    $thru_conf_inf_opts = $thru_conf_inf_opts . " '" . join(' ', @{$params->{'cmscan'}}) . "'"
+	if ($params->{'runcmscan'} =~ m/^yes$/i && defined $params->{'cmscan'});
+
+    # Check for annotation download errors. This code can be usefuly if I want to check any other downloads
+    # in the future.
+    print "\n",
+    $io->error("Download quit with the following error:\n\n$dl_status" . $beverb)
+	if ($dl_status !~ m/could not capture/i);
+    
+    print "\n",
+    $io->error("Error while trying to create requested annotation files:\n\n$post_dl_status" . $beverb)
+	if ($post_dl_status !~ m/could not capture/i);
+    
+    my $job_submission_rudimentary = 0;
+    $job_submission_rudimentary = 'jobID_is_rudimentary' if (defined $donot_wait4jobIDs);
+
+    if ($params->{'performTranscriptAssembly'} =~ m/^YES$/i) {
+
+	# If users asks to perform transcript assembly, check min required options.
+	# We already know there are replicates by presense of a ,
+	# verify_config_file($io, $beverb, $params->{'replicates'}, 'replicates', 'yes|no');
+	verify_config_file($io, $beverb, $params->{'libType'}, 'libType', 'se|pe|mixed');
+	verify_config_file($io, $beverb, $params->{'readType'}, 'readType', 'FASTA|FASTQ');
+
+	$io->warning('Will not trim reads. [readType: FASTA]')
+	    if ($params->{readType} =~ m/FASTA/i && defined $params->{'trimmomatic'});
+	
+	$io->error('Invalid / No value provided for [bowtieGenomeIndex: ?]' . $beverb)
+	    if (!defined $params->{'bowtieGenomeIndex'});
+	
+	$io->error("[performTranscriptAssembly: YES] requested, but cannot find any reads' options." . $beverb)
+	    if (!defined $params->{'reads'}->{'r1'} && !defined $params->{'reads'}->{'r2'});
+	
+	$io->warning('[performTranscriptAssembly: YES] requested, but found [cuffcompare: ] options.'.
+		     "\n[cuffcompare: ] options are not required when you are performing transcript assembly with lncRNApipe.")
+	    if (defined $params->{'cuffcompare'});
+
+	$io->error('-bam option is not required for [cuffdiff: ] when [performTranscriptAssembly: YES].' . $beverb)
+	    if (defined $params->{'cuffdiff'} && is_option_exists_in_anon($params->{'cuffdiff'}, '-bam\s+'));
+		
+	mkdirs($io, [$tophat_o_dir, $cufflinks_o_dir, $trim_o_dir]);
+	
+	$io->c_time('Preparing job scripts...') if (defined $params->{'scheduler'});
+
+	my @r1_samples = my @r2_samples = ();
+	
+	if (!defined $params->{'reads'}->{'r2'}) {
+	    $io->c_time('[reads => r1: ] only mentioned. Treating it as SE reads...');		
+	    @r1_samples = split/\|/, $params->{'reads'}->{'r1'};
+	    $params->{'reads'}->{'r2'} .= '0|' x scalar @r1_samples; # R1 is SE
+	    @r2_samples = split/\|/, $params->{'reads'}->{'r2'};
+	}	
+	elsif (!defined $params->{'reads'}->{'r1'}) {
+	    $io->c_time('[reads => r2: ] only mentioned. Treating it as SE reads...');		
+	    @r2_samples = split/\|/, $params->{'reads'}->{'r2'};
+	    $params->{'reads'}->{'r1'} .= '0|' x scalar @r2_samples; # R1 is SE
+	    @r1_samples = split/\|/, $params->{'reads'}->{'r1'};
+	}
+	else {
+	    $io->c_time('Detected PE / MP reads...');
+	    @r1_samples = split/\|/, $params->{'reads'}->{'r1'};
+	    @r2_samples = split/\|/, $params->{'reads'}->{'r2'};
+	}
+			
+	my $grand_sample_size = sample_size(\@r1_samples, \@r2_samples);
+
+	$io->error('Number of samples mentioned in [categorize_ncRNAs: ] ( ' .
+		   scalar (split/\,/, is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample')) .
+		   ' ) is not equal to number of samples mentioned in [reads: ] ( ' . ($grand_sample_size+1) . ' ).' . $beverb)
+	    if ( ($grand_sample_size+1) != scalar (split/\,/, is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample')) );
+
+	# Quickly check if sample name is duplicated.
+	my $categorize_ncRNAs_sample_names = {};
+	foreach my $categorize_ncRNAs_sample ((split/\,/, is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample'))) {
+	    $categorize_ncRNAs_sample =~ s/\"//g;
+	    $categorize_ncRNAs_sample = (split/\s+/, $categorize_ncRNAs_sample)[1] if ($categorize_ncRNAs_sample =~ m/\s+/);
+	    
+	    if (!exists $categorize_ncRNAs_sample_names->{$categorize_ncRNAs_sample}) {
+		$categorize_ncRNAs_sample_names->{$categorize_ncRNAs_sample} = 1;
+	    }
+	    elsif (exists $categorize_ncRNAs_sample_names->{$categorize_ncRNAs_sample}) {
+		$io->error("Sample name [ $categorize_ncRNAs_sample ] is duplicated in [categorize_ncRNAs: ]." . $beverb);
+	    }
+	}
+
+	$io->error("Seems like you intend to use limited samples.\nIn that case, indicate empty sample by separating it with appropriate delimiter [ | ].")
+	    if ( defined $params->{'reads'}->{'r1'} &&
+		 defined $params->{'reads'}->{'r2'} &&
+		 ( $#r1_samples > 0 || $#r2_samples > 0 ) &&
+		 ( $#r1_samples != $#r2_samples ) &&
+		 ( $params->{'reads'}->{'r1'} !~ m/^\||\|\||\|$/ ||
+		   $params->{'reads'}->{'r2'} !~ m/^\||\|\||\|$/ ) &&
+		 $params->{'libType'} =~ m/^mixed$/i
+	       );
+	
+	my $sample_names2num = sample_nums($params->{'categorize_ncRNAs'}, $io);
+	my $cufflinks_assembled_trs = my $all_bam_files = '';
+		
+	for(my $i=0; $i<=$grand_sample_size; $i++) {
+
+	    my $bam_files_per_sample = '';
+	    my $sample_name_grand = "run_$conf_run_id.sample_" . ($i+1);
+	    $sample_name_grand = "run_$conf_run_id." . $sample_names2num->{$i} if (exists $sample_names2num->{$i});
+	    
+	    my $reps_1 = handle_read_libs($r1_samples[$i], $params->{'reads'}->{'readsDir'}, $io, $params)
+		if ($r1_samples[$i]);
+	    my $reps_2 = handle_read_libs($r2_samples[$i], $params->{'reads'}->{'readsDir'}, $io, $params)
+		if ($r2_samples[$i]);
+	    
+	    $io->error("Seems like you intend to use limited replicates.\nIn that case, indicate empty replicate by separating it with appropriate delimiter [ , ].")
+		if (($#$reps_1 > 0 && $#$reps_2 > 0 ) &&
+		    ($#$reps_1 != $#$reps_2) &&
+		    ( $r1_samples[$i] !~ m/^,|,,|,$/ ||
+		       $r2_samples[$i] !~ m/^,|,,|,$/ ) &&
+		    $params->{'libType'} =~ m/^mixed$/i
+		   );
+	    
+	    my $grand_rep_size = sample_size($reps_1, $reps_2);
+	    my $cufflinks_samp_o_dir = "$cufflinks_o_dir/$sample_name_grand";
+	    my $tophat_samp_o_dir = "$tophat_o_dir/$sample_name_grand";
+	    
+	    mkdirs($io, [$cufflinks_samp_o_dir, $tophat_samp_o_dir]);
+	    
+	    for (my $j=0; $j<=$grand_rep_size; $j++) {
+		my $all_reps_1 = my $all_reps_2 = '';
+		my $rep_num = $j+1;
+		my $rep_num2name = "_rep_$rep_num";
+		
+		$all_reps_1 = $reps_1->[$j] if ($reps_1->[$j]);
+		$all_reps_2 = $reps_2->[$j] if ($reps_2->[$j]);
+		
+		my $all_reps_1_base = $io->file_basename($all_reps_1);
+		my $all_reps_2_base = $io->file_basename($all_reps_2);
+		
+		my $sample_name = "run_$conf_run_id.sample_" . ($i+1) . $rep_num2name;
+		$sample_name = "run_$conf_run_id." . $sample_names2num->{$i} . $rep_num2name if (exists $sample_names2num->{$i});
+		
+		my $tophat_rep_o_dir = "$tophat_o_dir/$sample_name";
+		my $trim_rep_o_dir = "$trim_o_dir/$sample_name";
+
+		mkdirs($io, [$tophat_rep_o_dir]);
+		
+		my $trim_cmd = '';
+		
+		if ($params->{'readType'} =~ m/^FASTQ$/i) {
+		    
+		    mkdirs($io, [$trim_rep_o_dir]);
+		    $trim_cmd = "\n\n#\n# Trimmomatic Run\n#\n#\n";
+		    
+		    my $trimmomatic_dir = dirname(abs_path($deps->{'trimmomatic'}));
+		    $trimmomatic_dir .= '/adapters/';
+		    my $trim_params = join(" ", @{$params->{'trimmomatic'}});
+		    $trim_params =~ s/\:(.+?\.fa.*?\:)/\:$trimmomatic_dir$1/ if ($trim_params !~ m/\/.+?\.fa/);
+		     
+		    if ($all_reps_2 && $all_reps_1) {
+			$trim_cmd .= "java -jar $deps->{'trimmomatic'} PE -threads $params->{'CPUs'} $all_reps_1 $all_reps_2 ".
+			    "$trim_rep_o_dir/$all_reps_1_base.filtered.fq " .
+			    "$trim_rep_o_dir/$all_reps_1_base.unpaired.fq " .
+			    "$trim_rep_o_dir/$all_reps_2_base.filtered.fq " .
+			    "$trim_rep_o_dir/$all_reps_2_base.unpaired.fq " .
+			    $trim_params .
+			    " &> $trim_rep_o_dir/run.log";
+			$all_reps_1 = "$trim_rep_o_dir/$all_reps_1_base.filtered.fq";
+			$all_reps_2 = "$trim_rep_o_dir/$all_reps_2_base.filtered.fq";
+		    }
+		    elsif ($all_reps_1) {
+			$trim_cmd .= "java -jar $deps->{'trimmomatic'} SE -threads $params->{'CPUs'} $all_reps_1 ".
+			    "$trim_rep_o_dir/$all_reps_1_base.filtered.fq " .
+			    $trim_params .
+			    " &> $trim_rep_o_dir/run.log";
+			$all_reps_1 = "$trim_rep_o_dir/$all_reps_1_base.filtered.fq";
+		    }
+		    elsif ($all_reps_2) {
+			$trim_cmd .= "java -jar $deps->{'trimmomatic'} SE -threads $params->{'CPUs'} $all_reps_2 ".
+			    "$trim_rep_o_dir/$all_reps_2_base.filtered.fq " .
+			    $trim_params .
+			    " &> $trim_rep_o_dir/run.log";
+			$all_reps_1 = "$trim_rep_o_dir/$all_reps_2_base.filtered.fq";
+		    }
+
+		    $trim_cmd .= add_exit_check("$trim_rep_o_dir/run.log",
+						"$trim_o_dir/status.log",
+						'completed successfully',
+						'isTrimRunComplete',
+						'Trimmomatic',
+						'', '>>', $sample_name);
+
+		    #my $is_trim_job_done = is_job_done("$trim_o_dir/status.log", $io, 0, $sample_name);
+		    $trim_cmd = "\n\n# Trimmomatic run has passed. Will resume from tophat ...\n"
+			if (is_job_done("$trim_o_dir/status.log", $io, 0, $sample_name));
+
+		    #print "\n$trim_cmd\n\n";
+		}
+				
+		my $tophat_cmd = "\n\n#\n# Tophat Run\n#\n#\ntophat " .
+		    join(' ', @{$params->{'tophat'}}) .
+		    " -o $tophat_rep_o_dir" .
+		    " -p $params->{'CPUs'}" .
+		    " $params->{'bowtieGenomeIndex'} $all_reps_1 $all_reps_2" .
+		    "&> $tophat_rep_o_dir/run.log" .
+		    add_exit_check("$tophat_rep_o_dir/run.log",
+				   "$tophat_o_dir/status.log",
+                                   'run complete',
+                                   'isTophatRunComplete',
+                                   'Tophat',
+				   '', '>>', $sample_name);
+
+		$bam_files_per_sample .= "$tophat_rep_o_dir/accepted_hits.bam ";
+		$all_bam_files .= "$tophat_rep_o_dir/accepted_hits.bam ";
+		$check_these_log_files .= "$trim_rep_o_dir/run.log\n$tophat_rep_o_dir/run.log\n";
+		$scheduler_job_depends = "'$sample_name'" if ($params->{'scheduler'} =~ m/^none$/i);
+
+		#my $is_tophat_job_done = is_job_done("$tophat_o_dir/status.log", $io, 0, $sample_name);
+		$tophat_cmd = "\n\n# Tophat run has passed. Will resume from cufflinks ...\n"
+		    if (is_job_done("$tophat_o_dir/status.log", $io, 0, $sample_name));
+
+		#print "\n$tophat_cmd\n";
+
+		write_and_submit_job("lncRNApipe_alignment_stage_$sample_name" . ".sh",
+				     'NO_DEPENDENCY_CHAIN',
+				     "job_IDs_tophat.$conf_run_id",
+				     $scheduler_job_depends,
+				     $job_scripts_dir,
+				     $params,
+				     $io,
+				     [$trim_cmd, $tophat_cmd],
+				     $job_submission_rudimentary);
+	    }
+	
+	    #chop $all_bam_files if ($all_bam_files =~ m/\s$/); # Remove last space;
+	    #chop $bam_files_per_sample if ($bam_files_per_sample =~ m/\s$/); # Remove last space;
+	    #chomp(my $all_bam_files = $io->execute_get_sys_cmd_output("find $tophat_o_dir -type f -name 'accepted_hits.bam' | sed ':a;N;\$!ba;s/\\n/ /g'"));
+	    #$io->error('Cannot find BAM file(s). Did Tophat run fail?' .
+		       #"\nPlease check test log files:\n\n$check_these_log_files")
+		#if ($bam_files_per_sample =~ m/could not capture/i);
+	    
+	    my $sambamba_cmd = my $cufflinks_input_bam_str = my $cufflinks_cmd = '';
+	    my $bam_num = scalar (split /\s+/, $all_bam_files);
+	    my $bam_num_sample = scalar (split /\s+/, $bam_files_per_sample);
+	    #print "Bam num: $bam_num\t$all_bam_files\n";
+
+	    my $job_deps_str = get_job_dependency_chain("$job_scripts_dir/job_IDs_tophat.$conf_run_id", $io, $params, "$bam_num:" . ($bam_num_sample-1));
+	    $sambamba_cmd = "\n\n# No scheduler involved. Wait on PIDs.\n$job_deps_str" 
+		if ($params->{'scheduler'} =~ m/^none$/i);
+	    
+	    
+	    if ($bam_num_sample > 1) {
+		
+		#if ( $bam_num != $READ_NUM ) {
+		#    $io->warning("Inequal number of BAM files ($bam_num) and number of read files (" .
+		#		 $READ_NUM .  ") mentioned in [reads: ] $beverb", 'ERROR!');	    
+		#    $params->{'qdel'} = 1;
+		#}
+		
+		$sambamba_cmd .= "\n\n#\n# Sambamba Run\n#\n#\n$deps->{'sambamba'} merge" .
+		    " -t $params->{'CPUs'} $tophat_samp_o_dir/accepted_hits.merged.bam $bam_files_per_sample" .
+		    " &> $cufflinks_samp_o_dir/run.log";
+		$cufflinks_input_bam_str = "$tophat_samp_o_dir/accepted_hits.merged.bam";
+	    }
+	    else {
+		$cufflinks_input_bam_str = $bam_files_per_sample;
+	    }
+	    
+	    $cufflinks_cmd .= "\n\n#\n# Cufflinks Run\n#\n#\ncufflinks ".
+		join(' ', @{$params->{'cufflinks'}}) .
+		" -o $cufflinks_samp_o_dir" .
+		" -L $sample_name_grand" .
+		" -p $params->{'CPUs'}" .
+		" -g $annot_gtf $cufflinks_input_bam_str >> $cufflinks_samp_o_dir/run.log 2>&1" .
+		add_exit_check("$cufflinks_samp_o_dir/run.log",
+			       "$cufflinks_o_dir/status.log",
+			       'processed.+?loci',
+			       'isCufflinksRunComplete',
+			       'Cufflinks',
+			       '', '>>', $sample_name_grand);
+	    
+	    $cufflinks_assembled_trs .= "$cufflinks_samp_o_dir/transcripts.gtf ";
+	    $check_these_log_files .= "$cufflinks_samp_o_dir/run.log\n";
+	    $scheduler_job_depends = "'$sample_name_grand'" if ($params->{'scheduler'} =~ m/^none$/i);
+	    $cuffdiff_bam_files .= join(',', (split/\s+/, $bam_files_per_sample)) . ' ';
+
+	    #my $is_cufflinks_job_done = is_job_done("$cufflinks_o_dir/status.log", $io, 0, $sample_name_grand);
+
+	    if (is_job_done("$cufflinks_o_dir/status.log", $io, 0, $sample_name_grand)) {
+		$sambamba_cmd = "\n\n# Cufflinks run has passed. No need to merge replicates. Will resume from cuffcompare ...";
+		$cufflinks_cmd = "\n# Cufflinks run has passed. No need to redo transcript assembly. Will resume from cuffcompare ...";
+	    }
+	    
+	    write_and_submit_job("lncRNApipe_assembly_stage_$sample_name_grand" . ".sh",
+				 $job_deps_str,
+				 "job_IDs_cufflinks.$conf_run_id",
+				 $scheduler_job_depends,
+				 $job_scripts_dir,
+				 $params,
+				 $io,
+				 [$sambamba_cmd, $cufflinks_cmd],
+				 'jobID_is_rudimentary');
+	    
+	    #print "$sambamba_cmd\n$cufflinks_cmd\n";
+	}
+	
+	my $cufflinks_tr_num = scalar (split /\s+/, $cufflinks_assembled_trs);
+	
+	$job_deps_str_lncRNApipe_post_assembly = get_job_dependency_chain("$job_scripts_dir/job_IDs_cufflinks.$conf_run_id", $io, $params, $cufflinks_tr_num, 
+									  "$cufflinks_o_dir/status.log")
+	    if ($cufflinks_tr_num);
+
+	$cufflinks_after_assembly_check = add_exit_check("$cufflinks_o_dir/status.log",
+							 "$cufflinks_o_dir/lncRNApipe_afterCufflinks.status.log",
+							 'passed',
+							 'isCufflinksRunComplete',
+							 'Cufflinks assembly');
+	
+	$params->{'cuffcompare'} = [$cufflinks_assembled_trs];
+    }
+    elsif ($params->{'performTranscriptAssembly'} =~ m/^NO$/i) {
+	$io->c_time('OK. Skipping transcript assembly...');
+
+	# Check cuffcompare options.
+	$io->error('[cuffcompare: ] options not provided.' .
+		   "\nWhen [performTranscriptAssembly: NO], we need to know about your assembled transcripts in GTF format." . $beverb)
+	    if (!defined $params->{'cuffcompare'});
+	
+	$io->error('In [cuffcompare: ] options, please provide your assembled transcripts as "-i full_unix_path_to_your_assembly_list.txt".' . $beverb)
+	    if (!is_option_exists_in_anon($params->{'cuffcompare'}, '-i\s+'));
+	
+	$io->error('Only "-i full_unix_path_to_your_assembly_list.txt" is allowed for [cuffcompare: ] when [performTranscriptAssembly: NO].'. $beverb)
+	if ( defined $params->{'cuffcompare'} &&
+	     is_option_exists_in_anon($params->{'cuffcompare'}, '-i\s+', 'NOT'));
+
+	$io->error('In [cuffdiff: ] options, "-L" is not required. We got that from [categorize_ncRNAs: ].' . $beverb)
+	    if (defined $params->{'cuffdiff'} && is_option_exists_in_anon($params->{'cuffdiff'}, '-L\s+'));
+
+	$io->error('In [cuffdiff: ] options, "-bam" is required when [[performTranscriptAssembly: NO ].' . $beverb)
+	    if (defined $params->{'cuffdiff'} && !is_option_exists_in_anon($params->{'cuffdiff'}, '-bam\s+'));
+
+	$cuffdiff_bam_files = is_option_exists_in_anon($params->{'cuffdiff'}, '-bam\s+');
+	$cuffdiff_bam_files =~ s/\-bam//;
+	
+	if (defined $params->{'cuffdiff'}) {
+	    for (0 .. $#{$params->{'cuffdiff'}}) {
+		delete @{$params->{'cuffdiff'}}[$_] if (@{$params->{'cuffdiff'}}[$_] =~ m/-bam\s+/);
+	    }	    
+	}
+    }
+	
+    #chop $cufflinks_assembled_trs if ($cufflinks_assembled_trs =~ m/\s$/); # Remove last space;
+    my $lncRNApipe_opts = "\n\n# No scheduler involved. Wait on PIDs.\n$job_deps_str_lncRNApipe_post_assembly"
+	if ($params->{'scheduler'} =~ m/^none$/i && $job_deps_str_lncRNApipe_post_assembly);
+    
+    if ($cufflinks_after_assembly_check && $job_deps_str_lncRNApipe_post_assembly) {
+	$lncRNApipe_opts = $lncRNApipe_opts . $cufflinks_after_assembly_check;
+    }
+    else {
+	$job_deps_str_lncRNApipe_post_assembly = 'NO_DEPENDENCY_CHAIN';
+    }
+
+    
+    $lncRNApipe_opts .= qq {
+
+#
+# lncRNAPipe post assembly run. This is where we identify ncRNAs / lncRNAs.
+#
+#								      
+perl $USER_HOME/lncRNApipe --run $params->{'outputDir'} --cpu $params->{'CPUs'} --cuffcompare '-r $annot_gtf -s $params->{'genomeFasta'} } . join(' ', @{$params->{'cuffcompare'}}) . "' --cat-ncRNAs '" . join(' ', @{$params->{'categorize_ncRNAs'}}) . "' --get $thru_conf_get_uq_feat_opts_n --fetch --cpc $thru_conf_inf_opts $thru_conf_rna_fold_opts > $params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log 2>&1";
+    
+    $lncRNApipe_opts .= qq {
+
+#
+# Creating symlinks so that we can identify known ncRNAs and reduce run time.
+#
+#
+ln -s $params->{'outputDir'}/cuffcompare $cuffdiff_known/.
+ln -s $params->{'outputDir'}/categorize_ncRNAs $cuffdiff_known/.
+
+perl $USER_HOME/lncRNApipe --run $cuffdiff_known --cpu $params->{'CPUs'} --get '$thru_conf_get_uq_feat_opts_k -extract' $thru_conf_inf_opts $thru_conf_rna_fold_opts >> $params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log 2>&1};
+
+    $lncRNApipe_opts .= add_exit_check("$params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log",
+				       "$params->{'outputDir'}/lncRNApipe.postAssembly.status.log",
+				       'aborted|error',
+				       'islncRNApipePostAssemblyRunComplete',
+				       'Post assembly pipeline',
+				       '! -z');
+    	
+    $check_these_log_files .= "$params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log\n";
+    #print "\n\n$lncRNApipe_post_assembly_cmd\n\n";
+
+    $io->error('Only "--min-isoform-fraction" is allowed for [cuffmerge: ]')
+	if ( defined $params->{'cuffmerge'} &&
+	     is_option_exists_in_anon($params->{'cuffmerge'}, '--min-isoform-fraction\s+', 'NOT')
+	);
+
+    my $cuffmerge_cmd = my $cuffdiff_cmd = '';
+    
+    if (defined $params->{'cuffmerge'} || defined $params->{'cuffdiff'}) {
+	my $cuffmerge_opts = join(' ', @{$params->{'cuffmerge'}});
+	$cuffmerge_cmd .= qq {
+
+#
+# Merge all known and novel ncRNAs.
+#
+#
+
+#
+# Known ncRNAs.
+#
+find $cuffdiff_known/get_unique_features -type f -name '*.gtf' > $cuffmerge_known/lncRNApipe_known_ncRNAs_tr_list.txt
+
+cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffmerge_known -g $nc_annot_gtf -s $params->{'genomeFasta'} $cuffmerge_known/lncRNApipe_known_ncRNAs_tr_list.txt > $cuffmerge_known/cuffmerge_known_ncRNAs.run_$conf_run_id.log 2>&1
+
+#
+# Novel ncRNAs.
+#
+find $params->{'outputDir'}/lncRNApipe.final -type f -name '*.final.gtf' > $cuffmerge_novel/lncRNApipe_novel_ncRNAs_tr_list.txt
+
+cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffmerge_novel $cuffmerge_novel/lncRNApipe_novel_ncRNAs_tr_list.txt >> $cuffmerge_novel/cuffmerge_novel_ncRNAs.run_$conf_run_id.log 2>&1};
+	
+	#$cuffmerge_cmd .= add_exit_check("$params->{'outputDir'}/cuffmerge.combined.run.log",
+	#				 "$params->{'outputDir'}/cuffmerge.combined.status.log",
+	#				 'aborted|error',
+	#				 'isCuffmergeRunComplete',
+	#				 'Cuffmerge');
+
+	$check_these_log_files .= "$cuffmerge_known/cuffmerge_known_ncRNAs.run_$conf_run_id.log\n" .
+	    "$cuffmerge_novel/cuffmerge_novel_ncRNAs.run_$conf_run_id.log\n";
+
+    }
+       
+    if (defined $params->{'cuffdiff'}) {
+	my $cuffdiff_opts = join(' ', @{$params->{'cuffdiff'}});
+	my $sample_names = is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample');
+	($sample_names) = ($sample_names =~ m/.+\s+(.+)/);
+	
+	$cuffdiff_cmd .= qq {
+
+#
+# Find differentially expressed known and novel ncRNAs.
+#
+#
+
+#
+# Differentially expressed known ncRNAs.
+#
+cuffdiff -o $cuffdiff_known -L $sample_names $cuffdiff_opts $cuffmerge_known/merged.gtf $cuffdiff_bam_files> $cuffdiff_known/cuffdiff_on_known_ncRNAs.run_$conf_run_id.log 2>&1
+
+#
+# Differentially expressed novel ncRNAs.
+#
+cuffdiff -o $cuffdiff_novel -L $sample_names $cuffdiff_opts $cuffmerge_novel/merged.gtf $cuffdiff_bam_files>> $cuffdiff_novel/cuffdiff_on_novel_ncRNAs.run_$conf_run_id.log 2>&1};
+	
+	$cuffdiff_cmd .= add_exit_check("$cuffdiff_known/cuffdiff_on_known_ncRNAs.run_$conf_run_id.log",
+					"$cuffdiff_known/status.log",
+					'writing run info',
+					'isCuffdiffKnownRunComplete',
+					'Cuffdiff on known ncRNAs');
+
+	$cuffdiff_cmd .= add_exit_check("$cuffdiff_novel/cuffdiff_on_novel_ncRNAs.run_$conf_run_id.log",
+					"$cuffdiff_novel/status.log",
+					'writing run info',
+					'isCuffdiffNovelRunComplete',
+					'Cuffdiff on novel ncRNAs');
+	
+	$check_these_log_files .= "$cuffdiff_known/cuffdiff_on_known.run_$conf_run_id.log\n" .
+	    "$cuffdiff_novel/cuffdiff_on_novel.run_$conf_run_id.log\n";
+    }
+    
+    $lncRNApipe_opts = "\n\n# We have already identified known and novel ncRNAs. Will resume from cuffmerge and cuffdiff ...\n"
+	if (is_job_done("$params->{'outputDir'}/lncRNApipe.postAssembly.status.log", $io));
+
+    $cuffmerge_cmd = $cuffdiff_cmd = "\n\n# Cuffmerge and Cuffdiff runs on known and novel ncRNAs have passed.\n"
+	if (is_job_done("$cuffdiff_known/status.log", $io) && is_job_done("$cuffdiff_novel/status.log", $io));
+
+    write_and_submit_job("lncRNApipe_postAssembly.run_$conf_run_id.sh",
+			 $job_deps_str_lncRNApipe_post_assembly,
+			 "job_IDs_lncRNApipe_postAssembly.$conf_run_id",
+			 $scheduler_job_depends,
+			 $job_scripts_dir,
+			 $params,
+			 $io,
+			 [$lncRNApipe_opts, $cuffmerge_cmd, $cuffdiff_cmd],
+			 'jobID_is_rudimentary'); # We need to explicitely get job ID and print it so that we can kill it later.
+
+    my $cuffdiff4all_trs = '';
+    
+    if (defined $params->{'runCuffdiffForAllTranscripts'}) {
+	my $cuffdiff_on_tr_dir = "$params->{'outputDir'}/cuffdiff_on_transcripts";
+	mkdirs($io, [$cuffdiff_on_tr_dir, "$cuffdiff_on_tr_dir/cuffmerge"]);
+
+	my $sample_names = is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample');
+	($sample_names) = ($sample_names =~ m/.+\s+(.+)/);
+
+	my $cuffdiff_opts = join(' ', @{$params->{'cuffdiff'}});
+	my $cuffmerge_opts = join(' ', @{$params->{'cuffmerge'}});
+
+    	$cuffdiff4all_trs .= qq {
+
+#
+# Merge all transcripts from cufflinks.
+#
+#
+find $cufflinks_o_dir -type f -name 'transcripts.gtf' > $cuffdiff_on_tr_dir/cufflinks_tr_list.txt
+
+cuffmerge $cuffmerge_opts -p $params->{'CPUs'} -o $cuffdiff_on_tr_dir/cuffmerge -g $annot_gtf -s $params->{'genomeFasta'} $cuffdiff_on_tr_dir/cufflinks_tr_list.txt > $cuffdiff_on_tr_dir/cuffmerge_on_cufflinks_transcripts.run_$conf_run_id.log 2>&1
+
+#
+# Find differentially expressed transcripts.
+#
+#
+cuffdiff -o $cuffdiff_on_tr_dir -L $sample_names $cuffdiff_opts $cuffdiff_on_tr_dir/cuffmerge/merged.gtf $cuffdiff_bam_files> $cuffdiff_on_tr_dir/cuffdiff_on_all_transcripts.run_$conf_run_id.log 2>&1};
+	
+	$cuffdiff4all_trs .= add_exit_check("$cuffdiff_on_tr_dir/cuffdiff_on_all_transcripts.run_$conf_run_id.log",
+					    "$cuffdiff_on_tr_dir/status.log",
+					    'writing run info',
+					    'isCuffdiffAllTrsRunComplete',
+					    'Cuffdiff');
+
+	$check_these_log_files .= "$cuffdiff_on_tr_dir/cuffmerge_on_cufflinks_transcripts.run_$conf_run_id.log\n" .
+	    "$cuffdiff_on_tr_dir/cuffdiff_on_all_transcripts.run_$conf_run_id.log\n";
+
+	$cuffdiff4all_trs = "\n\n# Cuffdiff run on all assembled Cufflinks' transcripts has passed. Skipping...\n"
+	    if (is_job_done("$cuffdiff_on_tr_dir/status.log", $io, 0));
+	
+	$io->c_time("cuffdiff run on all cufflinks' transcripts requested...");
+	$io->c_time("Generating separate job script using the same job dependency chain...");
+
+	write_and_submit_job("lncRNApipe_postAssembly_diffExp.run_$conf_run_id.sh",
+			     $job_deps_str_lncRNApipe_post_assembly,
+			     "job_IDs_lncRNApipe_postAssembly.$conf_run_id",
+			     $scheduler_job_depends,
+			     $job_scripts_dir,
+			     $params,
+			     $io,
+			     [$cuffdiff4all_trs],
+			     'jobID_is_rudimentary'); # We need to explicitely get job ID and print it so that we can kill it later.
+    }
+    
+    $io->c_time('All job scripts have been submitted. Please check these log files for any results / errors.' . "\n\n$check_these_log_files");
+    exit 0;
+}
+
+# Make directories and exit out if error.
+sub mkdirs {
+    my $io = shift;
+    my $dirs = shift;
+    
+    foreach my $dir (@$dirs) {
+	if (!-d $dir) {
+	    my $mk_dir_output = $io->execute_get_sys_cmd_output("mkdir $dir");
+	    $io->error('Cannot create output directories. Exited with the following error(s):' .
+		       "\n$mk_dir_output") if ($mk_dir_output !~ m/could not capture/i);
+	}
+    }
+    return;
+}
+
+# Check status file and resume pipeline.
+sub is_job_done {
+    my $file = shift;
+    my $io = shift;
+    my $get_run_id = shift;
+    my $autogen_sample_name = shift;
+
+    if ($autogen_sample_name) {
+	$autogen_sample_name .= '.+?passed';
+    }
+    else {
+	$autogen_sample_name = 'passed';
+    }
+
+    chomp(my $line_count = $io->execute_get_sys_cmd_output("wc -l $file 2>&1 | awk '{print \$1}'"));
+    chomp(my $passed = $io->execute_get_sys_cmd_output("grep -oP '$autogen_sample_name' $file 2>&1 | head -n 1"));
+    chomp(my $run_id = $io->execute_get_sys_cmd_output("grep -oiP '" . 'Run=\w+' . "' $file 2>&1 | head -n 1"));
+    
+    if ($run_id =~ m/Run=/i && $get_run_id) {
+	$run_id =~ s/Run=//i;
+	$conf_run_id = $run_id;
+	return 1;
+    }
+    elsif ($run_id =~ m/Run=/i && $passed =~ m/passed/i) {
+	$run_id =~ s/Run=//i;
+	$conf_run_id = $run_id;
+    }
+    #elsif ($passed =~ m/passed/i) {
+	#$io->error("Unable get previous Run ID. Only way to go from here is to restart the run from the beginning.\nTry using [overwriteOutputDir: YES].");
+    #}
+    
+    return $line_count if ($passed =~ m/passed/i && $line_count =~ m/^\d+/ && $line_count > 0);
+    return 0;
+}
+
+# Check and return anon array options'
+sub is_option_exists_in_anon {
+    my $arr = shift;
+    my $regex = shift;
+    my $negate = shift;
+
+    foreach my $val (@$arr) {
+	if ($val =~ m/$regex/ && !$negate) {
+	    my $sample_name_exists = $val;
+	    return $sample_name_exists;
+	}
+	elsif ($val !~ m/$regex/ && $negate) {
+	    my $sample_name_exists = $val;
+	    return $sample_name_exists;
+	}
+    }
+    return 0;
+}
+
+# Kill jobs and exit, if user has requested it.
+sub kill_jobs_and_exit {
+    my $job_id_files = shift;
+    my $io = shift;
+    my $params = shift;
+
+    foreach my $file (@$job_id_files) {
+	my $job_ids_fh = $io->open_file('<', $file);
+	my $job_ids = do {local $/; <$job_ids_fh>};
+	close $job_ids_fh;
+	
+	my $job_deps_str = join(" ", (split(/\n|\r/, $job_ids)));
+	
+	if ($params->{'scheduler'} =~ m/^bash$/i || $params->{'killCmd'} =~ m/kill/i) {
+	    $job_deps_str = '';
+	    $io->c_time("Getting PIDs...");
+	    foreach my $job_id ( (split(/\n|\r/, $job_ids)) ) {
+		chomp($job_id);
+		#print "ps aux | grep '$job_id' | grep -v grep | awk '{print \$2}'\n";
+		my $pid = $io->execute_get_sys_cmd_output("ps aux | grep '$job_id' | grep -v grep | awk '{print \$2}'");
+		$pid =~ s/(\n|\r)+/ /g;
+		$job_deps_str .= "$pid " if ($pid !~ m/could not capture/i);
+	    }
+	}
+
+	if (!$job_deps_str) {
+	    $io->warning('Did not find any running jobs mentioned in job file [ ' . $io->file_basename($file, 'suffix') . ' ] !', 
+			 'EXITING!');
+	}
+	else {
+	    
+	    $io->c_time("[scheduler: $params->{'scheduler'}]. Attempting to kill by job ID(s) as stored in [ " . 
+			$io->file_basename($file, 'suffix') . ' ]...');
+	    $io->execute_system_command("$params->{'killCmd'} $job_deps_str",
+					"Command call:\n" .
+					"-------------\n" .
+					"$params->{'killCmd'} $job_deps_str");
+	}
+	
+	$io->warning("Kill command: [ $params->{'killCmd'} ]. Scheduler: [ $params->{'scheduler'} ].", 'EXITING!!');
+	exit 0;
+    }
+}
+
+# Return job dependency chain based on scheduler
+sub get_job_dependency_chain {
+    my $file = shift;
+    my $io = shift;
+    my $params = shift;
+    my $wait_for_jobs = shift;
+    my $check_file_presence = shift;
+    my $only_these_jobs = '';
+
+    $io->error('Do not know how many jobs to wait for')
+	if (!$wait_for_jobs);
+
+    if ($wait_for_jobs =~ m/\d+\:\d+/) {
+	($wait_for_jobs, $only_these_jobs) = split/\:/, $wait_for_jobs
+    }
+    elsif ($wait_for_jobs =~ m/^\d+$/)  {
+	$only_these_jobs = $wait_for_jobs - 1;
+    }
+    else {
+	$io->error('$WAIT_FOR_JOBS is not numeric!!');
+    }
+
+    my $job_ids_fh = my $job_ids = my $job_deps_str = '';
+
+    if ($check_file_presence) {
+	# Just read one time.
+
+	$job_ids_fh = $io->open_file('<', $file);
+	$job_ids = do {local $/; <$job_ids_fh>};
+        my $num_jobs = scalar (split(/\n|\r/, $job_ids));
+        close $job_ids_fh;
+
+	$job_deps_str = join(", ", (split(/\n|\r/, $job_ids)));
+    
+
+	if (!defined $donot_wait4jobIDs && $params->{'scheduler'} !~ m/^none$/i &&
+	    ask_user("\nDear $ENV{'USER'}:\n=====================\nSince the assembly job(s) waits in queue until all alignments are finished,\n" .
+		     "and since we cannot get job ID(s) programmatically, we tried to get job ID(s)\n" .
+		     "from STDOUT / STDERR of previous batch submission [ $params->{'batchSubCmd'} ] for cufflinks." .
+		     "\n\nThese are the job ID(s) we got that must be finished before " .
+		     "[ lncRNApipe_postAssembly.run_$conf_run_id.sh ] starts running.\n\n" .
+		     '*' x 70 .
+		     "\n\n$job_deps_str\n\n" .
+		     '*' x 70 .
+		     "\n\nAre the above job ID(s) we got from STDERR / STDOUT (sandwiched -\nbetween " .
+		     "#################################### lines) correct?\n\n" .
+		     "Type 'y' and press ENTER to submit the job script", 900)) {
+	    
+	    $io->c_time("YAY! We got it right!!");
+	}
+	elsif(!defined $donot_wait4jobIDs && $params->{'scheduler'} !~ m/^none$/i) {
+	    $io->warning('Sorry, we got it wrong. We can still move forward depending on your correct input.' .
+			 "\nOK. Here's what you can do. You know the job ID(s) from the STDOUT / STDERR output above.\n" .
+			 "\nThey should look somewhat like:\n\n\t" .
+			 "Your job 3214168 (\"lncRNApipe_assembly_stage.sh\") has been submitted ... \n\n\t\tOR\n\n" .
+			 "\tJob <3214168> is submitted to queue ... \n\n\t\tOR\n\n" .
+			 "\t3214168.pbs.tamu.edu ... \n\n", 'OOPS!');
+	    
+	    print STDOUT "Dear $ENV{'USER'}:\n=====================\nOpen a new command line session and replace the word JOBID " .
+		"in the following command\nwith the actual job ID and repeat the command for each job ID you see above.\n\n" .
+		"echo \"JOBID\" >> $file\n\n";
+	    $io->c_time("Waiting until $ENV{'USER'} enters correct number of job ID(s) in [ $file ]...");
+	    $io->execute_system_command("rm -rf $file");
+	    $io->execute_system_command("touch $file");
+	}
+    }
+    
+    while (1) {	
+	$job_ids_fh = $io->open_file('<', $file);
+	$job_ids = do {local $/; <$job_ids_fh>};
+	my $num_jobs = scalar (split(/\n|\r/, $job_ids));
+	close $job_ids_fh;
+
+	if ($wait_for_jobs < $num_jobs) {
+	    $io->warning("Number of job IDs [ $num_jobs ] is more than number of job IDs expected [ $wait_for_jobs ]." .
+			 "\nWe are not sure which Job IDs to use to create dependency chain.\n\nJob IDs file: $file", 'ERROR!');
+	    kill_jobs_and_exit([$file], $io, $params);
+	}
+	elsif ($wait_for_jobs != $num_jobs) {
+	    $io->c_time('Waiting for ' . ($wait_for_jobs-$num_jobs) . ' more job ID(s) ' .
+		'in [ ' . $io->file_basename($file, 'suffix') . ' ]...');
+	    sleep 10;
+	    next;
+	}
+	else {
+	    last;
+	}
+    }
+
+    if ($params->{'scheduler'} =~ m/^none$/i) {
+	$job_deps_str =  join("|", (split(/\n|\r/, $job_ids)));
+	
+	if ($file =~ m/job_IDs_tophat/i) {
+	    $job_deps_str = "while [ true ]; do if [ ! -z \"\$(ps aux | grep -P 'tophat.+?($job_deps_str)' | grep -v grep)\" ]; then " .
+		"sleep 10; else break; fi; done;";
+	}
+	elsif ($file =~ m/job_IDs_cufflinks/i) {
+	    $job_deps_str = "while [ true ]; do if [ -e \"$check_file_presence\" ] && [ -s \"$check_file_presence\" ]; then " .
+		"break; else sleep 10; fi; done;";
+	}
+    }
+    elsif ($params->{'scheduler'} =~ m/^sge$/i) {
+	$job_deps_str =  '-hold_jid ' . join(",", (reverse (split(/\n|\r|\s+/, $job_ids)))[0..$only_these_jobs]);
+    }
+    elsif ($params->{'scheduler'} =~ m/^pbs$/i) {
+	$job_deps_str = '-W depend=afterok:' . join(":", (reverse (split(/\n|\r|\s+/, $job_ids)))[0..$only_these_jobs]);
+    }
+    elsif ($params->{'scheduler'} =~ m/^slurm$/i) {
+	$job_deps_str = '--dependency=afterok:' . join(":", (reverse (split(/\n|\r|\s+/, $job_ids)))[0..$only_these_jobs]);
+    }
+    elsif ($params->{'scheduler'} =~ m/^lsf$/i) {
+	$job_deps_str = '-w "done(' . join(") && done(", (reverse (split(/\n|\r|\s+/, $job_ids)))[0..$only_these_jobs]);
+	$job_deps_str .= ')" <';
+    }
+    return $job_deps_str;
+}
+
+# Write exit code for job script
+sub add_exit_check {
+    my $log_file = shift;
+    my $status_log_file = shift;
+    my $pattern = shift;
+    my $var_name = shift;
+    my $cmd_in_msg = shift;
+    my $expr = shift;
+    my $write_mode = shift;
+    my $sample_name = shift;
+    my $auto_generated_on = localtime;
+    $auto_generated_on =~ s/\s+/\_/g;
+
+    $expr = '-z' if (!$expr);
+    $write_mode = '>' if (!$write_mode);
+   
+    if (!$sample_name) {
+	$sample_name = $cmd_in_msg;
+    }
+    else {
+	$sample_name = "AutoGenSampleName=$sample_name " . $cmd_in_msg;
+    }
+
+    my $here = qq {
+
+#
+# Exit check. Checking log file of the completed run.
+#
+#
+$var_name=`grep -ioP '$pattern' $log_file`
+
+if [ $expr "\$$var_name" ]; then
+     echo "lncRNApipe: AutoGenJobTime=$auto_generated_on Run=$conf_run_id $sample_name run has failed." $write_mode $status_log_file
+     exit -1
+else
+     echo "lncRNApipe: AutoGenJobTime=$auto_generated_on Run=$conf_run_id $sample_name run has passed." $write_mode $status_log_file
+fi};
+
+    return $here;
+}
+
+# Write job script with commands
+sub write_and_submit_job {
+    my $job_script_name = shift;
+    my $deps_str = shift;
+    my $job_ids_file = shift;
+    my $jobid_env = shift;
+    my $job_scripts_dir = shift;
+    my $params = shift;
+    my $io = shift;
+    my $cmds = shift;
+    my $jobID_rudimentary = shift;
+    my $cluster_opts = '# No cluster options specified.';
+    my $sandbox_bin_path = '# Using binaries [ bowtie, tophat, cufflinks ] found on the system.';
+
+    my $yaml_was = $io->file_basename($pipe_config, 'suffix');
+    
+    $job_script_name = "$job_scripts_dir/$job_script_name";
+
+    my $auto_generated_on = localtime;
+    my $scheduler_opts_str = join("\n#", @{$params->{'schedulerOpts'}});
+    my $job_script_fh = $io->open_file('>', $job_script_name);
+
+    unshift(@$cmds, "\n\n# This run's job ID or PID.\necho " .
+	    $jobid_env .
+	    " >> $job_scripts_dir/$job_ids_file")
+	if ($jobid_env &&
+	    $jobid_env !~ m/none/i &&
+	    $job_ids_file !~ m/NO_DEPENDENCY_CHAIN/i &&
+	    !$jobID_rudimentary);
+    
+    $cluster_opts = join("\n", @{$params->{'clusterOpts'}}) if (defined $params->{'clusterOpts'});
+    $sandbox_bin_path = '# Attempting to go for zero failures regarding: "-bash: : command not found".' .
+	"\n# Just appending path to our sandboxed binaries.\n#" .
+	"\nexport PATH=\$PATH:$deps->{'bowtie'}:$deps->{'tophat'}:$deps->{'cufflinks'}"
+	if ($deps->{'bowtie'} =~ m/lncRNApipe\.depbin/ ||
+	    $deps->{'tophat'} =~ m/lncRNApipe\.depbin/ ||
+	    $deps->{'cufflinks'} =~ m/lncRNApipe\.depbin/);
+     
+    my $job_script = qq {#!/bin/bash
+# 
+# lncRNApipe v$VERSION
+# Job script generated on $auto_generated_on.
+# Scheduler is $params->{'scheduler'}.
+# 
+# Job parameters as mentioned in configuration file [ $yaml_was ]:
+#
+#$scheduler_opts_str
+# 
+# Other custom configurations specific to your cluster as mentioned in 
+# configuration file [ $yaml_was ]:
+#
+$cluster_opts
+#
+$sandbox_bin_path@$cmds};
+
+    print $job_script_fh $job_script;
+    close $job_script_fh;
+
+    $io->c_time('Job script [ ' . $io->file_basename($job_script_name, 'suffix') . '  ] written...');
+    my $grid_job_id = '';
+
+    if ($params->{'scheduler'} !~ m/^none$/i) {
+	$io->c_time('Submitting job script [ '. $io->file_basename($job_script_name, 'suffix') . '  ]...');
+	
+	if ($deps_str !~ m/NO_DEPENDENCY_CHAIN/i) {
+	    if ($jobID_rudimentary) {
+		print "\n", '#' x 70, "\n";
+		my $grid_job_id = $io->execute_get_sys_cmd_output("$params->{'batchSubCmd'} $deps_str $job_script_name", 
+								  #0,
+								  "Command call:\n" .
+								  "-------------\n" .
+								  "$params->{'batchSubCmd'} $deps_str $job_script_name");
+		print STDOUT $grid_job_id;
+		print "\n", '#' x 70, "\n"; 
+       
+		$grid_job_id = get_grid_jobID_rudimentary($grid_job_id);
+		if ($grid_job_id !~ m/could not capture/i && $grid_job_id) {
+		    $io->execute_system_command("echo $grid_job_id >> $job_scripts_dir/$job_ids_file");
+		}
+		else  {
+		    $io->warning("Cannot get job ID from STDOUT / STDERR.\n" .
+				 'Please report this error with output from the command to lncRNApipe@gmail.com so that we can fix it', 'ERROR!');
+		    $io->c_time("Attempting to kill already submitted jobs...");
+		    kill_jobs_and_exit(["$job_scripts_dir/$job_ids_file"], $io, $params);
+		}
+	    }
+	    else {
+		print "\n+", '-' x 68, "+\n";
+		$io->execute_system_command("$params->{'batchSubCmd'} $deps_str $job_script_name", 
+					    #0,
+					    "Command call:\n" .
+					    "-------------\n" .
+					    "$params->{'batchSubCmd'} $deps_str $job_script_name");
+		print "\n+", '-' x 68, "+\n";
+	    }
+	}
+	else {
+	    # bsub special case
+	    $job_script_name = "< $job_script_name" if ($params->{'batchSubCmd'} =~ m/^bsub$/i);
+	     
+	    if ($jobID_rudimentary) {
+		print "\n+", '-' x 68, "+\n";
+		my $grid_job_id = $io->execute_get_sys_cmd_output("$params->{'batchSubCmd'} $job_script_name", 
+								  #0,
+								  "Command call:\n" .
+								  "-------------\n" .
+								  "$params->{'batchSubCmd'} $job_script_name");
+		print STDOUT $grid_job_id;
+		print "\n+", '-' x 68, "+\n";
+       
+		$grid_job_id = get_grid_jobID_rudimentary($grid_job_id);
+		if ($grid_job_id !~ m/could not capture/i && $grid_job_id) {
+		    $io->execute_system_command("echo $grid_job_id >> $job_scripts_dir/$job_ids_file");
+		}
+		else  {
+		    $io->warning("Cannot get job ID from STDOUT / STDERR.\n" .
+				 'Please report this error with the output from the command to lncRNApipe@gmail.com so that we can fix it', 'ERROR!');
+		    $io->c_time("Attempting to kill already submitted jobs...");
+		    kill_jobs_and_exit(["$job_scripts_dir/$job_ids_file"], $io, $params);
+		}
+	    }
+	    else {
+		print "\n+", '-' x 68, "+\n";
+		$io->execute_system_command("$params->{'batchSubCmd'} $job_script_name", 
+					    #0,
+					    "Command call:\n" .
+					    "-------------\n" .
+					    "$params->{'batchSubCmd'} $job_script_name");
+		print "\n+", '-' x 68, "+\n";
+	    }
+	}
+    }
+    else {
+	$io->c_time('No scheduler specified. Running it in background with bash...');
+	print "\n@ ", '-' x 68, " @\n";
+	$io->execute_system_command("bash $job_script_name &", 
+				    #0,
+				    "Command call:\n" .
+				    "-------------\n" .
+				    "bash $job_script_name &");
+	print "\n@ ", '-' x 68, " @\n";
+    }
+    return;    
+}
+
+# Return grid job id. This is rudimentary since more work is needed
+# to create job dependency chains. The Schedule::DRMAAc 
+# installation needs little configuration, which
+# defeats the purpose of this whole pipeline, which is to be as simple
+# as possible to install and run. 
+#
+# IN MOST CASES THE JOB ID IS NUMERIC. IF NOT, WE DEPEND ON THE USER
+# INPUT.
+#
+# This does the heavy lifting but we still ask user to verify job ids
+# parsed.
+sub get_grid_jobID_rudimentary {
+    my $job_id_string = shift;
+
+    if ($job_id_string =~ m/\s+/) {
+	(undef, undef, my $job_id, undef) = ($job_id_string =~ m/(submitted)?.*?job\s+(id)?\W*(\d+)\W*.*(submitted)?/i);
+	#(my $job_id) = ($job_id_string =~ m/submitted{0,1}job.+?\W*(\d+)\W*.*?submitted{0,1}/i);
+	return $job_id;
+    }
+    else {
+	return $job_id_string if ($job_id_string);
+    }
+    return 0;
+}
+
+# Calculate sample size and return largest.
+sub sample_size {
+    my $arr1 = shift;
+    my $arr2 = shift;
+    my $samples = shift;
+
+    return scalar(@$arr1) + scalar(@$arr2) if ($samples && $samples =~ m/both/i);
+    
+    if ($#$arr1 > $#$arr2) {
+	return $#$arr1;
+    }
+    else {
+	return $#$arr2;
+    }
+}
+
+# Create sample nums for sample names
+sub sample_nums {
+    my $sample_str = shift;
+    my $io = shift;
+
+    my $sample_names2num = {};
+    foreach my $cat_option (@$sample_str) {
+	
+	if ($cat_option =~ m/sample.+?\s+(.+)/i) {
+	    my $samples = $1;
+	    $cat_option = $io->strip_leading_and_trailing_spaces($cat_option);
+	    $io->error('Sample names in [categorize_ncRNAs: ] options should be enclosed within double quotes.' .
+		       "\nEx: \"sample_1,sample_2,sample_3,.,.,sample_n\"") if ($samples !~ /\".+?\"/);
+	    $samples =~ s/\"//g;
+	    my @sample_names = split/\,/, $samples;
+	    
+	    for (my $i=0; $i<=$#sample_names; $i++) {
+		$sample_names2num->{$i} = $sample_names[$i];
+		    }
+	    last;
+	}
+    }
+    
+    return $sample_names2num;
+}
+
+# Handle and separate read lib files
+sub handle_read_libs {
+    my $samples = shift;
+    my $reads_dir = shift;
+    my $io = shift;
+    my $params = shift;
+    my $full_path2readfiles = [];
+
+    my @replicates = split/\,/, $samples;
+
+    foreach my $replicate (@replicates) {
+	$replicate = $io->strip_leading_and_trailing_spaces($replicate);
+	$reads_dir = $io->validate_create_path($reads_dir, 'do not create', 'Reads directory');
+	$replicate = $reads_dir . $replicate;
+	
+	if (!$replicate || !-e $replicate || !-s $replicate || length($replicate) == 0) {
+	    $io->error("[libType: $params->{'libType'}]\n\n" .
+		       "Read file [ file: $replicate ] does not exist or is empty.\n");
+		       #"Use [libType: MIXED] if you want to mix PE and SE libraries or if you have limited replicates.");
+
+	}
+	
+	push @{$full_path2readfiles}, $replicate;
+    }
+
+    return $full_path2readfiles;
+}
+
+# Throw error on incorrect config params
+sub verify_config_file {
+    my $io = shift;
+    my $msg = shift;
+    my $check_this = shift;
+    my $check_this_name = shift;
+    my $only_these_vals = shift;
+    my $regex = my $regex_msg = 'yes|no';
+
+    $regex = $regex_msg = $only_these_vals if ($only_these_vals);
+    $regex_msg = uc($regex_msg);
+    $regex_msg =~ s/\|/ or /g;
+
+    $io->error("No value(s) provided for [$check_this_name: ]. Please use only $regex_msg." . $msg) if (!$check_this);
+    
+    $io->error("[$check_this_name: $check_this] is not a valid value. Please use only $regex_msg." . $msg)
+	if ($check_this !~ m/^$regex$/i);
+    
+    return; 
+}
 
 __END__
 
@@ -1488,15 +2958,27 @@ __END__
 
 =head1 SYNOPSIS
 
-lncRNApipe is a pipeline to extract putative novel lncRNAs ab initio, given a list of transcripts in GTF format assembled from deep sequencing data (ex: RNA-Seq).
+lncRNApipe is a reference annotation based automated pipeline to identify non-coding RNAs, both known and novel from RNA-Seq reads. It takes FASTQ / FASTA reads as input, trims reads, assembles transcripts, and identifies any possible known and novel ncRNAs, categorizes them into 5 catgories: Long intergenic lncRNAs (B<I<LincRNAs>>), Intronic contained lncRNAs (B<I<Incs>>), Partially overlapping lncRNAs (B<I<Poncs>>), Completely overlapping lncRNAs (B<I<Concs>>) and Exonic overlaps (B<I<LncRNAs with sense or antisense overlap with reference exon>>) and annotates the novel ncRNAs, where possible.
 
-Complete Description: 
+See complete description: 
 
  perldoc lncRNApipe
 
 Examples:
 
+View this documentation:
+
  perl lncRNApipe --h
+
+Run the complete pipeline from the configuration file C<< params.yaml >>:
+
+ perl lncRNApipe --conf params.yaml
+
+Run the complete pipeline on the grid from the configuration file C<< params.yaml >> and do not wait for user confirmation of Grid job IDs:
+
+ perl lncRNApipe --conf params.yaml --dont-wait
+
+Run the B<I<identification stage>> of the pipeline through command-line options without mentioning the configuration file C<< params.yaml >>:
 
  perl lncRNApipe --run /data/lncRNApipe/ \
                  --cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' \
@@ -1507,15 +2989,78 @@ Examples:
                  --rna \
                  --inf &> lncRNApipe.run.log
 
+=head1 INSTALLATION
+
+lncRNApipe was developed in Linux environment and can be installed on UNIX based machines. If it is a 64-bit machine, all required prerequisites are sandboxed with the software and taken care of, which should run in most instances. lncRNApipe will attempt to find any available prerequisites on your machine and will default to them before using sandboxed binaries. All you need to do is run the following command to install the pipeline and all of its required dependencies:
+ 
+ cd /change/into/my/preferred/path/of/installation
+ perl lncRNApipe --setup
+
+If you are on a 32-bit machine, run the same command as shown above, and lncRNApipe will let you know, which tools must to be installed and be available in your C<< $PATH >>.
+
+In any case, the setup process will prompt you to specify whether or not you want to install B<I<BioPerl>> and whether or not B<I<uniref90.fasta>> file should be downloaded and formatted to be used with C<< blastall >> command.
+
+If the setup process fails due to compiler issues, or if any Perl module installation fails, try setting different compiler specific to your machine state with the following command:
+
+Example (Using C<< g++ >> as the compiler):
+
+ perl lncRNApipe --setup --setup-compiler CC=g++
+
 =head1 DESCRIPTION
 
-This pipeline script will bind together the functionality of the tools / scripts: cuffcompare, categorize_ncRNAs.pl, get_unique_features.pl, fetch_seq_from_ucsc.pl, RNAfold, Infernal and Coding Potential Calculator (CPC). Transcriptome construction tools such as Cufflinks produces a set of assembled transcripts in GTF format. lncRNApipe uses this data in addition to known gene annotation to extract putative lncRNAs constructed by the ab initio assemblers. The pipeline relies on the FPKM / RPKM values generated by these assemblers to assess the confidence of the constructed de novo transcripts and validates it against the known reference gene and non coding RNA information to identify putative novel lncRNAs. In brief, the pipeline steps are as follows:
+lncRNApipe is a complete automated pipeline to:
+
+=over 4
+
+=item * Trim B<FASTQ> reads using Trimmomatic.
+
+=item * Map reads using spliced read mapper, Tophat.
+
+=item * Assemble transcripts using Cufflinks.
+
+=item * Identify known non-coding RNAs and any putative novel non-coding RNAs based on reference annotation. 
+
+=item * Use B<CPC> to estimate the coding potential of identified novel ncRNAs.
+
+=item * Annotate novel non-coding RNAs using C<< cmscan >> from Infernal.
+
+=item * Use B<I<RNAfold>> to calculate minimum free energy structure of the identified novel non-coding RNAs.
+
+=item * Run Cuffdiff to identify differentially expressed known ncRNAs and novel ncRNAs.
+
+=item * Optionally, run cuffdiff on all transcripts to identify differentially expressed transcripts as you would normally do with the L<Tuxedo protocol|http://www.nature.com/nprot/journal/v7/n3/full/nprot.2012.016.html>.
+
+=back
+
+The pipeline is very flexible and can be run in two ways: from B<I<assembly stage>> or from B<I<identification stage>> and maintains checkpoints at each stage so that you can resume from a failed run, if possible. 
+
+=head2 ASSEMBLY STAGE
+
+The most simplest way to run the complete pipeline is from the B<I<assembly stage>>.
+
+This is where you supply the raw B<FASTQ> reads you got from your sequencing center, configure the parameters in a file called C<< params.yaml >> and run the jobs either or on a compute cluster or on your local work station. The assembly stage can be further broken down into following steps:
+
+=head3 Filtering
+
+lncRNApipe uses L<Trimmomatic|http://www.usadellab.org/cms/?page=trimmomatic> to trim reads. Any options you generally specify to Trimmomatic can be entered in the C<< params.yaml >> file. 
+
+=head3 Mapping
+
+Next, we run L<Tophat|https://ccb.jhu.edu/software/tophat/index.shtml> to perform spliced mapping of RNA-Seq reads. You can speicfy Tophat options using C<< tophat: >> parameter in C<< params.yaml >>. L<Sambamba|https://github.com/lomereiter/sambamba> is used to merge any replicate data before running Cufflinks.
+
+=head3 Transcript Assembly
+
+L<Cufflinks|http://cole-trapnell-lab.github.io/cufflinks/> is used to perform transcript assembly and you can specify the options using the C<< cufflinks: >> parameter in C<< params.yaml >>
+
+=head2 IDENTIFICATION STAGE
+
+In the identification stage, the pipeline will bind the functionality of the tools / scripts: C<< cuffcompare >>, C<< categorize_ncRNAs.pl >>, C<< get_unique_features.pl >>, C<< fetch_seq_from_ucsc.pl >>, C<< RNAfold >>, C<< Infernal >> and B<I<Coding Potential Calculator>> (C<< CPC >>). Transcriptome construction tools such as Cufflinks produces a set of assembled transcripts in GTF format. lncRNApipe uses this data in addition to known gene annotation to extract putative lncRNAs constructed by the ab initio assemblers. The pipeline relies on the proper transcript-exon features generated by the assembler and validates it against the known reference gene and non coding RNA information to identify putative novel lncRNAs. In brief, the pipeline steps in the B<I<identification stage>> are as follows:
 
 =over 5
 
 =item 1. Cuffcompare (lncRNApipe Option: --cuff or --cuffcompare)
 
-The transcript assembly can be compared to known annotation of choice to classify them into different class codes (http://cufflinks.cbcb.umd.edu/manual.html#class_codes) using Cuffcompare. The assembled transcripts should be in GTF format. Cufflinks generates the output files in GTF format. If you are using other software such as Scripture, you can convert the output file in BED format into GTF using Scripture as:
+The transcript assembly can be compared to known annotation of choice to classify them into different L<class codes|http://cole-trapnell-lab.github.io/cufflinks/cuffcompare/#transfrag-class-codes> using Cuffcompare. The assembled transcripts should be in GTF format. Cufflinks generates the output files in GTF format. If you are using other software such as Scripture, you can convert the output file in BED format into GTF using Scripture as:
 
  java -jar /path/to/scripture.jar -task toGFF -cufflinks -in scripture.out.bed -source SCRIPTURE -out scripture.out.gtf
 
@@ -1525,7 +3070,7 @@ To get help documentation about this module, run:
 
 =item 2. categorize_ncRNAs.pl (lncRNApipe Option: --cat or --cat-ncRNAs)
     
-lncRNApipe uses the tracking file (*.tracking) produced by Cuffcompare, annotation data in gene prediction format and a list of supplied transcripts in GTF format to produce and categorize lncRNAs into different classes as mentioned in the paper: http://genome.cshlp.org/content/22/3/577.full. In brief, the lncRNAs are classified into 5 categories: Long intergenic lncRNAs (LincRNAs), Intronic contained lncRNAs (Incs), Partially overlapping lncRNAs (Poncs), Completely overlapping lncRNAs (Concs) and Exonic overlaps (LncRNAs with sense or antisense overlap with reference exon).
+lncRNApipe uses the tracking file (C<< *.tracking >>) produced by Cuffcompare, annotation data in gene prediction format and a list of supplied transcripts in GTF format to produce and categorize lncRNAs into different classes as mentioned in this L<paper|http://genome.cshlp.org/content/22/3/577.full>. In brief, the lncRNAs are classified into 5 categories: B<Long intergenic lncRNAs> (B<I<LincRNAs>>), B<Intronic contained lncRNAs> (B<I<Incs>>), B<Partially overlapping lncRNAs> (B<I<Poncs>>), B<Completely overlapping lncRNAs> (B<I<Concs>>) and B<Exonic overlaps> (B<I<LncRNAs with sense or antisense overlap with reference exon>>).
 
 To get help documentation about this module, run:
 
@@ -1533,7 +3078,7 @@ To get help documentation about this module, run:
 
 =item 3. get_unique_features.pl (lncRNApipe Option: --get or --get--uq-feat)
     
-It then compares the putative list with supplied known lncRNAs in BED format to get features that do not overlap any known lncRNAs. To extract known lncRNAs from your assembled transcripts for downstream analysis, include --known with --get option of lncRNAscan (--known option with lncRNApipe is experimental).
+It then compares the putative list with supplied known lncRNAs in BED or GTF format to get features that do not overlap any known lncRNAs. To extract known lncRNAs from your assembled transcripts for downstream analysis, include C<< --known >> with C<< --get >> option of lncRNApipe.
 
 To get help documentation about this module, run:
 
@@ -1549,7 +3094,7 @@ To get help documentation about this module, run:
 
 =item 5. CPC.sh (lncRNApipe Option --cpc or --cpc)
     
-In this step, the fetched FASTA sequences are used to determine the coding potential and those that are flagged as "noncoding" are used to create the final list of high confidence lncRNAs. This step may take a while to finish.
+In this step, the fetched FASTA sequences are used to determine the L<coding potential|http://cpc.cbi.pku.edu.cn/docs/quick_guide.jsp> and those that are flagged as B<noncoding> are used to create the final list of high confidence lncRNAs. This step may take a while to finish.
 
 To get help documentation about this module, run:
 
@@ -1557,7 +3102,7 @@ To get help documentation about this module, run:
 
 =item 6. RNAfold (lncRNApipe Option --rna or --rnafold)
 
-Here, lncRNApipe pipeline invokes RNAfold program to calculate minimum free energy structure of the predicted non-coding RNA. This step may take a while to finish.
+Here, lncRNApipe pipeline invokes C<< RNAfold >> program to calculate minimum free energy structure of the predicted non-coding RNA. This step may take a while to finish.
                                                                                                                                                                 
 To get help documentation about this module, run:
     
@@ -1565,17 +3110,350 @@ To get help documentation about this module, run:
 
 =item 7. Infernal (lncRNApipe Option --inf or --infernal)
 
-In the final step, lncRNApipe pipeline invokes cmscan from Infernal package to search Rfam databases for sturcture and sequence similarities to annotate the putative lncRNAs .
-                                                                                                                                                                
+In the final step, lncRNApipe pipeline invokes C<< cmscan >> from B<Infernal> package to search Rfam databases for sturcture and sequence similarities to annotate the putative lncRNAs .
+
+ 
 To get help documentation about this module, run:
     
  perl lncRNApipe --h inf
 
 =back
 
+=head1 RUNNING lncRNApipe
+
+lncRNApipe can be run either completely via the configuration file a.k.a C<< params.yaml >> or the B<I<identification stage>> i.e the pipeline from C<< cuffcompare >> can be run independently without specifying the configuration file (C<< params.yaml >>), where you specify everything needed through the command line options, but we recommend that you use the configuration file for sake of clarity and simplicity.
+
+The file C<< params.yaml >> contains all options required to run the pipeline from start to finish. Once you have entered the options as per your requirements, run the pipeline using the following command:
+
+ perl lncRNApipe --conf params.yaml
+
+=head1 params.yaml
+
+C<< params.yaml >> is the configuration file, where you can specify the command line options for each of the modules of lncRNApipe to run the complete pipeline to go from B<I<reads to results>>. If you do not wish to run any of the modules, simply, disable them and all the lines following it (if, any) by prefixing it with C<< # >>. The comment lines in the C<< params.yaml >> generally start with C<< # >>. The options in the file C<< params.yaml >> follow a specific syntax. The parameters where you specify B<YES> or B<NO> generally end with a colon (C<< : >>).
+
+Example:
+
+ performTranscriptAssembly: YES
+
+The parameters where you specify tools' options end with tool's name followed by tool's options with a dash prefix (C<< - >>).
+
+Example:
+
+ tophat:
+  - -x 1
+  - -M
+
+=head2 params.yaml's Options:
+
+=over 4
+
+=item outputDir: /data/konganti/FASTQ_RNAseq/new-lncRNApipe2
+
+Specify output directory. In the example above, a new output directory called C<< new-lncRNApipe2 >> will be created at the mentioned path C<< /data/konganti/FASTQ_RNAseq >>
+
+=item overwriteOutputDir: NO
+
+Indicate, if we should overwrite the output directory if it already exists.
+
+B<WARNING: THIS WILL REMOVE ANY FILES / DIRECTORIES>
+
+=item performTranscriptAssembly: YES
+
+Let lncRNApipe know if you intend to perform transcript assembly using tophat / cufflinks or just identify ncRNAs from already assembled transcripts.
+
+=item CPUs: 10
+
+Specify number of threads / CPUs to use where possible. If running on a grid, please also use job parameter specific to your cluster with C<< schedulerOpts: >> below.
+
+=item scheduler: SGE
+
+Specify scheduler type. Valid options are C<< PBS >>, C<< SGE >>, C<< LSF >>, C<< SLURM >> or C<< NONE >> to disable grid computing.
+
+=item batchSubCmd: qsub
+
+Mention batch submission command.
+For example, for C<< LSF >>, it is C<< bsub >>, for C<< PBS >> or C<< SGE >>, it is C<< qsub >>, for C<< SLURM >>, it is C<< sbatch >>.
+
+=item schedulerOpts:
+
+Specify scheduler options on separate line specific to your job running environment.
+
+********************* B<!! IMPORTANT !!> *****************************
+
+Different clusters uses different job parameter names. For
+example our cluster uses C<< num_threads >> as parameter name to
+request number of CPUs in SGE. Some clusters may use
+C<< num_cpu >>. Since it is difficult to guess, please provide
+number of CPUs you want to use based on your grid environment
+below, which is equal to C<< CPUs: >> option above. Yes, we know that
+this is kind of redundant but it is necessary evil. What ever
+job parameters you provide after the C<< - >> , they will appear
+exactly in the job script.
+
+B<IF IT IS NOT PROVIDED, THE JOB WILL RUN ON SINGLE CPU OR
+MAY RUN ON MULTIPLE CPUs WHEN IT IS NOT SUPPOSED TO>.
+
+
+Ex for PBS (job parameters start with a C<< PBS >> directive):
+
+ PBS -V
+ PBS -l nodes=1:ppn=16,walltime=24:00:00
+
+Ex for C<< SGE >> (job parameters start with C<< $ >> sign):
+
+ $ -N lncRNApipe
+ $ -l num_threads=4
+
+So, my scheduler is C<< SGE >>, the parameters on my cluster would look like:
+
+ schedulerOpts:
+  - $ -l mem_free=10G
+  - $ -l num_threads=10
+
+=item clusterOpts:
+
+Mention any other lines that should be included in the job script.
+
+Ex:
+
+ clusterOpts:
+  - module load java1.7.0 perl5.14.2
+
+=item readType: FASTQ
+
+Specify if your reads are in C<< FASTA >> or C<< FASTQ >> format. In the example above, reads are in C<< FASTQ >> format.
+
+=item libType: SE
+
+Specify if your reads are C<< SE >> (single-end only), C<< PE >> (paried-end only) or C<< MIXED >>.
+
+=item sourceDB: UCSC
+
+Specify if you want to use C<< ENSEMBL >> or C<< UCSC >> as source for annotation if you do not want to use C<< useThisAnnotation: >>. B<PLEASE MAKE SURE> that you are using the same C<< sourceDB >> for tophat alignments, i.e. bowtie indexes created from the same C<< sourceDB >> for the same assembly version. As downloding genome indices on-the-fly is time consuming and since many users may have genome indices installed for various NGS analysis anyways, we leave it to you to provide B<CORRECT> genome index below in tophat and cufflinks options' configuration.
+
+I<Currently> C<< sourceDB: >> I<is required to be either> C<< ENSEMBL >> I<or> << UCSC >>. I<In future release, you can upload your own custom reference annotation and custom ncRNA annotation in either BED or GTF format>.
+
+=item species: rn4
+
+Choose assembly version if you do not want to use C<< useThisAnnotation: >> so that we can download up-to-date annotation on the fly. You can choose to supply your own annotation file for consistency below. C<< ENSEMBL >> and C<< UCSC >> represents species name differently in the URLs. To view species names for C<< ENSEMBL >> do:
+
+ perl lncRNApipe --list ENSEMBL
+
+Go to https://genome.ucsc.edu/FAQ/FAQreleases.html#TOP to view UCSC version names.
+For example, at C<< UCSC >>, for mouse, it is C<< mm9 >> or C<< mm10 >>, for rat, it is C<< rn5 >> or C<< rn6 >> etc...
+
+=item useThisAnnotation: /data/ref_annotation/rn4_UCSC/genes.gtf
+
+If you want to use your own annoation file, provide full path to the annotation file of your choice. This option overrides C<< species: >> options above. Again, B<PLEASE MAKE SURE>, you are providing the same genome index from the same source annotation file. In the example below, C<< bowtieGenomeIndex >> is C<< rn4 >> genome index created from C<< FASTA >> files from C<< UCSC >>.
+
+=item reads: 
+
+Provide Unix path to directory where the read files are located and also provide read file names that are present in that directory. If your data is just C<< SE >>, then disable C<< r2: >> below by prefixing it with a C<< # >>. Separate replicates of sample by a comma. Separate different samples by a C<< | >>.
+
+B<PLEASE MAKE SURE THE READS ARE IN ORDER. DO NOT MIX AND MATCH READ ORDERS. WE HAVE NO WAY OF KNOWING WHICH READ FILE IS _1 or _2>.
+
+In the example below, I have 8 samples and each sample has about 5-6 replicates. The read library is C<< SE >>.
+
+ reads:
+  readsDir: /data/konganti/FASTQ_RNAseq/reads
+  r1: cca-2111.fastq,cca-2108.fastq,cca-2107.fastq,cca-1103.fastq,cca-2106.fastq|fpa-2410.fastq,fpa-2409.fastq,fpa-2408.fastq,fpa-1405.fastq,fpa-1403.fastq,fpa-1402.fastq|cpa-2210.fastq,cpa-2209.fastq,cpa-2207.fastq,cpa-1205.fastq,cpa-1204.fastq,cpa-1202.fastq|fca-2311.fastq,fca-2306.fastq,fca-1305.fastq,fca-1303.fastq,fca-1302.fastq,fca-1301.fastq|ccs-2506.fastq,ccs-2504.fastq,ccs-2505.fastq,ccs-1503.fastq,ccs-1502.fastq,ccs-1501.fastq|cps-2605.fastq,cps-2606.fastq,cps-2604.fastq,cps-1603.fastq,cps-1601.fastq,cps-1602.fastq|fcs-2706.fastq,fcs-2705.fastq,fcs-1703.fastq,fcs-2704.fastq,fcs-1702.fastq,fcs-1701.fastq|fps-2806.fastq,fps-2805.fastq,fps-2804.fastq,fps-1803.fastq,fps-1802.fastq,fps-1801.fastq
+  # r2:
+
+=item trimmomatic:
+
+If you want to use Trimmomatic to trim reads, then provide TRIMMOMATIC options. TRIMMOMATIC provides the following adapter files: B<I<NexteraPE-PE.fa>>, B<I<TruSeq2-PE.fa>>, B<I<TruSeq2-SE.fa>>, B<I<TruSeq3-PE-2.fa>>, B<I<TruSeq3-PE.fa>> and B<I<TruSeq3-SE.fa>>. These adapter files are COPYRIGHTED by ILLUMINA and I am in the process of obtaining permission to redesitribute them with TRIMMOMATIC. For now, provide full path to the adapter sequence file you want to use.
+
+No need to provide C<< -threads >>, as it will be handled by lncRNApipe.
+
+Ex:
+
+ trimmomatic:
+  - ILLUMINACLIP:TruSeq3-SE.fa:2:30:10
+  - LEADING:20
+  - TRAILING:20
+  - SLIDINGWINDOW:5:20
+  - MINLEN:25
+
+=item genomeFasta: /data/ref_fasta/rn4_UCSC/genome.fa
+
+Provide full path to genome C<< FASTA >> file. In the example above, it is a multi C<< FASTA >> for C<< rn4 >> downloaded from C<< UCSC >>.
+
+=item bowtieGenomeIndex: /data/ref_indexes/bowtie2/rn4_UCSC/genome
+
+Provide bowtie genome index. B<PLEASE MAKE SURE> that you are using the same genome indices for the C<< sourceDB: >>  mentioned above. Do not use C<< UCSC >> genome indices if you requested C<< ENSEMBL >> above in C<< sourceDB: >> or vice versa. In the example above, I am using genome indices for C<< rn4 >> created from C<< /data/ref_fasta/rn4_UCSC/genome.fa >> with C<< bowtie2-build >> command.
+
+=item tophat:
+
+In the example below, it is assumed that you have already created a transcriptome index. If you have not created one, go through tophat manual on how to L<just create transcriptome index|https://ccb.jhu.edu/software/tophat/manual.shtml>. If you use C<< --trancriptome-index >> below and the index does not exist, it will keep overwriting while the jobs are running.
+
+No need to provide C<< FASTQ >> files, as they will be handled by lncRNApipe.
+
+No need to provide C<< -o >>, as it will be handled by lncRNApipe.
+
+No need to provide C<< -p >>, as it will be handled by lncRNApipe.
+
+Ex:
+
+ tophat:
+  - -x 1
+  - -M
+  - --b2-sensitive
+  - --transcriptome-index=/data/konganti/FASTQ_RNAseq/transcriptome_index/rn4
+  - --no-coverage-search
+
+=item cufflinks:
+
+Provide cufflinks options and also B<PLEASE MAKE SURE> you provide the same reference FASTA for the C<< sourceDB >> you want to use in case of bias correction.
+
+No need to provide C<< -g >>, as it will be handled by lncRNApipe.
+
+No need to provide C<< -o >>, as it will be handled by lncRNApipe.
+
+No need to provide C<< -p >>, as it will be handled by lncRNApipe.
+
+No need to provide input files, as they will be handled by lncRNApipe.
+
+Ex:
+
+ cufflinks:
+  - -u
+  - -b /data/ref_fasta/rn4_UCSC/genome.fa
+
+=item cuffcompare:
+
+Provide cuffcompare options.
+
+********************* B<!! IMPORTANT !!> *****************************
+
+If you only want to run lncRNApipe without the transcript B<I<assembly stage>>, then provide assembled transcripts in GTF format, otherwise, no options are needed.
+# 
+
+No need to provide C<< -r >>, as it will be handled by lncRNApipe.
+
+Provide C<< -i transcript_assembly_list.txt >> if you did not run B<I<assembly stage>>, where C<< transcript_assembly_list.txt >> contains full path to assembled transcript files.
+
+Ex:
+
+ cuffcompare:
+  - -i /data/cufflinks/assembly_list.txt
+
+=item categorize_ncRNAs:
+
+Provide C<< categorize_ncRNAs.pl >>'s options. See C<< perl lncRNApipe --h cat >> for description of options.
+
+No need to provide C<< -annot >> option as it is handled by lncRNApipe.
+
+Ex:
+
+ categorize_ncRNAs:
+  - -sample-names "cca,fpa,cpa,fca,ccs,cps,fcs,fps"
+  - -len 150
+  - -min-exons 1
+  - -ov 80
+  - -inc
+
+=item get_unique_features:
+
+Provide C<< get_unique_features.pl >>'s options. Generally only C<< -ov >> is required in either case of C<< [performTranscriptAssembly: YES] >> or C<< [performTranscriptAssembly: NO] >>.
+
+When you supply your own known ncRNAs file to compare against with C<< -sf >>, then you B<MUST> also specify it's file format (Ex: gtf or bed) with
+C<< -sff >> option.
+ 
+See C<< perl lncRNApipe --h get >> for description of options.
+
+Ex:
+
+ get_unique_features:
+  - -ov 10
+  - -sf test
+  - -sff gtf
+
+=item runRNAfold:
+
+By, default, C<< RNAfold >> is not run since it is very slow.
+It is generally recommended to generate C<< RNAfold >> plots
+based on the transcript of your interest after you have
+investigated the results, but you can still enable it
+in the pipeline by uncommenting C<< runRNAfold: YES >> to
+run C<< RNAfold >>  with default options.
+
+To pass command line options to RNAfold, define it
+after line C<< RNAfold: >>
+
+Mention any other option other than C<< -p >> and C<< --noPS >> as they
+are automatically handled by lncRNApipe.
+
+See C<< perl lncRNApipe --h rna >> for description of options.
+
+Ex:
+
+ runRNAfold: YES
+ RNAfold:
+  - --circ
+
+=item runcmscan:
+
+Provide options to C<< cmscan >>. Running C<< cmscan >> with default options provides good matches in most cases, but in any case you want to add extra options, do it here.
+
+To run C<< cmscan >> with default options, use C<< runcmscan: YES >>.
+
+Add additional options you want to pass to C<< cmscan >> after line C<< cmscan: >>. Provide any options other than C<< -o >>, C<< --tblout >> and C<< --cpu >> as they are automatically handled by lncRNApipe.
+
+See C<< "perl lncRNApipe --h inf >> for description of options.
+
+Ex:
+
+ runcmscan: YES
+ cmscan:
+ # - -E 9.0
+
+=item cuffmerge:
+
+Provide cuffmerge options. If you have replicates, final predicted lncRNAs will be merged.
+
+No need to provide C<< -s >>, as it will be handled by lncRNApipe.
+
+No need to provide C<< -g >>, as it will be handled by lncRNApipe.
+
+Ex:
+
+ cuffmerge:
+  - --min-isoform-fraction 0.05
+ 
+=item cuffdiff:
+
+Provide C<< cuffdiff >> options if you want to run differential expression
+tests between known ncRNAs and between novel ncRNAs in your samples.
+
+Normally, C<< cuffdiff >> is only run on identified known and novel ncRNAs.
+If you want to run C<< cuffdiff >> on all transcripts, i.e to identify
+differentially expressed transcripts (end of typical tuxedo pipeline),
+then change C<< runCuffdiffForAllTranscripts >> to C<< YES >>. 
+
+If you have mentioned C<< -sample-names >> above in C<< categorize_ncRNAs: >>,
+no need to mention C<< -L >>, else provide C<< -L >> option here.
+
+No need to provide C<< -o >>, as it will be handled by lncRNApipe.
+
+No need to provide C<< -p >>, as it will be handled by lncRNApipe.
+
+No need to provide input files, if you have run tophat, cufflinks above.
+
+If C<< performTranscriptAssembly >> is C<< NO >>, then provide your own BAM files here prefixed by C<< -bam >> option. Separate replicate BAM files with comma as you generally do with C<< cuffdiff >> command.
+
+Ex:
+
+ runCuffdiffForAllTranscripts: YES
+ cuffdiff:
+  - -u
+  - -b /data/ref_fasta/rn4_UCSC/genome.fa
+  # - -bam /data/aligned_rn4_UCSC/sample1/rep1.bam,/data/aligned_rn4_UCSC/sample1/rep2.bam /data/aligned_rn4_UCSC/sample2/rep1.bam,/data/aligned_rn4_UCSC/sample2/rep2.bam
+
+=back
+
 =head1 CAVEATS
 
-The pipeline script uses a lot of inherent GNU core utils and has been only tested in BASH shell. Please use absolute full PATH names.
+The pipeline script uses a lot of inherent B<GNU> core utilities and has been only tested in B<BASH> shell. Please use absolute full B<PATH> names.
 
 =over 5
 
@@ -1583,7 +3461,7 @@ The pipeline script uses a lot of inherent GNU core utils and has been only test
 
   lncRNApipe --run ./lncRNApipe_output ...
 
- Use: 
+Use: 
 
   lncRNApipe --run /data/lncRNApipe_output ...
 
@@ -1595,71 +3473,75 @@ The final output is a putative list of annotated lncRNAs in GTF format that can 
 
 =over 5
 
-=item * Output from "cuffcompare" is stored in the directory called "cuffcompare". lncRNApipe uses "lncRNApipe_cuffcmp.tracking" file from this folder for the next module.
+=item * Output from C<< trimmomatic.jar >> is stored in directory called B<trimmomatic>. Replicate data (if any) is maintained separately inside B<trimmomatic> directory. A C<< status.log >> file inside B<trimmomatic> directory contains status information for each run.
 
-=item * Output from "categorize_ncRNAs.pl" is stored in the directory called "categorize_ncRNAs". lncRNApipe uses files ending with suffix ".putative.class.lncRNAs.gtf" for the next module.
+=item * Output from C<< tophat >> is stored in directory called B<tophat>. Replicate data (if any) is maintained separately inside B<tophat> directory. A C<< status.log >> file inside B<tohat> directory contains status information for each run.
 
-=item * Output from "get_unique_features.pl" output is stored in the directory called "get_unique_features". lncRNApipe uses files ending with suffix ".putative.class.lncRNAs.unique.gtf" for the next module
+=item * Output from C<< cufflinks >> is stored in directory called B<cufflinks>. Replicate data (if any) is maintained separately inside B<cufflinks> directory. A C<< status.log >> file inside B<cufflinks> directory contains status information for each run.
 
-=item * Output from "fetch_seq_from_ucsc.pl" is stored in the directory called "fetch_seq_from_ucsc". lncRNApipe uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules. The file ending in suffix ".noncoding.FASTA" is used for the next modules.
+=item * Output from C<< cuffcompare >> is stored in the directory called B< cuffcompare >. lncRNApipe uses C<< lncRNApipe_cuffcmp.tracking >> file from this folder for the next module.
 
-=item * CPC predictions are stored in a directory called "CPC".
+=item * Output from C<< categorize_ncRNAs.pl >> is stored in the directory called B<categorize_ncRNAs>. lncRNApipe uses files ending with suffix C<< .putative.class.lncRNAs.gtf >> for the next module.
 
-=item * The final result files are stored in a directory called "lncRNApipe.final" and have a suffix ".final.gtf".
+=item * Output from C<< get_unique_features.pl >> output is stored in the directory called B<get_unique_features>. lncRNApipe uses files ending with suffix C<< .putative.class.lncRNAs.unique.gtf >> or C<< .putative.class.lncRNAs.known.gtf  >> for the next module.
 
-=item * The RNAfold plots are stored in directories inside "lncRNApipe.final" directory ending in suffix ".final.RNAfold".
+=item * Output from C<< fetch_seq_from_ucsc.pl >> is stored in the directory called B<fetch_seq_from_ucsc>. lncRNApipe uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules. The file ending in suffix C<< .noncoding.noncoding.FASTA >> is used for the next modules.
 
-=item * The result files from "cmscan" (Infernal) are stored in directories inside "lncRNApipe.final" directory ending with suffix ".infernal". The file ending in suffix ".allInfernalHits.gtf" contains all RNA hmm and cm model matches from "cmscan" (Infernal) and the best hit is applied to file ending in suffix ".final.gtf" based on the sequence coverage ("--coverage-infernal") filter requested.
+=item * C<< CPC >>predictions are stored in a directory called B<CPC>.
+
+=item * The final result files are stored in a directory called B<lncRNApipe.final> and have a suffix B<.final.gtf>.
+
+=item * The C<< RNAfold >> plots are stored in directories inside B<lncRNApipe.final> directory ending in suffix C<< .final.RNAfold >>.
+
+=item * The result files from C<< cmscan >> (B<Infernal>) are stored in directories inside B<lncRNApipe.final> directory ending with suffix C<< .infernal >>. The file ending in suffix C<< .allInfernalHits.gtf >> contains all RNA hmm and cm model matches from C<< cmscan >> (B<Infernal>) and the best hit is applied to file ending in suffix C<< .final.gtf >> based on the sequence coverage (C<< --coverage-infernal >>) filter requested.
+
+=item * Output directory B<cuffmerge_novel_ncRNAs> contains files from merged novel ncRNAs. C<< merged.gtf >> file from this directory is used to get information about differentially expressed novel ncRNAs.
+
+=item * Output directory B<cuffmerge_known_ncRNAs> contains files from merged known ncRNAs. C<< merged.gtf >> file from this directory is used to get information about differentially expressed known ncRNAs.
+
+=item * Output directory B<cuffdiff_novel_ncRNAs> contains files from C<< cuffdiff >> run on novel ncRNAs.
+
+=item * Output directory B<cuffdiff_known_ncRNAs> contains files from C<< cuffdiff >> run on known ncRNAs.
+
+=item * Output directory B<job_scripts_Day_Month_Day_Hour_Min_Sec_Year> contains all the job scripts automatically generated by lncRNApipe.
 
 =back
 
 The pipeline has the ability to run each of these individual modules if any of them fail during the initial run.
 
-=head1 EXAMPLE
-
-=head2 Installation:
+=head2 Start the pipeline without using the configuration file:
 
 =over 5
 
-=item * This script will try its best to setup the pipeline on the suitable architecture.
-
- perl lncRNApipe --setup
-
-=back
-
-=head2 Start the Pipeline:
-
-=over 5
-
-=item * Run the complete pipeline:
+=item * Run the complete pipeline without using the configuration file through command line options:
 
  perl lncRNApipe --run /data/lncRNApipe/ --cuff '-r /data/projects/mm10/macrophages/rna-seq/cuffcompare.m0.m1.m2_vs_ensembl_ref_known/refSeq_UCSCKnownGenes_Ensemble.gtf -s /data/ref_fasta/mm10_UCSC/whole_genome.fa /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf' -cat '-clean -overlap 80 -len 200 -max-len 10000 -min-exons 1 -fpkm 2 -antisense -sample-names "M0,M1,M2"' --get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed' --fetch --cpc --inf
 
-=item * Run categorize_ncRNAs module of the pipeline:
+=item * Run B<I<categorize_ncRNAs>> module of the pipeline:
     
  perl lncRNApipe --run /data/lncRNApipe/ --cat '-clean -overlap 80 -len 200 -max-len 10000 -min-exons 1 -fpkm 2 -annotation /data/projects/mm10/macrophages/ncrna/2lncRNA/allGenes.txt -antisense -sample-names "M0,M1,M2" /data/projects/mm10/macrophages/rna-seq/m0/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m1/cufflinks/transcripts.gtf /data/projects/mm10/macrophages/rna-seq/m2/cufflinks/transcripts.gtf'
 
-=item * Run get_unique_features module of the pipeline to extract novel lncRNAs:
+=item * Run B<I<get_unique_features>> module of the pipeline to extract novel lncRNAs:
     
  perl lncRNApipe -run /data/lncRNApipe --get '-sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed'
 
-=item * Run get_unique_features module of the pipeline to extract known lncRNAs:
+=item * Run B<I<get_unique_features module>> of the pipeline to extract known lncRNAs:
     
  perl lncRNApipe --run /data/lncRNApipe --get '--known -sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed'
 
-=item * Run fetch_unique_features module of the pipeline:
+=item * Run B<I<fetch_unique_features module>> of the pipeline:
 
- perl lncRNApipe --run /data/lncRNApipe --fetch '-db mm10'
+ perl lncRNApipe --run /data/lncRNApipe --fetch '-local /data/ref_fasta/mm10_UCSC/genome.fa'
 
-=item * Run CPC module of the pipeline:
+=item * Run B<I<CPC>> module of the pipeline:
 
  perl lncRNApipe --run /data/lncRNApipe --cpc
 
-=item * Run RNAfold module of the pipeline:
+=item * Run B<I<RNAfold>> module of the pipeline:
 
  perl lncRNApipe --run /data/lncRNApipe --rna
 
-=item * Run Infernal module of the pipeline:
+=item * Run B<I<Infernal>> module of the pipeline:
 
  perl lncRNApipe --run /data/lncRNApipe --inf
 
@@ -1687,60 +3569,72 @@ Displays this helpful message.
     
 Try to setup the pipeline with all its dependencies.
 
-=item --run or --run
+=item --setup-compiler
+
+If any of the perl module installation fails during the setup process, change
+the compiler that works with your machine state.
+
+Ex:
+
+ perl lncRNApipe --setup --setup-compiler CC=icpc
+
+=item --run
 
 Run the lncRNApipe pipeline with output directory supplied as option.
-Ex: perl lncRNApipe -run /home/konganti/lncRNApipe_output ...
+
+Ex: 
+ 
+ perl lncRNApipe -run /home/konganti/lncRNApipe_output ...
 
 =item --cuff or --cuffcompare
 
-Run the Cuffcompare module with supplied options.
+Run the C<< cuffcompare >> module with supplied options.
 
 =item --cat or --cat-ncRNAs
 
-Run the categorize_ncRNAs.pl module with supplied options.
+Run the C<< categorize_ncRNAs.pl >> module with supplied options.
 
 =item --get or --get-uq-feat
 
-Run the get_unique_features.pl module with supplied options.
+Run the C<< get_unique_features.pl >> module with supplied options.
 
 =item --fetch or --fetch-seq
 
-Run the fetch_seq_from_ucsc.pl module with supplied options.
-Using --fetch without any options will try and use local reference FASTA
-mentioned with --cuffcompare option.
+Run the C<< fetch_seq_from_ucsc.pl >> module with supplied options.
+Using C<< --fetch >> without any options will try and use local reference FASTA
+mentioned with C<< --cuffcompare >> option.
 
 =item --skip-get (--fetch-seq option required)
 
-Run the fetch_seq_from_ucsc.pl module without running get_unique_features.pl module.
+Run the C<< fetch_seq_from_ucsc.pl >> module without running C<< get_unique_features.pl >> module.
 In some cases, you may not have a file of known non-coding RNAs. In such cases,
-you can skip get_unique_features.pl module, and directly fetch FASTA sequences for
-features from --categorize_ncRNAs.pl module.
+you can skip C<< get_unique_features.pl >> module, and directly fetch FASTA sequences for
+features from C<< --cat-ncRNAs >> module.
 
 =item --cpc or --cpc
 
-Run the CPC module. No options are required.
+Run the C<< CPC >> module. No options are required.
 
 =item --skip-cpc
 
-Skip runnning CPC altogether. Use this option, if you think CPC is flagging a lot of
-your transcripts as "coding" and instead rely only on Infernal search results.
+Skip runnning C<< CPC >> altogether. Use this option, if you think CPC is flagging a lot of
+your transcripts as B<I<coding>> and instead rely only on Infernal search results.
 
 =item --skip-blastall-core
 
-Skip runnning core CPC process once you know you have output from CPC.
-This option can be used when lncRNApipe fails for some reason after blastall
-within CPC has finished running but unable to continue forward.
+Skip runnning core C<< CPC >> process once you know you have output from C<< CPC >>.
+This option can be used when lncRNApipe fails for some reason after C<< blastall >>
+within C<< CPC >> has finished running but unable to continue forward.
 
 =item --rna or --rnafold
 
-Run RNAfold module of the pipeline. No options required
+Run C<< RNAfold >> module of the pipeline. No options required
 
 =item --skip-rnafold-core
 
-Skip runnning core RNAfold process once you know you have output from RNAfold.
+Skip runnning core C<< RNAfold >> process once you know you have output from C<< RNAfold >>.
 This option can be used when you want lncRNApipe to generate plots based on
-output from RNAfold which should have completed successfully.
+output from C<< RNAfold >> which should have completed successfully.
 
 =item --inf or --infernal
 
@@ -1748,13 +3642,14 @@ Run Infernal module of the pipeline. No options required
 
 =item --skip-cmscan-core
 
-Skip runnning cmscan process once you know you have output from a successful 
-cmscan run. This option can be used when you want lncRNApipe to extract 
+Skip runnning C<< cmscan >> process once you know you have output from a successful 
+C<< cmscan >> run. This option can be used when you want lncRNApipe to extract 
 annotation from infernal and attempt to annotate putative novel lncRNAs.
 
 =item --cov-inf or --coverage-infernal
 
-Only annotate final putative lncRNAs which have cmscan match over this much percentage of sequence.
+Only annotate final putative lncRNAs which have C<< cmscan >> match over this much percentage of sequence.
+
 Default: 10
 
 =item --cpu
@@ -1766,19 +3661,35 @@ transcript files is strongly encouraged.
 =item --send-run-report
 
 lncRNApipe will send your log file. For this to work, you need to save the output of the pipeline to
-a log file. Ex:
+a log file. 
 
-     perl lncRNApipe --run /data/lncRNApipe/ \
-                     --cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' \
-                     --cat-ncRNAs '-sample-names "M1,M2" -ov 80 -fpkm 2 -len 200 -max-len 10000 -min-exons 1 -antisense" \
-                     --fetch-seq '-db mm10' \
-                     --cpc \
-                     --rna \
-                     --inf  &> lncRNAPipe.run.log 
+Ex:
+
+ perl lncRNApipe --run /data/lncRNApipe/ \
+                 --cuffcmp '-r annotation.gtf -s genome.fa transcripts1.gtf transcripts2.gtf' \
+                 --cat-ncRNAs '-sample-names "M1,M2" -ov 80 -fpkm 2 -len 200 -max-len 10000 -min-exons 1 -antisense" \
+                 --fetch-seq '-db mm10' \
+                 --cpc \
+                 --rna \
+                 --inf  &> lncRNAPipe.run.log 
 
 and then, if the run fails or if you wish to discuss other issues. Use:
- 
-     perl lncRNApipe --send-run-report '-email your_email@gmail.com -log lncRNApipe.run.log -m "I cannot run lncRNApipe because lorem ipsum ...."'
+
+ perl lncRNApipe --send-run-report '-email your_email@gmail.com -log lncRNApipe.run.log -m "I cannot run lncRNApipe because lorem ipsum ...."'
+
+=item --dont-wait
+
+Initially, when designing the pipeline, using C<< Schedule::DRMAAc >> was considered to submit jobs via DRMAA API in grid computing environment. I later found that C<< drmaa.h >> is not present on all cluster insllations and cluster admins can install DRMAA API on request, but it defeats the purpose of simply installing the pipeline and just running the jobs. I then used regex to parse the output of the batch submission command and create dependency chain from it. It works on most of the cluster installations where the scheduler is either SGE, PBS, SLURM or LSF. Using C<< --dont-wait >> option will not wait for user confirmation to verify that the program has parsed the job IDs correctly. When C<< --dont-wait >> option is not used, the program will prompt for user to verify that the job IDs gathered are in fact correct. Yes, this is rudimentary, but as I explained above, it gets the job done.
+
+=item --kill
+
+Kill jobs. If you have used either grid submission or not, all the job ids or PIDs will be present in 3 files: B<job_scripts_Day_Month_Day_Hour_Min_Sec_Year>/C<< job_IDs_tophat.RUNID >>, B<job_scripts_Day_Month_Day_Hour_Min_Sec_Year>/C<< job_IDs_cufflinks.RUNID >> and B<job_scripts_Day_Month_Day_Hour_Min_Sec_Year>/C<< job_IDs_lncRNApipe_postAssembly.RUNID >>. If you want to kill any jobs for any reason do:
+
+ perl lncRNApipe --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_tophat.2CphrqPLqFdCs
+
+If you want to kill jobs from multiple job IDs files, do:
+
+ perl lncRNApipe --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_tophat.2CphrqPLqFdCs --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_cufflinks.2CphrqPLqFdCs --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_lncRNApipe_postAssembly.2CphrqPLqFdCs
 
 =back
 
@@ -1792,6 +3703,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-May-08-2015
+Jul-02-2015
 
 =cut
