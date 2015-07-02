@@ -75,7 +75,7 @@ lncRNApipe is a complete automated pipeline to:
 
 =item * Annotate novel non-coding RNAs using C<< cmscan >> from Infernal.
 
-=item * Use <BI<RNAfold>> to calculate minimum free energy structure of the identified novel non-coding RNAs.
+=item * Use <B<I<RNAfold>> to calculate minimum free energy structure of the identified novel non-coding RNAs.
 
 =item * Run Cuffdiff to identify differentially expressed known ncRNAs and novel ncRNAs.
 
@@ -83,7 +83,7 @@ lncRNApipe is a complete automated pipeline to:
 
 =back
 
-The pipeline is very flexible and can be run in two ways: from B<I<assembly stage>> or from B<I<identification stage>> and maitains checkpoints at each stage so that you can resume from a failed run, if possible. 
+The pipeline is very flexible and can be run in two ways: from B<I<assembly stage>> or from B<I<identification stage>> and maintains checkpoints at each stage so that you can resume from a failed run, if possible. 
 
 =head2 ASSEMBLY STAGE
 
