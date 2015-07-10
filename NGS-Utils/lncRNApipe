@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-07-02 14:21:27 -0500 (Thu, 02 July 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.0.0 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-07-10 11:21:27 -0500 (Fri, 10 July 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.0.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -290,6 +290,17 @@ sub run_lncRNApipe {
 											$annot . ' ' . $cat_dir . '/' . $io->file_basename($annot) . '.txt');
 		
 		$gtfToGenePred_failed =~ s/[\s\r\n]+//g;
+		
+		if ($gtfToGenePred_failed =~ m/exonFramesfieldisbeingadded/i) {
+		    $io->warning('Trying without -genePredExt ...', 'INFO!');
+		    $gtfToGenePred_failed = $is_failed = $io->execute_get_sys_cmd_output($deps->{'bin-gtfToGenePred'} . ' -geneNameAsName2 ' .
+											 $annot . ' ' . $cat_dir . '/' . $io->file_basename($annot) . '.txt',
+											 "Command call:\n" .
+											 "-------------\n" .
+											$deps->{'bin-gtfToGenePred'} . ' -geneNameAsName2 ' .
+											 $annot . ' ' . $cat_dir . '/' . $io->file_basename($annot) . '.txt');
+		}
+		
 		$io->error('gtfToGenePred quit with the following error:' . "\n\n$is_failed\nBailing out!"),
 		$lncRNApipe_succ = 0
 		    if ($gtfToGenePred_failed !~ m/couldnotcapture|noversioninformation/i);
@@ -3703,6 +3714,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Jul-02-2015
+Fri-10-2015
 
 =cut
