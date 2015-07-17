@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-07-10 11:21:27 -0500 (Fri, 10 July 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.0.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-07-17 09:27:27 -0500 (Fri, 17 July 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.0.2 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -1762,6 +1762,9 @@ sub run_lncRNApipe_from_conf {
 
     $io->error('-cuff option is not required for [categorize_ncRNAs: ].' . $beverb)
 	if (is_option_exists_in_anon($params->{'categorize_ncRNAs'}, '-cuff'));
+
+    $io->error('-extract-pat option is not required for [categorize_ncRNAs: ].' . $beverb)
+	if (is_option_exists_in_anon($params->{'categorize_ncRNAs'}, '-extract'));
     
     $io->error('-L option is not required for [cufflinks: ].' . $beverb)
 	if (is_option_exists_in_anon($params->{'cufflinks'}, '-L'));
@@ -1778,7 +1781,7 @@ sub run_lncRNApipe_from_conf {
 	#if (defined $params->{'cufflinks'} && is_option_exists_in_anon($params->{'cufflinks'}, '-b\s+'));
           
     $params->{'species'} = 'species' if (!defined $params->{'species'});
-    
+
     # Necessary evil
     my $tophat_o_dir = $params->{'outputDir'} . '/tophat';
     my $cufflinks_o_dir = $params->{'outputDir'} . '/cufflinks';
@@ -2250,6 +2253,7 @@ sub run_lncRNApipe_from_conf {
 #								      
 perl $USER_HOME/lncRNApipe --run $params->{'outputDir'} --cpu $params->{'CPUs'} --cuffcompare '-r $annot_gtf -s $params->{'genomeFasta'} } . join(' ', @{$params->{'cuffcompare'}}) . "' --cat-ncRNAs '" . join(' ', @{$params->{'categorize_ncRNAs'}}) . "' --get $thru_conf_get_uq_feat_opts_n --fetch --cpc $thru_conf_inf_opts $thru_conf_rna_fold_opts > $params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log 2>&1";
     
+    my $cat_opts_for_get_known_ncRNAs = "--cat-ncRNAs '" . join(' ', @{$params->{'categorize_ncRNAs'}}) . " -rescue --extract-pat \"i|o|u|x|e|j|=\"'";
     $lncRNApipe_opts .= qq {
 
 #
@@ -2257,9 +2261,8 @@ perl $USER_HOME/lncRNApipe --run $params->{'outputDir'} --cpu $params->{'CPUs'} 
 #
 #
 ln -s $params->{'outputDir'}/cuffcompare $cuffdiff_known/.
-ln -s $params->{'outputDir'}/categorize_ncRNAs $cuffdiff_known/.
 
-perl $USER_HOME/lncRNApipe --run $cuffdiff_known --cpu $params->{'CPUs'} --get '$thru_conf_get_uq_feat_opts_k -extract' $thru_conf_inf_opts $thru_conf_rna_fold_opts >> $params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log 2>&1};
+perl $USER_HOME/lncRNApipe --run $cuffdiff_known --cpu $params->{'CPUs'} $cat_opts_for_get_known_ncRNAs --get '$thru_conf_get_uq_feat_opts_k -extract' $thru_conf_inf_opts $thru_conf_rna_fold_opts >> $params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log 2>&1};
 
     $lncRNApipe_opts .= add_exit_check("$params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log",
 				       "$params->{'outputDir'}/lncRNApipe.postAssembly.status.log",
@@ -3714,6 +3717,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Fri-10-2015
+Fri-17-2015
 
 =cut
