@@ -3089,7 +3089,7 @@ To get help documentation about this module, run:
 
 =item 3. get_unique_features.pl (lncRNApipe Option: --get or --get--uq-feat)
     
-It then compares the putative list with supplied known lncRNAs in BED or GTF format to get features that do not overlap any known lncRNAs. To extract known lncRNAs from your assembled transcripts for downstream analysis, include C<< --known >> with C<< --get >> option of lncRNApipe.
+It then compares the putative list with supplied known lncRNAs in BED or GTF format to get features that do not overlap any known lncRNAs. To extract known lncRNAs from your assembled transcripts for downstream analysis, include C<< --known --extract>> with C<< --get >> option of lncRNApipe.
 
 To get help documentation about this module, run:
 
@@ -3538,7 +3538,7 @@ The pipeline has the ability to run each of these individual modules if any of t
 
 =item * Run B<I<get_unique_features module>> of the pipeline to extract known lncRNAs:
     
- perl lncRNApipe --run /data/lncRNApipe --get '--known -sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed'
+ perl lncRNApipe --run /data/lncRNApipe --get '--known --extract -sf /data/projects/mm10/macrophages/ncrna/known_ref_lncRNAs/mm10_ncRNA.bed'
 
 =item * Run B<I<fetch_unique_features module>> of the pipeline:
 
