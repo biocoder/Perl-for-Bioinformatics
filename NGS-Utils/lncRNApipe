@@ -1682,7 +1682,7 @@ sub run_lncRNApipe_from_conf {
     # Verify minimum required params.
     verify_config_file($io, $beverb, $params->{'overwriteOutputDir'}, 'overwriteOutputDir', 'yes|no');
     verify_config_file($io, $beverb, $params->{'performTranscriptAssembly'}, 'performTranscriptAssembly', 'yes|no');
-    verify_config_file($io, $beverb, $params->{'sourceDB'}, 'sourceDB', 'ensembl|ucsc');
+    verify_config_file($io, $beverb, $params->{'sourceDB'}, 'sourceDB', 'ensembl|ucsc|custom');
     verify_config_file($io, $beverb, $params->{'scheduler'}, 'scheduler', 'pbs|sge|lsf|slurm|none');
     verify_config_file($io, $beverb, $params->{'runRNAfold'}, 'runRNAfold', 'yes|no');
     verify_config_file($io, $beverb, $params->{'runcmscan'}, 'runcmscan', 'yes|no');
@@ -1769,11 +1769,11 @@ sub run_lncRNApipe_from_conf {
     $io->error('-L option is not required for [cufflinks: ].' . $beverb)
 	if (is_option_exists_in_anon($params->{'cufflinks'}, '-L'));
 
-    $io->error('-sf and -sff options are required in [get_unique_features: ] when [sourceDB: ] is "CUSTOM"')
-	if (is_option_exists_in_anon($params->{'sourceDB'}, 'CUSTOM')) &&
+    $io->error('-sf and -sff options are required in [get_unique_features: ] when [sourceDB: ] is "CUSTOM".')
+	if (is_option_exists_in_anon([$params->{'sourceDB'}], 'CUSTOM')) &&
 	( !is_option_exists_in_anon($params->{'get_unique_features'}, '-sff\s+') ||
 	  !is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+')
-	)
+	);
     
     $io->error('In [get_unique_features: ] options, "-sff" is required when you are specifying a list of known ncRNAs.' . $beverb)
 	if (defined $params->{'get_unique_features'} &&
@@ -2037,7 +2037,7 @@ sub run_lncRNApipe_from_conf {
 		
 		my $trim_cmd = '';
 		
-		if ($params->{'readType'} =~ m/^FASTQ$/i) {
+		if ($params->{'readType'} =~ m/^FASTQ$/i && defined $params->{'trimmomatic'} && scalar @{$params->{'trimmomatic'}} > 1) {
 		    
 		    mkdirs($io, [$trim_rep_o_dir]);
 		    $trim_cmd = "\n\n#\n# Trimmomatic Run\n#\n#\n";
