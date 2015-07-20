@@ -2085,6 +2085,7 @@ sub run_lncRNApipe_from_conf {
 			if (is_job_done("$trim_o_dir/status.log", $io, 0, $sample_name));
 
 		    #print "\n$trim_cmd\n\n";
+		    $check_these_log_files .= "$trim_rep_o_dir/run.log\n";
 		}
 				
 		my $tophat_cmd = "\n\n#\n# Tophat Run\n#\n#\ntophat " .
@@ -2102,7 +2103,7 @@ sub run_lncRNApipe_from_conf {
 
 		$bam_files_per_sample .= "$tophat_rep_o_dir/accepted_hits.bam ";
 		$all_bam_files .= "$tophat_rep_o_dir/accepted_hits.bam ";
-		$check_these_log_files .= "$trim_rep_o_dir/run.log\n$tophat_rep_o_dir/run.log\n";
+		$check_these_log_files .= "$tophat_rep_o_dir/run.log\n";
 		$scheduler_job_depends = "'$sample_name'" if ($params->{'scheduler'} =~ m/^none$/i);
 
 		#my $is_tophat_job_done = is_job_done("$tophat_o_dir/status.log", $io, 0, $sample_name);
