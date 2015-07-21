@@ -303,7 +303,7 @@ sub run_lncRNApipe {
 		
 		$io->error('gtfToGenePred quit with the following error:' . "\n\n$is_failed\nBailing out!"),
 		$lncRNApipe_succ = 0
-		    if ($gtfToGenePred_failed !~ m/couldnotcapture|noversioninformation/i);
+		    if ($gtfToGenePred_failed !~ m/couldnotcapture|noversioninformation.+?gtfToGenePred\)$/i);
 	    }
 	    
 	    $categorize_sc_opts .= " -cpu $num_cpu" if (defined $num_cpu);
