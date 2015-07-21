@@ -2379,7 +2379,7 @@ cuffdiff -p $params->{'CPUs'} -o $cuffdiff_novel -L $sample_names $cuffdiff_opts
 
     my $cuffdiff4all_trs = '';
     
-    if (defined $params->{'runCuffdiffForAllTranscripts'}) {
+    if (defined $params->{'runCuffdiffForAllTranscripts'} && $params->{'runCuffdiffForAllTranscripts'} =~ m/^yes$/i) {
 	my $cuffdiff_on_tr_dir = "$params->{'outputDir'}/cuffdiff_on_transcripts";
 	mkdirs($io, [$cuffdiff_on_tr_dir, "$cuffdiff_on_tr_dir/cuffmerge"]);
 
