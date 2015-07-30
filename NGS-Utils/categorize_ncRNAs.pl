@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-29-04 17:45:27 -0500 (Tue, 29 Apr 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0708 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-29-07 17:45:27 -0500 (Wed, 29 Jul 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1020 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -758,7 +758,8 @@ sub store_coords {
 	$exon_starts =~ s/\,$//;
 	$exon_ends =~ s/\,$//;
 
-	$chr = 'chr$chr' if ($line =~ m/^ens/i && $strand =~ m/^\+|\-|\.$/ && $num_exons =~ m/\d+/ && $chr !~ m/^chr/);
+	# This is not necessary. Now no confusion for ENSEMBL annotations.
+	#$chr = "chr$chr" if ($line =~ m/^ens/i && $strand =~ m/^\+|\-|\.$/ && $num_exons =~ m/\d+/ && $chr !~ m/^chr/);
 
 	if (!defined $ignore_genePred_err) {
 	    $io->error('Supplied file [ ' . $io->file_basename($f, 'suffix') . ' ] does not seem to be in gene prediction format...' .
@@ -1225,6 +1226,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Apr-29-2015
+Jul-29-2015
 
 =cut
