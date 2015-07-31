@@ -291,7 +291,8 @@ sub compare_feat {
 		    
 		    my $s_ex_len = $right_coord -  $left_coord;
 		    my $c_ex_len = $cols[$cc2] - $cols[$cc1];
-		    my $ex_ov_per = ($s_ex_len / $c_ex_len) * 100 if ($c_ex_len > 0);
+		    my $ex_ov_per = -1;
+		    $ex_ov_per = ($s_ex_len / $c_ex_len) * 100 if ($c_ex_len > 0);
 		    
 		    my $source_tr_id = 'NA';
 		    $source_tr_id = $ids_only{$cols[$chr_c]}{$left_coord . $right_coord} if (defined $id_only);
