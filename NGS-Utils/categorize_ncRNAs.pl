@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-29-07 17:45:27 -0500 (Wed, 29 Jul 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1020 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-10-08 11:45:27 -0500 (Mon, 08 Aug 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1030 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -456,9 +456,14 @@ sub calc_lincRNAs {
 	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" . join('', @$nc_exon_starts) . join('', @$nc_exon_ends);
 	
 	    # Skip if non-coding transcript length is more than user defined max length
-	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
+	    my $ncRNA_length = this_tr_len($nc_exon_starts, $nc_exon_ends);
+
 	    $io->error("Exon start [ $nc_tr_start ] is greater than Exon end [ $nc_tr_end  ] for $nc_tr_id")
 		if ($ncRNA_length < 0);
+
+	    $io->error("Could not get transcript length for $nc_tr_id in [ " . $io->file_basename($p_ncRNAs, 'suffix')) . " ] ..."
+		if ($ncRNA_length == 0);
+
 	    next if ( (defined $ncRNA_max_length) && ($ncRNA_length > $ncRNA_max_length) );
 	   
 	    my $ov_found = $ref_gene_tree->fetch($nc_tr_start, $nc_tr_end);
@@ -536,9 +541,14 @@ sub calc_overlaps {
 	    my $unique_key = "$nc_tr_id$nc_strand$nc_tr_start$nc_tr_end$nc_exons" . join('', @$nc_exon_starts) . join('', @$nc_exon_ends);
 
 	    # Skip if non-coding transcript length is more than user defined max length
-	    my $ncRNA_length = $nc_tr_end - $nc_tr_start;
+	    my $ncRNA_length = this_tr_len($nc_exon_starts, $nc_exon_ends);
+	    
 	    $io->error("Exon start [ $nc_tr_start ] is greater than Exon end [ $nc_tr_end  ] for $nc_tr_id")
 		if ($ncRNA_length < 0);
+	    
+	    $io->error("Could not get transcript length for $nc_tr_id in [ " . $io->file_basename($p_ncRNAs, 'suffix')) . " ] ..."
+		if ($ncRNA_length == 0);
+
 	    next if ( (defined $ncRNA_max_length) && ($ncRNA_length > $ncRNA_max_length) );
 
 	    $nc_int_tree->insert($nc_tr_id, $nc_tr_start, $nc_tr_end) if ($mode =~ m/^ponc|conc$/i);
@@ -740,6 +750,24 @@ sub calc_overlaps {
 	}
     }
     return ($found, $num_noSense);
+}
+
+# Return transcript length
+sub this_tr_len {
+    my $exon_starts = shift;
+    my $exon_ends = shift;
+
+    $io->error('Number of Exon starts do not correspond with number of Exon ends.')
+	if ($#$exon_starts != $#$exon_ends);
+    
+    my $tr_len = 0;
+    for (my $ith_exon=0; $ith_exon<=$#$exon_starts; $ith_exon++) {
+	# gtfToGenePred already decreases exon start by, so no need of +1
+	$tr_len = $tr_len + ($exon_ends->[$ith_exon] - $exon_starts->[$ith_exon]);
+    }
+
+    return $tr_len if ($tr_len > 0);
+    return 0;
 }
 
 # Store genome coordinates.
@@ -1226,6 +1254,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Jul-29-2015
+Aug-08-2015
 
 =cut

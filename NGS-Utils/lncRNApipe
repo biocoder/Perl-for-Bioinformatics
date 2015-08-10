@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-07-20 09:27:27 -0500 (Mon, 20 July 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.0.2 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-10-08 11:45:27 -0500 (Mon, 08 Aug 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.0.3 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -3727,6 +3727,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Jul-20-2015
+Aug-08-2015
 
 =cut
