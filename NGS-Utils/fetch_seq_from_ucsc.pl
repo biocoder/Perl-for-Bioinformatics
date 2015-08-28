@@ -249,7 +249,7 @@ foreach my $unique_seq_id (keys %$transcripts) {
 	    my $get_ncbi_seq = get('http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?&db=nuccore&id=' .
 				  $chr_gi->{$unchanged_contig_id} . "&seq_start=$exon_start&seq_stop=$exon_end&rettype=fasta&retmode=text");
 	    
-	    $io->error('NCBI Entrez did not return any sequence from nuccore database.') if (!$get_ncbi_seq || $get_ncbi_seq eq '');
+	    $io->warning('NCBI Entrez did not return any sequence from nuccore database.') if (!$get_ncbi_seq || $get_ncbi_seq eq '');
 	    
 	    $get_ncbi_seq =~ s/^>.+|\n*//g;
 	    $seq .= $get_ncbi_seq;
@@ -267,7 +267,7 @@ foreach my $unique_seq_id (keys %$transcripts) {
 	}
 	else {
 	    my $xml = get("http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=" . $contig_id->{$unique_seq_id} . ":$exon_start,$exon_end");
-	    $io->error('UCSC DAS did not return any sequence for database ' . $dbkey .
+	    $io->warning('UCSC DAS did not return any sequence for database ' . $dbkey .
 		       ".\nQueried: http://genome.ucsc.edu/cgi-bin/das/$dbkey/dna?segment=" . $contig_id->{$unique_seq_id} . ":$exon_start,$exon_end")
 		if (!$xml || $xml eq '' || $xml !~ m/.*?<\/DNA>/i);
 	    my $xpath = XML::XPath->new(xml=>$xml);

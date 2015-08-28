@@ -1655,7 +1655,7 @@ sub list {
 
     $io->error('Currently, only ENSEMBL listing is supported.' .
 	       "\nGo to https://genome.ucsc.edu/FAQ/FAQreleases.html#TOP to view UCSC version names.")
-	if (defined $sp_list && $sp_list !~ m/^ENSEMBLE$/i);
+	if (defined $sp_list && $sp_list !~ m/^ENSEMBL$/i);
     
     $io->c_time('Finding out latest release version at ENSEMBL...');
     chomp(my $latest_release = $io->execute_get_sys_cmd_output("curl -Lks ftp://ftp.ensembl.org/pub/ -l | grep release | sort -nr -k9 | head -n 1"));
