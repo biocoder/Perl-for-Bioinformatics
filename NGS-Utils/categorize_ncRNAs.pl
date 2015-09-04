@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-10-08 11:45:27 -0500 (Mon, 08 Aug 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1030 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-09-04 11:00:27 -0500 (Fri, 04 Sep 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1040 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -18,7 +18,8 @@ my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
     $min_exons, $overlap, $novel, $extract_pat, $no_tmp,
     $antisense_only, $disp_anti_option, $gtf_bin, $num_cpu,
     $linc_rna_prox, $ncRNA_max_length, $extract_pat_user,
-    $ignore_genePred_err, $full_read_supp, $rescue, $gtf_formatted);
+    $ignore_genePred_err, $full_read_supp, $rescue, $gtf_formatted,
+    $known_ncRNAs);
 
 my ($p_file_names_gtf, $p_file_names_txt) = [];
 my $ncRNA_class = {};
@@ -37,6 +38,7 @@ my $is_valid_option = GetOptions('help|?'              => \$help,
 				 'length=i'            => \$length,
 				 'max-length=i'        => \$ncRNA_max_length,
 				 'min-exons=i'         => \$min_exons,
+				 'known-ncRNAs'        => \$known_ncRNAs,
 				 'overlap=f'           => \$overlap,
 				 'include-novel'       => \$novel,
 				 'clean-tmp'           => \$no_tmp,
@@ -345,18 +347,26 @@ sub class_ncRNAs {
 	$io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (Exonic overlaps) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	($num_ex_ov, $num_noSense) = calc_overlaps('exonic', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 
-	$io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (Intronic overlaps - Incs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
-	($num_incs, $discard) = calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	if (!defined $known_ncRNAs) {
+	    $io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (Intronic overlaps - Incs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	    ($num_incs, $discard) = calc_overlaps('Inc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	}
 
-	$io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (Intronic overlaps - Concs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
-	($num_concs, $discard) = calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	if (!defined $known_ncRNAs) {
+	    $io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (Intronic overlaps - Concs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	    ($num_concs, $discard) = calc_overlaps('Conc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	}
 
-	$io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (Intronic overlaps - Poncs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
-        ($num_poncs, $discard) = calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	if (!defined $known_ncRNAs) {
+	    $io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (Intronic overlaps - Poncs) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	    ($num_poncs, $discard) = calc_overlaps('Ponc', $p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot);
+	}
 
-	$io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
-        ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
-
+	if (!defined $known_ncRNAs) {
+	    $io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
+	    ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
+	}
+	    
 	if (!defined $rescue) {
 
 	    sync_categories();
@@ -817,6 +827,8 @@ sub get_parts {
 # Calculate exonic overlap.
 sub is_exonicOverlap {
     my ($s_ex_st, $s_ex_end, $c_ex_st, $c_ex_end) = @_;
+
+    my $exon_match_count = 0;
     
     for (0 .. $#$c_ex_st) {
 
@@ -832,28 +844,38 @@ sub is_exonicOverlap {
 		$c_ex_st->[$nc_ex_coord] <= $s_ex_end->[$_] && 
 		$c_ex_end->[$nc_ex_coord] >= $s_ex_st->[$_] && 
 		$c_ex_end->[$nc_ex_coord] <= $s_ex_end->[$_]) {
-		return 1 if ( defined($overlap) && ($ex_ov_per >= $overlap) );
+		return 1 if ( defined($overlap) && ($ex_ov_per >= $overlap) && !defined $known_ncRNAs);
+		$exon_match_count++;
 	    }
 	    elsif ($c_ex_st->[$nc_ex_coord] >= $s_ex_st->[$_] &&
 		   $c_ex_st->[$nc_ex_coord] <= $s_ex_end->[$_] &&
 		   $c_ex_end->[$nc_ex_coord] >= $s_ex_st->[$_] &&
 		   $c_ex_end->[$nc_ex_coord] <= $s_ex_end->[$_]) {
-		return 1 if ( defined($overlap) && ($ex_ov_per >= $overlap) );
+		return 1 if ( defined($overlap) && ($ex_ov_per >= $overlap) && !defined $known_ncRNAs);
+		$exon_match_count++;
 	    }
 	    elsif ($c_ex_st->[$nc_ex_coord] >= $s_ex_st->[$_] &&
 		   $c_ex_st->[$nc_ex_coord] <= $s_ex_end->[$_] &&
 		   $c_ex_end->[$nc_ex_coord] >= $s_ex_st->[$_] &&
 		   $c_ex_end->[$nc_ex_coord] >= $s_ex_end->[$_]) {
-		return 1 if ( defined($overlap) && ($ex_ov_per >= $overlap) );
+		return 1 if ( defined($overlap) && ($ex_ov_per >= $overlap) && !defined $known_ncRNAs);
+		$exon_match_count++;
 	    }
 	    elsif ($c_ex_st->[$nc_ex_coord] <= $s_ex_st->[$_] &&
 		   $c_ex_st->[$nc_ex_coord] <= $s_ex_end->[$_] &&
 		   $c_ex_end->[$nc_ex_coord] >= $s_ex_st->[$_] && 
 		   $c_ex_end->[$nc_ex_coord] >= $s_ex_end->[$_]) {
-		return 1 if ( defined($overlap) && ($ex_ov_per >= $overlap) );
+		return 1 if ( defined($overlap) && ($ex_ov_per >= $overlap) && !defined $known_ncRNAs);
+		$exon_match_count++;
 	    }
 	}
     }
+
+    return 1 if (defined $known_ncRNAs &&
+		 ( ($exon_match_count - 1) == $#$c_ex_st)
+		 #&& ( this_tr_len($c_ex_st, $c_ex_end) ==  this_tr_len($s_ex_st, $s_ex_end) )
+	);
+
     return 0;
 }
 
@@ -1223,6 +1245,12 @@ categorize_ncRNAs.pl takes the following arguments:
     with an error if it cannot validate. Use this option if you think the Gene Prediction
     format of the file you supplied is correct but in any case, this program thinks otherwise.
 
+=item --known-ncRNAs (Optional)
+
+    Using this option will cause the program to compare transcripts to known ncNRAs supplied
+    in GTF format to extract any known ncRNAs constructed by transcriptome assemblers in your 
+    data.
+
 =item --extract-pat (Optional)
 
     Default: 'i|o|u|x|e'
@@ -1254,6 +1282,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Aug-08-2015
+Sep-04-2015
 
 =cut
