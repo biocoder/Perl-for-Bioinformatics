@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-09-04 11:00:27 -0500 (Fri, 04 Sep 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.0.4 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-09-21 11:47:27 -0500 (Mon, 21 Sep 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.0.5 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -1686,7 +1686,7 @@ sub run_lncRNApipe_from_conf {
     verify_config_file($io, $beverb, $params->{'scheduler'}, 'scheduler', 'pbs|sge|lsf|slurm|none');
     verify_config_file($io, $beverb, $params->{'runRNAfold'}, 'runRNAfold', 'yes|no');
     verify_config_file($io, $beverb, $params->{'runcmscan'}, 'runcmscan', 'yes|no');
-    verify_config_file($io, $beverb, $params->{'batchSubCmd'}, 'batchSubCmd', 'qsub|bsub|sbatch') if (defined $params->{'scheduler'});
+    verify_config_file($io, $beverb, $params->{'batchSubCmd'}, 'batchSubCmd', 'qsub|bsub|sbatch|bash') if (defined $params->{'scheduler'});
     verify_config_file($io, $beverb, $params->{'runCuffdiffForAllTranscripts'}, 
 		       'runCuffdiffForAllTranscripts', 'yes|no');
 
@@ -2718,6 +2718,7 @@ sub write_and_submit_job {
     my $cmds = shift;
     my $jobID_rudimentary = shift;
     my $cluster_opts = '# No cluster options specified.';
+    my $scheduler_opts_str = '# No scheduler options specified.';
     my $sandbox_bin_path = '# Using binaries [ bowtie, tophat, cufflinks ] found on the system.';
 
     my $yaml_was = $io->file_basename($pipe_config, 'suffix');
@@ -2725,7 +2726,7 @@ sub write_and_submit_job {
     $job_script_name = "$job_scripts_dir/$job_script_name";
 
     my $auto_generated_on = localtime;
-    my $scheduler_opts_str = join("\n#", @{$params->{'schedulerOpts'}});
+    $scheduler_opts_str = join("\n#", @{$params->{'schedulerOpts'}}) if (defined $params->{'schedulerOpts'});
     my $job_script_fh = $io->open_file('>', $job_script_name);
 
     unshift(@$cmds, "\n\n# This run's job ID or PID.\necho " .
@@ -3727,6 +3728,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Sep-04-2015
+Sep-21-2015
 
 =cut
