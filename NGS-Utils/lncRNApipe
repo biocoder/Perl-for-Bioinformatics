@@ -13,7 +13,7 @@ Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
 my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-09-25 11:47:27 -0500 (Fri, 25 Sep 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.0.6 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($VERSION) = q$LastChangedRevision: 1.0.7 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -2388,6 +2388,9 @@ cuffdiff -p $params->{'CPUs'} -o $cuffdiff_novel -L $sample_names $cuffdiff_opts
 
 	my $cuffdiff_opts = join(' ', @{$params->{'cuffdiff'}});
 	my $cuffmerge_opts = join(' ', @{$params->{'cuffmerge'}});
+
+	$cuffdiff4all_trs .= "\n\n# No scheduler involved. Wait on PIDs.\n$job_deps_str_lncRNApipe_post_assembly"
+	    if ($params->{'scheduler'} =~ m/^none$/i && $job_deps_str_lncRNApipe_post_assembly); 
 
     	$cuffdiff4all_trs .= qq {
 
