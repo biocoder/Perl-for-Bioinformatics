@@ -7,8 +7,8 @@
 # 
 #
 # Specify output directory.
-# In the example below, a  new output directory called "lncRNApipe_test"
-# will be created at the mentioned path /Users/krantikonganti/Projects/scratch_test.
+# In the example below, a  new output directory called "new-lncRNApipe2"
+# will be created at the mentioned path  /data/konganti/FASTQ_RNAseq.
 #
 outputDir: /data/konganti/FASTQ_RNAseq/new-lncRNApipe2
 
@@ -173,8 +173,6 @@ trimmomatic:
 genomeFasta: /data/ref_fasta/rn4_UCSC/genome.fa
 bowtieGenomeIndex: /data/ref_indexes/bowtie2/rn4_UCSC/genome
 tophat:
- - -x 1
- - -M
  - --b2-sensitive
  - --transcriptome-index=/data/konganti/FASTQ_RNAseq/transcriptome_index/rn4
  - --no-coverage-search
@@ -218,7 +216,7 @@ cuffcompare:
 # 
 categorize_ncRNAs:
  - -sample-names "cca,fpa,cpa,fca,ccs,cps,fcs,fps"
- - -len 150
+ - -len 200
  - -min-exons 1
  - -ov 80
  - -inc
@@ -238,8 +236,6 @@ categorize_ncRNAs:
 #
 get_unique_features:
  - -ov 10
- - -sf test
- - -sff gtf
 
 #
 # By, default, RNAfold is not run since it is very slow.

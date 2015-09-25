@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-09-21 11:47:27 -0500 (Mon, 21 Sep 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.0.5 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-09-25 11:47:27 -0500 (Fri, 25 Sep 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.0.6 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -2724,6 +2724,7 @@ sub write_and_submit_job {
     my $yaml_was = $io->file_basename($pipe_config, 'suffix');
     
     $job_script_name = "$job_scripts_dir/$job_script_name";
+    $jobID_rudimentary = 0 if ($params->{'batchSubCmd'} =~ m/^bash$/);
 
     my $auto_generated_on = localtime;
     $scheduler_opts_str = join("\n#", @{$params->{'schedulerOpts'}}) if (defined $params->{'schedulerOpts'});
@@ -3017,6 +3018,7 @@ Run the B<I<identification stage>> of the pipeline through command-line options 
 lncRNApipe was developed in Linux environment and can be installed on UNIX based machines. If it is a 64-bit machine, all required prerequisites are sandboxed with the software and taken care of, which should run in most instances. lncRNApipe will attempt to find any available prerequisites on your machine and will default to them before using sandboxed binaries. All you need to do is run the following command to install the pipeline and all of its required dependencies:
  
  cd /change/into/my/preferred/path/of/installation
+ curl -Ok https://raw.githubusercontent.com/biocoder/Perl-for-Bioinformatics/master/NGS-Utils/lncRNApipe
  perl lncRNApipe --setup
 
 If you are on a 32-bit machine, run the same command as shown above, and lncRNApipe will let you know, which tools must to be installed and be available in your C<< $PATH >>.
@@ -3163,8 +3165,7 @@ The parameters where you specify tools' options end with tool's name followed by
 Example:
 
  tophat:
-  - -x 1
-  - -M
+  - --b2-sensitive
 
 =head2 params.yaml's Options:
 
@@ -3252,7 +3253,7 @@ Specify if your reads are C<< SE >> (single-end only), C<< PE >> (paried-end onl
 
 =item sourceDB: UCSC
 
-Specify if you want to use C<< ENSEMBL >> or C<< UCSC >> as source for annotation if you do not want to use C<< useThisAnnotation: >>. B<PLEASE MAKE SURE> that you are using the same C<< sourceDB >> for tophat alignments, i.e. bowtie indexes created from the same C<< sourceDB >> for the same assembly version. As downloding genome indices on-the-fly is time consuming and since many users may have genome indices installed for various NGS analysis anyways, we leave it to you to provide B<CORRECT> genome index below in tophat and cufflinks options' configuration.
+Specify if you want to use C<< ENSEMBL >> or C<< UCSC >> as source for annotation and do not want to use C<< useThisAnnotation: >>. B<PLEASE MAKE SURE> that you are using the same C<< sourceDB >> for tophat alignments, i.e. bowtie indexes created from the same C<< sourceDB >> for the same assembly version. As downloading genome indices on-the-fly is time consuming and since many users may have genome indices installed for various NGS analysis anyways, we leave it to you to provide B<CORRECT> genome index below in tophat and cufflinks options' configuration.
 
 I<Currently> C<< sourceDB: >> I<is required to be either> C<< ENSEMBL >> I<or> C<< UCSC >> I<or> C<< CUSTOM >>.
 
@@ -3286,7 +3287,7 @@ In the example below, I have 8 samples and each sample has about 5-6 replicates.
 
 =item trimmomatic:
 
-If you want to use Trimmomatic to trim reads, then provide TRIMMOMATIC options. TRIMMOMATIC provides the following adapter files: B<I<NexteraPE-PE.fa>>, B<I<TruSeq2-PE.fa>>, B<I<TruSeq2-SE.fa>>, B<I<TruSeq3-PE-2.fa>>, B<I<TruSeq3-PE.fa>> and B<I<TruSeq3-SE.fa>>. These adapter files are COPYRIGHTED by ILLUMINA and I am in the process of obtaining permission to redesitribute them with TRIMMOMATIC. For now, provide full path to the adapter sequence file you want to use.
+If you want to use Trimmomatic to trim reads, then provide TRIMMOMATIC options. TRIMMOMATIC provides the following adapter files: B<I<NexteraPE-PE.fa>>, B<I<TruSeq2-PE.fa>>, B<I<TruSeq2-SE.fa>>, B<I<TruSeq3-PE-2.fa>>, B<I<TruSeq3-PE.fa>> and B<I<TruSeq3-SE.fa>>. These adapter files are COPYRIGHTED by ILLUMINA and are public.
 
 No need to provide C<< -threads >>, as it will be handled by lncRNApipe.
 
@@ -3320,8 +3321,6 @@ No need to provide C<< -p >>, as it will be handled by lncRNApipe.
 Ex:
 
  tophat:
-  - -x 1
-  - -M
   - --b2-sensitive
   - --transcriptome-index=/data/konganti/FASTQ_RNAseq/transcriptome_index/rn4
   - --no-coverage-search
@@ -3372,7 +3371,7 @@ Ex:
 
  categorize_ncRNAs:
   - -sample-names "cca,fpa,cpa,fca,ccs,cps,fcs,fps"
-  - -len 150
+  - -len 200
   - -min-exons 1
   - -ov 80
   - -inc
@@ -3704,7 +3703,7 @@ and then, if the run fails or if you wish to discuss other issues. Use:
 
 =item --dont-wait
 
-Initially, when designing the pipeline, using C<< Schedule::DRMAAc >> was considered to submit jobs via DRMAA API in grid computing environment. I later found that C<< drmaa.h >> is not present on all cluster insllations and cluster admins can install DRMAA API on request, but it defeats the purpose of simply installing the pipeline and just running the jobs. I then used regex to parse the output of the batch submission command and create dependency chain from it. It works on most of the cluster installations where the scheduler is either SGE, PBS, SLURM or LSF. Using C<< --dont-wait >> option will not wait for user confirmation to verify that the program has parsed the job IDs correctly. When C<< --dont-wait >> option is not used, the program will prompt for user to verify that the job IDs gathered are in fact correct. Yes, this is rudimentary, but as I explained above, it gets the job done.
+Initially, when designing the pipeline, using C<< Schedule::DRMAAc >> was considered to submit jobs via DRMAA API in grid computing environment. I later found that C<< drmaa.h >> is not present on all cluster installations and cluster admins can install DRMAA API on request, but it defeats the purpose of simply installing the pipeline and just running the jobs. I then used regex to parse the output of the batch submission command and create dependency chain from it. It works on most of the cluster installations where the scheduler is either SGE, PBS, SLURM or LSF. Using C<< --dont-wait >> option will not wait for user confirmation to verify that the program has parsed the job IDs correctly. When C<< --dont-wait >> option is not used, the program will prompt for user to verify that the job IDs gathered are in fact correct. Yes, this is rudimentary, but as I explained above, it gets the job done.
 
 =item --kill
 
@@ -3728,6 +3727,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Sep-21-2015
+Sep-25-2015
 
 =cut

@@ -24,7 +24,7 @@ IO::Routine [![Build Status](https://api.travis-ci.org/biocoder/Perl-for-Bioinfo
 * Install lncRNApipe and all its dependencies (Mac and Linux):
 
           cd /to/your/preferred/install/path
-          curl -O https://raw.githubusercontent.com/biocoder/Perl-for-Bioinformatics/master/NGS-Utils/lncRNApipe
+          curl -kO https://raw.githubusercontent.com/biocoder/Perl-for-Bioinformatics/master/NGS-Utils/lncRNApipe
           perl lncRNApipe --setup
 
 * Documentation:
