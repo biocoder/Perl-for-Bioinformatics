@@ -30,6 +30,23 @@ performTranscriptAssembly: YES
 # Specify number of threads / CPUs to use where possible.
 # If running on a grid, each job script will run with this many
 # number of CPUs.
+#
+# ********************* !! IMPORTANT !! ***********************
+# *************************************************************
+#
+# Please be aware that each command will take this many number
+# of CPUs. If you have 2 samples, then 2 tophat runs will take
+# 10 CPUs each etc... In case of grid computing, this is easily
+# managed via job parameters but if you not using grid computing, 
+# please make sure you are not exceeding the total number of CPUs
+# available on your machine. 
+#
+# For example, if you are not using grid computing and your  machine 
+# has 24 CPUs, and you have 6 samples including all replicates, 
+# you may want to use as rule of thumb: 
+#
+# Desired number of CPUs = Total number of CPUs divided by total
+# number of samples (including replicates, if any)
 # 
 CPUs: 10
 
@@ -42,7 +59,8 @@ scheduler: SGE
 #
 # Mention batch submission command.
 # For example, for LSF, it is bsub, for PBS or SGE, it
-# is qsub.
+# is qsub and in case you are not running jobs on the cluster, change
+# it to BASH.
 #
 batchSubCmd: qsub
 
@@ -235,7 +253,7 @@ categorize_ncRNAs:
 # See "perl lncRNApipe --h get" for description of options.
 #
 get_unique_features:
- - -ov 10
+ - -ov 80
 
 #
 # By, default, RNAfold is not run since it is very slow.

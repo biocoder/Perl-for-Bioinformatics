@@ -3512,7 +3512,7 @@ The final output is a putative list of annotated lncRNAs in GTF format that can 
 
 =item * Output from C<< get_unique_features.pl >> output is stored in the directory called B<get_unique_features>. lncRNApipe uses files ending with suffix C<< .putative.class.lncRNAs.unique.gtf >> or C<< .putative.class.lncRNAs.known.gtf  >> for the next module.
 
-=item * Output from C<< fetch_seq_from_ucsc.pl >> is stored in the directory called B<fetch_seq_from_ucsc>. lncRNApipe uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules. The file ending in suffix C<< .noncoding.noncoding.FASTA >> is used for the next modules.
+=item * Output from C<< fetch_seq_from_ucsc.pl >> is stored in the directory called B<fetch_seq_from_ucsc>. lncRNApipe uses these FASTA seqeunce files to run CPC, RNAfold and Infernal modules. The file ending in suffix C<< .noncoding.FASTA >> is used for the next modules.
 
 =item * C<< CPC >>predictions are stored in a directory called B<CPC>.
 
@@ -3712,11 +3712,11 @@ Initially, when designing the pipeline, using C<< Schedule::DRMAAc >> was consid
 
 Kill jobs. If you have used either grid submission or not used grid submission, all the job ids or PIDs will be present in 3 files: B<job_scripts_Day_Month_Date_Hour_Min_Sec_Year>/C<< job_IDs_tophat.RUNID >>, B<job_scripts_Day_Month_Date_Hour_Min_Sec_Year>/C<< job_IDs_cufflinks.RUNID >> and B<job_scripts_Day_Month_Date_Hour_Min_Sec_Year>/C<< job_IDs_lncRNApipe_postAssembly.RUNID >>. If you want to kill any jobs for any reason do:
 
- perl lncRNApipe --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_tophat.2CphrqPLqFdCs
+ perl lncRNApipe --conf params.yaml --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_tophat.2CphrqPLqFdCs
 
 If you want to kill jobs from multiple job IDs' files, do:
 
- perl lncRNApipe --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_tophat.2CphrqPLqFdCs --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_cufflinks.2CphrqPLqFdCs --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_lncRNApipe_postAssembly.2CphrqPLqFdCs
+ perl lncRNApipe --conf params.yaml --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_tophat.2CphrqPLqFdCs --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_cufflinks.2CphrqPLqFdCs --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_lncRNApipe_postAssembly.2CphrqPLqFdCs
 
 =back
 
