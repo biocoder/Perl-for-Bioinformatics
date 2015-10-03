@@ -742,6 +742,12 @@ If you want to kill jobs from multiple job IDs' files, do:
 
  perl lncRNApipe --conf params.yaml --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_tophat.2CphrqPLqFdCs --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_cufflinks.2CphrqPLqFdCs --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_lncRNApipe_postAssembly.2CphrqPLqFdCs
 
+=item --show-counts
+
+Shows lncRNA counts for requested files. If for any reason, you want to get just the counts of identified lncRNAs from lncRNApipe, use this option. Ex:
+
+ perl lncRNApipe --show-counts lncRNApipe.final/transcripts.1.gtf --show-counts lncRNApipe.final/transcripts.2.gtf
+
 =back
 
 =head1 AUTHOR
@@ -754,6 +760,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Sep-25-2015
+Oct-03-2015
 
 =cut

@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-09-25 11:47:27 -0500 (Fri, 25 Sep 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.0.7 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-10-03 11:47:27 -0500 (Sat, 03 OCt 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.0.8 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -28,7 +28,7 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $conf_run_id, $setup_compiler,
     $cpanm_args, $donot_wait4jobIDs);
 
-my $kill_jobs_thru_conf = [];
+my $kill_jobs_thru_conf = my $show_lncrna_counts = [];
 my $is_valid_option = GetOptions('help:s'                           => \$help,
                                  'quiet'                            => \$quiet,
 				 'setup:s'                          => \$setup,
@@ -56,7 +56,8 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'configuration=s'                  => \$pipe_config,
 				 'kill-conf-jobs=s'                 => $kill_jobs_thru_conf,
 				 'setup-compiler=s'                 => \$setup_compiler,
-				 'dont-wait-4-job-ids'              => \$donot_wait4jobIDs);
+				 'dont-wait-4-job-ids'              => \$donot_wait4jobIDs,
+				 'show-counts=s'                    => $show_lncrna_counts);
 
 # Initialize known defaults
 my $CAT_SC = 'categorize_ncRNAs.pl';
@@ -131,6 +132,12 @@ elsif (defined $sp_list) {
     my $io = run_lncRNApipe('version');
     list($io);
     exit 0;
+}
+elsif (defined $show_lncrna_counts) {
+    my $io = run_lncRNApipe('version');
+    foreach my $tr (@$show_lncrna_counts) {
+	disp_ncRNA_counts($io, $tr, 'Total identified');
+    }
 }
 elsif (defined $pipe_config) {
     my $io = run_lncRNApipe('version');
@@ -3718,6 +3725,12 @@ If you want to kill jobs from multiple job IDs' files, do:
 
  perl lncRNApipe --conf params.yaml --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_tophat.2CphrqPLqFdCs --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_cufflinks.2CphrqPLqFdCs --kill job_scripts.Wed_Jun_24_11_30_44_2015/job_IDs_lncRNApipe_postAssembly.2CphrqPLqFdCs
 
+=item --show-counts
+
+Shows lncRNA counts for requested files. If for any reason, you want to get just the counts of identified lncRNAs from lncRNApipe, use this option. Ex:
+
+ perl lncRNApipe --show-counts lncRNApipe.final/transcripts.1.gtf --show-counts lncRNApipe.final/transcripts.2.gtf
+
 =back
 
 =head1 AUTHOR
@@ -3730,6 +3743,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Sep-25-2015
+Oct-03-2015
 
 =cut
