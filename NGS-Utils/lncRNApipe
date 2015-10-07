@@ -133,7 +133,7 @@ elsif (defined $sp_list) {
     list($io);
     exit 0;
 }
-elsif (defined $show_lncrna_counts) {
+elsif (defined $show_lncrna_counts && scalar @$show_lncrna_counts > 0) {
     my $io = run_lncRNApipe('version');
     foreach my $tr (@$show_lncrna_counts) {
 	disp_ncRNA_counts($io, $tr, 'Total identified');
