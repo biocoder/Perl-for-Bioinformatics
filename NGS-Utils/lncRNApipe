@@ -973,7 +973,8 @@ sub setup_lncRNApipe {
 
     if (!ask_user("\n\nDo you already have BioPerl installed?", 120)) {
 	print "\nOK ... This may take a while ... Grab a snack or a cup of coffee!\n";
-	cpanm_status($pm_install_dir, '--force Bio::SeqIO', $install_dir, $cpanm_args);
+	$cpanm_args .= ' --force ';
+	cpanm_status($pm_install_dir, 'Bio::SeqIO', $install_dir, $cpanm_args);
     }
 
     #print "\nThank you cpanm!\n";
@@ -1271,7 +1272,7 @@ sub check_bio_util {
 
     # blastall special case. CPC looks for blastall not linux_ or darwin_
     if ($sandboxed4arch =~ m/blastall/i) {
-	system("ln -s $install_dir/.lncRNApipe.depbin/$sandboxed4arch $install_dir/.lncRNApipe.depbin/blastall");
+	system("ln -s -f $install_dir/.lncRNApipe.depbin/$sandboxed4arch $install_dir/.lncRNApipe.depbin/blastall");
 	$sandboxed4arch = 'blastall';
     }
     
