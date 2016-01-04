@@ -95,7 +95,7 @@ elsif (defined $setup) {
     if (defined $setup_compiler) {
 	die "\nCompiler argument should be in the format COMPILER_VAR_NAME=COMPILER and your\n" .
 	    "compiler should be in your UNIX \$PATH.\n\nEx: --setup-compiler CC=g++\n\n"
-	    if ($setup_compiler !~ m/^\w+=\w+$/);
+	    if ($setup_compiler !~ m/^\w+=.+/);
 	$cpanm_args = "--configure-args $setup_compiler";
     }
     else {
