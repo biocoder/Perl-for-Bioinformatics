@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-11-05 11:47:27 -0500 (Thu, 05 Nov 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.0.8 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-05 15:47:27 -0500 (Tue, 05 Jan 2016)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.0.9 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -423,9 +423,9 @@ sub run_lncRNApipe {
 
 	    if (-e $unique_ncRNAs && !-s $unique_ncRNAs) {
 		$io->warning("No unique features found. In fact, this is not an error.\n" .
-			     'It just means that any putative ncRNAs that have been extracted from --cat-ncRNAs module are all known ncRNAs.');
-		$io->warning('Proceeding with files from "categorize_ncRNAs" module.', 'INFO!!');
-		$skip_get_uq = 1;
+			     'It just means that any putative ncRNAs that have been extracted from --cat-ncRNAs module do not have any overlaps with known ncRNAs.');
+		$io->warning('Proceeding with files from "categorize_ncRNAs" module using Symbolic link ...', 'INFO!!');
+		$io->execute_system_command("ln -s -f $lncRNApipe_class_file $unique_ncRNAs");
 	    }
 	    else {
 		disp_ncRNA_counts($io, $unique_ncRNAs, "Total number of putative $known_or_unique_suffix_keyword ncRNAs");
@@ -1046,42 +1046,44 @@ sub setup_lncRNApipe {
 	    }
 	    else {
 		$io->error('Please install homebrew. See installation instructions at http://brew.sh/' . 
-			   "\nThen, do the following:\n\nbrew update\nbrew tap homebrew/dupes\n" .
-			   "brew install grep\nbrew install gnu-sed\n" .
-			   "ln -s /usr/local/bin/ggrep /usr/local/bin/grep\n" .
-			   "ln -s /usr/local/bin/gsed /usr/local/bin/sed\n\n" .
-			   "Then, rerun the setup procedure to successfully install lncRNApipe pipeline.");
+			   "\nThen, do the following:\n\nbrew update\nbrew tap homebrew/dupes\n");
 	    }
+	    
 	    print "\n\nPlease execute the following commands in order and" .
 		" rerun the setup procedure to successfully install lncRNApipe pipeline.\n";
 	    $io->execute_system_command(0,
-					"brew update\nbrew tap homebrew/dupes\n" .
-					"brew install grep\nbrew install gnu-sed\n" .
+					"brew install coreutils\n" .
 					"ln -s /usr/local/bin/ggrep /usr/local/bin/grep\n" .
-					"ln -s /usr/local/bin/gsed /usr/local/bin/sed");
-	    print "Skipping version check for GNU grep and GNU sed...\n";
+					"ln -s /usr/local/bin/gsed /usr/local/bin/sed\n" .
+					"ln -s /usr/local/bin/gstat /usr/local/bin/stat\n" .
+					'echo "/usr/local/bin:$PATH" >> ~/.bash_profile' .
+					"\nsource ~/.bash_profile");
+	    print "Skipping version check for GNU grep, GNU sed and GNU stat...\n";
 	    succ_or_fail(2, 'sed');
 	    succ_or_fail(2, 'grep');
+	    succ_or_fail(2, 'stat');
 	    print "\n\nAborting setup...\n\n";
 	    exit;
 	}
 	else {
-	    $io->check_sys_level_cmds(['grep', 'sed'],
-				      ['2.6.3', '4.2.1']);
+	    $io->check_sys_level_cmds(['grep', 'sed', 'stat'],
+				      ['2.6.3', '4.2.1', '0']);
 	    succ_or_fail(1, 'grep');
 	    succ_or_fail(1, 'sed');
+	    succ_or_fail(1, 'stat')
 	}
     }
     else {
 	$sys_arch = 'linux';
-	 $io->check_sys_level_cmds(['grep', 'sed', 'tar', 'cut', 'wc'],
-				   ['2.6.3', '4.2.1', '0', '8', '8']);
+	 $io->check_sys_level_cmds(['grep', 'sed', 'tar', 'cut', 'wc', 'stat'],
+				   ['2.6.3', '4.2.1', '0', '8', '8', '0']);
 
 	succ_or_fail(1, 'grep');
 	succ_or_fail(1, 'sed');
 	succ_or_fail(1, 'tar');
 	succ_or_fail(1, 'cut');
 	succ_or_fail(1, 'wc');
+	succ_or_fail(1, 'stat')
     }
 
     print "\n\nSetting up PERL5LIB paths...\n";
@@ -3750,6 +3752,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Nov-05-2015
+Jan-05-2016
 
 =cut
