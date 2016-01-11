@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-09-04 11:00:27 -0500 (Fri, 04 Sep 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1040 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-11 11:00:27 -0500 (Mon, 11 Jan 2015)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1041 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -366,12 +366,42 @@ sub class_ncRNAs {
 	    $io->c_time('Categorizing' . $info_sync_word . 'lncRNAs (lincRNA) [ ' . $io->file_basename($p_file_names_gtf->[$_], 'suffix') . ' ]...');
 	    ($num_lincs, $noclass) = calc_lincRNAs($p_gtf, $p_ncRNAs, $c_ncRNAs, $refAnnot, $u_ncRNAs);
 	}
-	    
-	if (!defined $rescue) {
 
-	    sync_categories();
+	# Numbers may have changed. Redo counts.
+	# Remove categories that do not sync with cuffcompare.
+    
+	if (!defined $rescue) {
 	    
-	    # Numbers may have changed. Redo counts.
+	    my $c_no_ncRNAs = $u_ncRNAs;
+	    my $c_ncRNAs_tmp = $c_ncRNAs . '.tosync';
+	    $io->execute_system_command("cp $c_ncRNAs $c_ncRNAs_tmp") if (-e $c_ncRNAs && !-e $c_ncRNAs_tmp);
+	    
+	    $io->error("Cannot find *.tosync file while attempting to sync lncRNA categories.\n" . 
+		       'This may also mean that 0 transcripts have been categorized.')
+		if (!-e $c_ncRNAs_tmp || !-s $c_ncRNAs_tmp);
+	    
+	    my $c_ncRNAs_tmp_fh = $io->open_file('<', $c_ncRNAs_tmp);
+	    my $c_ncRNAs_fh = $io->open_file('>', $c_ncRNAs);
+	    my $c_no_ncRNAs_fh = $io->open_file('>>', $c_no_ncRNAs);
+	    
+	    while (my $line = <$c_ncRNAs_tmp_fh>) {
+		if ($line =~ m/.+?class_code\s+\W[jxo].+?exonic\s*overlap/i ||
+		    $line =~ m/.+?class_code\s+\Wu.+?LincRNA/i ||
+		    $line =~ m/.+?class_code\s+\Wi.+?\WInc\s*\-/i ||
+		    $line =~ m/.+?class_code\s+\W[jxo].+?Ponc/i ||
+		    $line =~ m/.+?class_code\s+\W[jxo].+?Conc/i
+		    ) {
+		    print $c_ncRNAs_fh $line;
+		}
+		else {
+		    print $c_no_ncRNAs_fh $line;
+		}
+	    }
+	    
+	    close $c_ncRNAs_tmp_fh;
+	    close $c_ncRNAs_fh;
+	    close $c_no_ncRNAs_fh;
+	    unlink $c_ncRNAs_tmp if (-e $c_ncRNAs_tmp);
 	    
 	    chomp ($num_lincs = $io->execute_get_sys_cmd_output("grep -iP '\ttranscript\t.+?lncRNA_type.+?lincrna' $c_ncRNAs | wc -l"));
 	    $num_lincs = 0 if ($num_lincs =~ m/^could not capture/i);
@@ -987,55 +1017,6 @@ sub format_gtf {
     return $formatted_gtf;
 }
 
-
-# Remove categories that do not sync with cuffcompare
-sub sync_categories {
-    my $c_ncRNAs = my $c_no_ncRNAs = '';
-    
-    for (0 .. $#ARGV) {
-
-	if ($gtf_formatted) {
-	    $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.putative.class.lncRNAs.gtf';
-	    $c_no_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.putative.noClass.lncRNAs.gtf';
-	}
-	else {
-	    $c_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.class.lncRNAs.gtf';
-	    $c_no_ncRNAs = $output . $io->file_basename($ARGV[$_]) . '.' . $lables[$_] . '.putative.noClass.lncRNAs.gtf';
-	}
-
-	my $c_ncRNAs_tmp = $c_ncRNAs . '.tosync';
-	$io->execute_system_command("cp $c_ncRNAs $c_ncRNAs_tmp") if (-e $c_ncRNAs);
-
-	$io->error("Cannot find *.tosync file while attempting to sync lncRNA categories.\n" . 
-		   'This may also mean that 0 transcripts have been categorized.')
-	    if (!-e $c_ncRNAs_tmp || !-s $c_ncRNAs_tmp);
-		
-	my $c_ncRNAs_tmp_fh = $io->open_file('<', $c_ncRNAs_tmp);
-	my $c_ncRNAs_fh = $io->open_file('>', $c_ncRNAs);
-	my $c_no_ncRNAs_fh = $io->open_file('>>', $c_no_ncRNAs);
-	
-	while (my $line = <$c_ncRNAs_tmp_fh>) {
-	    if ($line =~ m/.+?class_code\s+\W[jxo].+?exonic\s*overlap/i ||
-		$line =~ m/.+?class_code\s+\Wu.+?LincRNA/i ||
-		$line =~ m/.+?class_code\s+\Wi.+?\WInc\s*\-/i ||
-		$line =~ m/.+?class_code\s+\W[jxo].+?Ponc/i ||
-		$line =~ m/.+?class_code\s+\W[jxo].+?Conc/i
-		) {
-		print $c_ncRNAs_fh $line;
-	    }
-	    else {
-		print $c_no_ncRNAs_fh $line;
-	    }
-	}
-
-	close $c_ncRNAs_tmp_fh;
-	close $c_ncRNAs_fh;
-	close $c_no_ncRNAs_fh;
-	unlink $c_ncRNAs_tmp if (-e $c_ncRNAs_tmp);
-    }
-    return;
-}
-
 __END__
 
 =head1 NAME
@@ -1282,6 +1263,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Sep-04-2015
+Jan-11-2016
 
 =cut

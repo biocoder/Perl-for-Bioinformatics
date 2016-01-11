@@ -10,8 +10,8 @@ use IO::Routine;
 use Set::IntervalTree;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2015-07-02 12:48:27 -0500 (Thu, 02 July 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0604 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-11 12:48:27 -0500 (Mon, 1 Jan 2016)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0605 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my $io = IO::Routine->new();
@@ -244,7 +244,7 @@ sub compare_feat {
 	$tr_feat_num++;
     }
     
-    $io->c_time('Known non-coding RNAs found [ ' . $io->file_basename($sf, 'suffix') . ' ]: ' . $tr_feat_num)
+    $io->c_time('Number of known non-coding features indexed [ ' . $io->file_basename($sf, 'suffix') . ' ]: ' . $tr_feat_num)
 	if (!$quiet && $tr_feat_num && !defined $extract4pipeline && !$logfold4cuff);
     
     # Check if file has correct transcript-exon features.
@@ -653,6 +653,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Jul-02-2015
+Jan-11-2016
 
 =cut
