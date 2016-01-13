@@ -540,7 +540,7 @@ sub run_lncRNApipe {
 
 	    $cpu->start and next if (defined $num_cpu);
 	    $num_cpu_by_2 = sprintf("%.0f", $num_cpu / scalar(@lncRNApipe_unique_seq_files)) if (defined $num_cpu);
-	    $num_cpu_by_2 = 1 if ($num_cpu_by_2 <= 1);
+	    $num_cpu_by_2 = 1 if ($num_cpu_by_2 <= 0);
 
 	    $lncRNApipe_unique_seq_file = $outdir . 'fetch_seq_from_ucsc/' . $lncRNApipe_unique_seq_file;
 	    my $lncRNApipe_unique_seq_noncoding_file = $outdir . 'fetch_seq_from_ucsc/' . 
