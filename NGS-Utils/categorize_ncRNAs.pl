@@ -171,6 +171,7 @@ if (defined($no_tmp)) {
 # Clean up warnings
 remove_warnings('Removing warnings for this run...');
 
+$io->c_time('Known ncRNAs are stored in files ending with suffix ".putative.class.lncRNAs.gtf"') if (defined $known_ncRNAs);
 $io->c_time('categorize_ncRNAs finished!');
 $io->end_timer($s_time);
 exit;
@@ -391,6 +392,9 @@ sub class_ncRNAs {
 		    $line =~ m/.+?class_code\s+\W[jxo].+?Ponc/i ||
 		    $line =~ m/.+?class_code\s+\W[jxo].+?Conc/i
 		    ) {
+		    print $c_ncRNAs_fh $line;
+		}
+		elsif (defined $known_ncRNAs) {
 		    print $c_ncRNAs_fh $line;
 		}
 		else {
