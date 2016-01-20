@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-05 15:47:27 -0500 (Tue, 05 Jan 2016)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.0.9 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-20 15:47:27 -0500 (Wed, 20 Jan 2016)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -2402,8 +2402,9 @@ cuffdiff -p $params->{'CPUs'} -o $cuffdiff_novel -L $sample_names $cuffdiff_opts
 	my $sample_names = is_option_exists_in_anon($params->{'categorize_ncRNAs'}, 'sample');
 	($sample_names) = ($sample_names =~ m/.+\s+(.+)/);
 
-	my $cuffdiff_opts = join(' ', @{$params->{'cuffdiff'}});
-	my $cuffmerge_opts = join(' ', @{$params->{'cuffmerge'}});
+	my $cuffdiff_opts = my $cuffmerge_opts = '';
+	$cuffdiff_opts = join(' ', @{$params->{'cuffdiff'}}) if (scalar @{$params->{'cuffdiff'}} >= 1);
+	$cuffmerge_opts = join(' ', @{$params->{'cuffmerge'}}) if (scalar @{$params->{'cuffmerge'}} >= 1);
 
 	$cuffdiff4all_trs .= "\n\n# No scheduler involved. Wait on PIDs.\n$job_deps_str_lncRNApipe_post_assembly"
 	    if ($params->{'scheduler'} =~ m/^none$/i && $job_deps_str_lncRNApipe_post_assembly); 
@@ -3752,6 +3753,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Jan-05-2016
+Jan-20-2016
 
 =cut
