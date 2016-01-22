@@ -1893,8 +1893,10 @@ sub run_lncRNApipe_from_conf {
 	if (defined $params->{'get_unique_features'} && !is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
     
     my $thru_conf_get_uq_feat_opts_k = "'-sf $nc_annot_gtf -sff gtf --known -ov 10 -extract'";
-    $thru_conf_get_uq_feat_opts_k = "'--known -extract "  . join(' ', @{$params->{'get_unique_features'}}) . "'"
-	if (defined $params->{'get_unique_features'} && is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
+    if (defined $params->{'get_unique_features'} && is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+')) {
+	$thru_conf_get_uq_feat_opts_k = "'--known -extract "  . join(' ', @{$params->{'get_unique_features'}}) . "'";
+	$nc_annot_gtf = $io->strip_leading_and_trailing_spaces(is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
+    }	
     $thru_conf_get_uq_feat_opts_k = "'-sf $nc_annot_gtf -sff gtf --known -extract " . join(' ', @{$params->{'get_unique_features'}}) . "'"
 	if (defined $params->{'get_unique_features'} && !is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
 
