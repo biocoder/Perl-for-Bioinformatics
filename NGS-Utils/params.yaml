@@ -7,10 +7,10 @@
 # 
 #
 # Specify output directory.
-# In the example below, a  new output directory called "new-lncRNApipe2"
-# will be created at the mentioned path  /data/konganti/FASTQ_RNAseq.
+# In the example below, a  new output directory called "run"
+# will be created at the mentioned path  /data/konganti/lncRNApipe-test.
 #
-outputDir: /data/konganti/FASTQ_RNAseq/new-lncRNApipe2
+outputDir: /data/konganti/lncRNApipe-test/run
 
 #
 # Indicate, if we should overwrite the output directory if it already exists.
@@ -48,7 +48,7 @@ performTranscriptAssembly: YES
 # Desired number of CPUs = Total number of CPUs divided by total
 # number of samples (including replicates, if any)
 # 
-CPUs: 10
+CPUs: 16
 
 #
 # Specify scheduler type.
@@ -98,10 +98,10 @@ batchSubCmd: qsub
 #
 schedulerOpts:
 # - $ -l mem_free=10G
- - $ -l num_threads=10
+ - $ -l num_threads=16
 
-clusterOpts:
- - module load java1.7.0 perl5.14.2
+#clusterOpts:
+# - module load lncRNApipe
 #
 # Specify if your reads are in FASTA or FASTQ format.
 #
@@ -121,7 +121,7 @@ libType: MIXED
 # various NGS analysis anyways, we leave it to you to provide "CORRECT"
 # genome index below in tophat and cufflinks options' configuration.
 #
-sourceDB: UCSC
+sourceDB: ENSEMBL
 
 #
 # Choose assembly version so that we can download up-to-date annotation on the fly.
@@ -131,7 +131,7 @@ sourceDB: UCSC
 # Go to https://genome.ucsc.edu/FAQ/FAQreleases.html#TOP to view UCSC version names.
 # For example, at UCSC, for mouse, it is mm9 or mm10, for rat, it is rn5 or rn6 etc...
 #
-#species: rn4
+species: Danio_rerio.Zv9.66
 
 #
 # If you want to use your own annoation file, provide full path to the annotation
@@ -140,7 +140,7 @@ sourceDB: UCSC
 # same source. In the example below, "bowtieGenomeIndex" is rn4 genome index created
 # from FASTA files from UCSC.
 #
-useThisAnnotation: /data/ref_annotation/rn4_UCSC/genes.gtf
+useThisAnnotation: /data/konganti/lncRNApipe-test/genes.gtf
 
 #
 # Provide Unix path to directory where the read files are located and also
@@ -152,9 +152,9 @@ useThisAnnotation: /data/ref_annotation/rn4_UCSC/genes.gtf
 # WE HAVE NO WAY OF KNOWING WHICH READ FILE IS _1 or _2.
 #
 reads:
- readsDir: /data/konganti/FASTQ_RNAseq/reads
- r1: cca-2111.fastq,cca-2108.fastq,cca-2107.fastq,cca-1103.fastq,cca-2106.fastq|fpa-2410.fastq,fpa-2409.fastq,fpa-2408.fastq,fpa-1405.fastq,fpa-1403.fastq,fpa-1402.fastq|cpa-2210.fastq,cpa-2209.fastq,cpa-2207.fastq,cpa-1205.fastq,cpa-1204.fastq,cpa-1202.fastq|fca-2311.fastq,fca-2306.fastq,fca-1305.fastq,fca-1303.fastq,fca-1302.fastq,fca-1301.fastq|ccs-2506.fastq,ccs-2504.fastq,ccs-2505.fastq,ccs-1503.fastq,ccs-1502.fastq,ccs-1501.fastq|cps-2605.fastq,cps-2606.fastq,cps-2604.fastq,cps-1603.fastq,cps-1601.fastq,cps-1602.fastq|fcs-2706.fastq,fcs-2705.fastq,fcs-1703.fastq,fcs-2704.fastq,fcs-1702.fastq,fcs-1701.fastq|fps-2806.fastq,fps-2805.fastq,fps-2804.fastq,fps-1803.fastq,fps-1802.fastq,fps-1801.fastq
- r2: 
+ readsDir: /data/konganti/lncRNApipe-test/reads
+ r1: 2cells_1_25000_reads.fq|6h_1_25000_reads.fq
+ r2: 2cells_2_25000_reads.fq|6h_2_25000_reads.fq
 
 #
 # If you want to use TRIMMOMATIC to trim reads, then provide
@@ -188,11 +188,11 @@ trimmomatic:
 # No need to provide -o, as it will be handled by lncRNApipe.
 # No need to provide -p, as it will be handled by lncRNApipe.
 #
-genomeFasta: /data/ref_fasta/rn4_UCSC/genome.fa
-bowtieGenomeIndex: /data/ref_indexes/bowtie2/rn4_UCSC/genome
+genomeFasta: /data/konganti/lncRNApipe-test/genome.fa
+bowtieGenomeIndex: /data/konganti/lncRNApipe-test/Danio_rerio.Zv9.66.dna
 tophat:
  - --b2-sensitive
- - --transcriptome-index=/data/konganti/FASTQ_RNAseq/transcriptome_index/rn4
+ - --transcriptome-index=/data/konganti/lncRNApipe-test/Danio_rerio.Zv9.66
  - --no-coverage-search
 
 #
@@ -206,7 +206,8 @@ tophat:
 #
 cufflinks:
  - -u
- - -b /data/ref_fasta/rn4_UCSC/genome.fa
+ - -b /data/konganti/lncRNApipe-test/genome.fa
+ - -g /data/konganti/lncRNApipe-test/genes.gtf
 
 #
 # Provide cuffcompare options.
@@ -226,18 +227,19 @@ cufflinks:
 # files.
 #
 cuffcompare:
- - -i /data/cufflinks/assembly_list.txt
+ - -i /data/konganti/lncRNApipe-test/assembly_list.txt
 
 #
 # Provide categorize_ncRNAs.pl options
 # See "perl lncRNApipe -h cat" for description of options.
 # 
 categorize_ncRNAs:
- - -sample-names "cca,fpa,cpa,fca,ccs,cps,fcs,fps"
+ - -sample-names "2cells,6h"
  - -len 200
  - -min-exons 1
  - -ov 80
  - -inc
+ - -ignore-genePred-err
 
 #
 # Provide get_unique_features.pl options.
@@ -254,6 +256,8 @@ categorize_ncRNAs:
 #
 get_unique_features:
  - -ov 80
+ - -sf /data/konganti/lncRNApipe-test/zf_noncode2016.gtf
+ - -sff gtf
 
 #
 # By, default, RNAfold is not run since it is very slow.
@@ -329,6 +333,5 @@ cuffmerge:
 runCuffdiffForAllTranscripts: YES
 cuffdiff:
  - -u
- - -b /data/ref_fasta/rn4_UCSC/genome.fa
-# - -bam /data/aligned_rn4_UCSC/sample1/rep1.bam,/data/aligned_rn4_UCSC/sample1/rep2.bam /data/aligned_rn4_UCSC/sample2/rep1.bam,/data/aligned_rn4_UCSC/sample2/rep2.bam
+ - -b /data/konganti/lncRNApipe-test/genome.fa
 
