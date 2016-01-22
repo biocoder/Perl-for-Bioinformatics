@@ -60,7 +60,7 @@ Example (Using C<< g++ >> as the compiler):
 
 =head1 TEST SOFTWARE INSTALLATION
 
-Once you have finished installing, you can do a test run with the included data set to see if the software was installed and working properly. The test data and annotation was downloaded from L<EBI tutorial|https://www.ebi.ac.uk/training/online/course/ebi-next-generation-sequencing -practical-course/rna-sequencing/rna-seq-analysis-transcriptome> and subsetted to 25,000 reads. The known ncRNA information in GTF format was downloaded using Table Browser from <NONCODE|http://noncode.org/cgi-bin/hgTables?hgsid=1488803&clade=vertebrate&org=Zebrafish&db=danRer10&hgta_group=genes&hgta_track=NONCODE2016RNA> database. The reference genome and indices are limited to chromosome 12.
+Once you have finished installing, you can do a test run with the included data set to see if the software was installed and working properly. The test data and annotation was downloaded from L<EBI tutorial|https://www.ebi.ac.uk/training/online/course/ebi-next-generation-sequencing -practical-course/rna-sequencing/rna-seq-analysis-transcriptome> and subsetted to 25,000 reads. The known ncRNA information in GTF format was downloaded using Table Browser from L<NONCODE|http://noncode.org/cgi-bin/hgTables?hgsid=1488803&clade=vertebrate&org=Zebrafish&db=danRer10&hgta_group=genes&hgta_track=NONCODE2016RNA> database. The reference genome and indices are limited to chromosome 12.
 
 To prepare the C<< params.yaml >> specific to your UNIX path, change into the directory where you installed B<lncRNApipe> and do:
 
