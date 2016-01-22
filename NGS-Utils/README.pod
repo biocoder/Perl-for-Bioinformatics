@@ -68,9 +68,7 @@ To prepare the C<< params.yaml >> specific to your UNIX path, change into the di
 
 The above command will replace all the UNIX paths in the file C<< params.yaml >> to the UNIX paths specific to your machine. Then, edit the file C<< params.test.yaml >> with appropriate values for C<< CPUs: >>, C<< scheduler: >>, C<< batchSubCmd: >>, C<< schedulerOpts: >> and / or C<< clusterOpts: >>. 
 
-Finally, run the pipeline on the test data.
-
-If you are running the job on a cluster, do:
+Finally, run the pipeline on the test data. If you are running the job on a cluster, do:
 
  perl lncRNApipe --conf lncRNApipe-test/params.test.yaml --dont-wait
 
