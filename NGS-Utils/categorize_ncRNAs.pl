@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-11 11:00:27 -0500 (Mon, 11 Jan 2015)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1041 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-25 09:11:27 -0500 (Mon, 25 Jan 2016)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1042 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -108,6 +108,10 @@ $io->error('Number of Sample Names [ ' . scalar(@lables) . " ] is not equal to N
 # Check validity of attribute column of GTF file
 $io->c_time('Checking for the validity of attribute column [ 9th column ] in supplied transcript assembly [ GTF ] file(s)...');
 
+# Check point names
+my $get_putative_ncRNAs_chkpt = $output . '.get_putative_ncRNAs.OK';
+my $get_genePred_chkpt = $output . '.get_genePred.OK';
+
 for (0 .. $#ARGV) {
     $io->verify_files([$ARGV[$_]],
                       ["Cufflinks assembled transcript"]);
@@ -127,7 +131,7 @@ for (0 .. $#ARGV) {
 $disp_anti_option = 'True' if (defined($antisense_only));
 $disp_anti_option = 'False' if (!defined($antisense_only));
 
-if (defined($categorize)) {    
+if (defined($categorize) || (-e $get_genePred_chkpt && -e $get_putative_ncRNAs_chkpt)) {    
     $io->execute_system_command(0,
 				"Using options:\n--------------\n" .
 				"Minimum transcript length              : $length\n" .
@@ -136,7 +140,7 @@ if (defined($categorize)) {
 				"Extract only Antisense exon overlaps   : $disp_anti_option");
     class_ncRNAs();
 }
-elsif (defined($genePred)) {
+elsif (defined($genePred) || -e $get_putative_ncRNAs_chkpt) {
     $io->execute_system_command(0,
                                 "Using options:\n--------------\n" .
                                 "Minimum transcript length              : $length\n" .
@@ -270,6 +274,7 @@ sub get_putative_ncRNAs {
 	$cpu->finish if (defined $num_cpu);
     }
     $cpu->wait_all_children if (defined $num_cpu);
+    $io->execute_system_command("touch $get_putative_ncRNAs_chkpt");
     return;
 }
 
@@ -299,6 +304,7 @@ sub get_genePred {
 	$cpu->finish if (defined $num_cpu);
     }
     $cpu->wait_all_children if (defined $num_cpu);
+    $io->execute_system_command("touch $get_genePred_chkpt");
     return;
 }
 
@@ -1267,6 +1273,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Jan-11-2016
+Jan-25-2016
 
 =cut

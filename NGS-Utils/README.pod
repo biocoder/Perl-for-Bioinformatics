@@ -782,6 +782,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Jan-22-2016
+Jan-25-2016
 
 =cut

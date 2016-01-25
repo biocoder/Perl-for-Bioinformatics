@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-22 15:47:27 -0500 (Fri, 22 Jan 2016)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-25 10:25:27 -0500 (Mon, 25 Jan 2016)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.1.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -54,10 +54,10 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'send-run-report=s'                => \$debug,
 				 'list=s'                           => \$sp_list,
 				 'configuration=s'                  => \$pipe_config,
-				 'kill-conf-jobs=s'                 => $kill_jobs_thru_conf,
+				 'kill-conf-jobs=s@'                => \$kill_jobs_thru_conf,
 				 'setup-compiler=s'                 => \$setup_compiler,
 				 'dont-wait-4-job-ids'              => \$donot_wait4jobIDs,
-				 'show-counts=s'                    => $show_lncrna_counts);
+				 'show-counts=s@'                   => \$show_lncrna_counts);
 
 # Initialize known defaults
 my $CAT_SC = 'categorize_ncRNAs.pl';
@@ -136,6 +136,7 @@ elsif (defined $sp_list) {
 elsif (defined $show_lncrna_counts && scalar @$show_lncrna_counts > 0) {
     my $io = run_lncRNApipe('version');
     foreach my $tr (@$show_lncrna_counts) {
+	print $tr, "\n";
 	disp_ncRNA_counts($io, $tr, 'Total identified');
     }
 }
@@ -1895,7 +1896,7 @@ sub run_lncRNApipe_from_conf {
     my $thru_conf_get_uq_feat_opts_k = "'-sf $nc_annot_gtf -sff gtf --known -ov 10 -extract'";
     if (defined $params->{'get_unique_features'} && is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+')) {
 	$thru_conf_get_uq_feat_opts_k = "'--known -extract "  . join(' ', @{$params->{'get_unique_features'}}) . "'";
-	$nc_annot_gtf = $io->strip_leading_and_trailing_spaces(is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
+	$nc_annot_gtf = $io->strip_leading_and_trailing_spaces(is_option_exists_in_anon($params->{'get_unique_features'}, '(?:-sf\s+|-source\s+)(.+)', 'EXTRACT'));
     }	
     $thru_conf_get_uq_feat_opts_k = "'-sf $nc_annot_gtf -sff gtf --known -extract " . join(' ', @{$params->{'get_unique_features'}}) . "'"
 	if (defined $params->{'get_unique_features'} && !is_option_exists_in_anon($params->{'get_unique_features'}, '-sf\s+|-source\s+'));
@@ -2288,7 +2289,7 @@ perl $USER_HOME/lncRNApipe --run $params->{'outputDir'} --cpu $params->{'CPUs'} 
 # lncRNApipe post assembly run. This is where we identify any possible known ncRNAs / lncRNAs.
 #
 #
-perl $USER_HOME/lncRNApipe --run $cuffdiff_known --cpu $params->{'CPUs'} $cat_opts_for_get_known_ncRNAs --get $thru_conf_get_uq_feat_opts_k --fetch --skip-cpc $thru_conf_rna_fold_opts $thru_conf_inf_opts >> $params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log 2>&1};
+perl $USER_HOME/lncRNApipe --run $cuffdiff_known --cpu $params->{'CPUs'} $cat_opts_for_get_known_ncRNAs --fetch --skip-cpc $thru_conf_rna_fold_opts $thru_conf_inf_opts >> $params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log 2>&1};
 
     $lncRNApipe_opts .= add_exit_check("$params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log",
 				       "$params->{'outputDir'}/lncRNApipe.postAssembly.status.log",
@@ -2513,16 +2514,20 @@ sub is_option_exists_in_anon {
     my $regex = shift;
     my $negate = shift;
 
-    foreach my $val (@$arr) {
-	if ($val =~ m/$regex/ && !$negate) {
+    foreach my $val (@$arr) {	
+	if ($val =~ m/$regex/ && $negate && $negate eq 'EXTRACT') {
+	    my $sample_name_exists = $1;
+	    return $sample_name_exists;
+	}
+	elsif ($val =~ m/$regex/ && !$negate) {
 	    my $sample_name_exists = $val;
 	    return $sample_name_exists;
 	}
-	elsif ($val !~ m/$regex/ && $negate) {
+	elsif ($val !~ m/$regex/ && $negate && $negate ne 'EXTRACT') {
 	    my $sample_name_exists = $val;
 	    return $sample_name_exists;
 	}
-    }
+    }   
     return 0;
 }
 
@@ -3777,6 +3782,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Jan-22-2016
+Jan-25-2016
 
 =cut
