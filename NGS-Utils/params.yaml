@@ -166,7 +166,7 @@ reads:
 # No need to provide -threads, as it will be handled by lncRNApipe.
 #
 trimmomatic:
- - ILLUMINACLIP:TruSeq3-SE.fa:2:30:10
+ - ILLUMINACLIP:TruSeq3-PE.fa:2:30:10
  - LEADING:20
  - TRAILING:20
  - SLIDINGWINDOW:5:20

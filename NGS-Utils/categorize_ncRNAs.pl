@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-25 09:11:27 -0500 (Mon, 25 Jan 2016)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1042 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-26 12:11:27 -0500 (Tue, 26 Jan 2016)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1043 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -111,6 +111,7 @@ $io->c_time('Checking for the validity of attribute column [ 9th column ] in sup
 # Check point names
 my $get_putative_ncRNAs_chkpt = $output . '.get_putative_ncRNAs.OK';
 my $get_genePred_chkpt = $output . '.get_genePred.OK';
+my $cat_class_zero = $output . '.cat.extractPat.zero';
 
 for (0 .. $#ARGV) {
     $io->verify_files([$ARGV[$_]],
@@ -275,6 +276,9 @@ sub get_putative_ncRNAs {
     }
     $cpu->wait_all_children if (defined $num_cpu);
     $io->execute_system_command("touch $get_putative_ncRNAs_chkpt");
+    
+    check_for_zero_class();
+
     return;
 }
 
@@ -282,6 +286,8 @@ sub get_putative_ncRNAs {
 sub get_genePred {
     my $cpu = '';
     $io->c_time('Converting putative ncRNAs list to Gene Prediction format using gtfToGenePred tool...');
+    
+    check_for_zero_class();
 
     my $exe_gtfToGenePred = 'gtfToGenePred';
     $exe_gtfToGenePred = $gtf_bin if (defined($gtf_bin) && $gtf_bin ne '');
@@ -312,6 +318,8 @@ sub get_genePred {
 sub class_ncRNAs {
     my $refAnnot = store_coords($refGenePred);
     my $cpu = my $info_sync_word = '';
+
+    check_for_zero_class();
 
     if (defined $num_cpu) {
 	$cpu = Parallel::ForkManager->new($num_cpu);
@@ -1027,6 +1035,18 @@ sub format_gtf {
     return $formatted_gtf;
 }
 
+# Exit if we do not have any cuffcompare class codes.
+sub check_for_zero_class {
+    for (0 .. $#ARGV) {
+	if (-e $get_putative_ncRNAs_chkpt && !-e $p_file_names_gtf->[$_]) {
+	    $io->warning("We could not find any requested class codes [ in $cuffcmp ] ...\nBailing out!");
+	    $io->execute_system_command("touch $cat_class_zero");
+	    exit 0;
+	}
+    }
+    return;
+}
+
 __END__
 
 =head1 NAME
@@ -1273,6 +1293,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Jan-25-2016
+Jan-26-2016
 
 =cut

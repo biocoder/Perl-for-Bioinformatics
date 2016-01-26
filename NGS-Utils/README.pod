@@ -1,3 +1,5 @@
+__END__
+
 =head1 NAME
 
  _            ____  _   _    _          _            
@@ -76,10 +78,35 @@ If you are running the pipeline on your local workstation, do:
 
  perl lncRNApipe --conf lncRNApipe-test/params.test.yaml
 
-The pipeline should finish and you should see a file called C<< lncRNApipe.postAssembly.status.log >> and it should show something like:
+After the pipeline finishes, you should see C<< passed >> in all status code files.
 
- lncRNApipe: AutoGenJobTime=Wed_Jan_20_15:33:27_2016 Run=1ALBMnJAnNClR Post assembly pipeline run has passed.
+C<< lncRNApipe-test/run/trimmomatic/status.log >>
+ 
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:14_2016 Run=1uzk7yVoHMcph AutoGenSampleName=run_1uzk7yVoHMcph.6h_rep_1 Trimmomatic run has passed.
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:13_2016 Run=1uzk7yVoHMcph AutoGenSampleName=run_1uzk7yVoHMcph.2cells_rep_1 Trimmomatic run has passed.
 
+C<< lncRNApipe-test/run/tophat/status.log >>
+ 
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:14_2016 Run=1uzk7yVoHMcph AutoGenSampleName=run_1uzk7yVoHMcph.6h_rep_1 Tophat run has passed.
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:13_2016 Run=1uzk7yVoHMcph AutoGenSampleName=run_1uzk7yVoHMcph.2cells_rep_1 Tophat run has passed.
+
+C<< lncRNApipe-test/run/cufflinks/status.log >>
+
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:14_2016 Run=1uzk7yVoHMcph AutoGenSampleName=run_1uzk7yVoHMcph.6h Cufflinks run has passed.
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:13_2016 Run=1uzk7yVoHMcph AutoGenSampleName=run_1uzk7yVoHMcph.2cells Cufflinks run has passed.
+
+C<< lncRNApipe-test/run/cufflinks/lncRNApipe_afterCufflinks.status.log >>
+ 
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:14_2016 Run=1uzk7yVoHMcph Cufflinks assembly run has passed.
+
+C<< lncRNApipe-test/run/cuffdiff_on_transcripts/status.log >>
+
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:14_2016 Run=1uzk7yVoHMcph Cuffdiff run has passed.
+
+C<< lncRNApipe-test/run4/lncRNApipe.postAssembly.status.log >>
+
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:14_2016 Run=1uzk7yVoHMcph Post assembly pipeline run has passed.    
+ 
 =head1 DESCRIPTION
 
 lncRNApipe is a complete automated pipeline to:
@@ -782,6 +809,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Jan-25-2016
+Jan-26-2016
 
 =cut

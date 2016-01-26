@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-25 10:25:27 -0500 (Mon, 25 Jan 2016)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.1.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-26 12:25:27 -0500 (Tue, 26 Jan 2016)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.1.2 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -255,7 +255,22 @@ sub run_lncRNApipe {
 
     } if (defined($cuffcmp_opts) && $cuffcmp_opts ne '');
     
-
+    # Find out if local FASTA mentioned with cuffcompare before running fetch_seq_from_ucsc.pl ########
+    my $local_ref_seq = '';
+    
+    # Use local reference FASTA instead of fetching, if provided with cuffcompare
+    # This needs to be outside do {}, to guarantee parsing, even if -fetch-seq does not have any options.
+    ($local_ref_seq) = ($cuffcmp_opts =~ m/-s\s+([^\s]*)/) if ($cuffcmp_opts);	
+    if ($local_ref_seq && -s $local_ref_seq && -e $local_ref_seq) {
+	$io->warning('Using local FASTA reference [ ' . $io->file_basename($local_ref_seq, 'suffix') . ' ] to fetch sequences to maintain consistency.' .
+			 "\n** Requires Bio::SeqIO module to be installed and available **", 'INFO!!');
+	$fetch_sc_opts = "-local $local_ref_seq";
+    }
+    elsif( ($local_ref_seq eq '' || !-s $local_ref_seq || !-e $local_ref_seq) &&
+	   (defined $fetch_sc_opts && $fetch_sc_opts eq '')) {
+	$io->error("We need to know where to fetch FASTA sequences from [ -local or -db or -ncbi ] ??\n\nSee $0 --h fetch for options.");
+    }
+    
     # Run categorize_ncRNAs.pl ########################################################################
     do {
 
@@ -263,6 +278,7 @@ sub run_lncRNApipe {
 	
 	my $is_failed = '';
 	my $cat_dir = $outdir . 'categorize_ncRNAs';
+	my $cat_class_zero = $cat_dir . '/.cat.extractPat.zero';
 	
 	if (!-e "$cuffcmp_dir/lncRNApipe_cuffcmp.tracking" || !-s "$cuffcmp_dir/lncRNApipe_cuffcmp.tracking") {
 	    
@@ -347,6 +363,18 @@ sub run_lncRNApipe {
 	}
 
 	$lncRNApipe_succ = pipeline_status($io, $is_failed);
+
+	# Rare case exit code. When categorize_ncRNAs.pl could not find cuffcompare class codes requested by user or pipeline.
+	if (-e $cat_class_zero) {
+	    $io->warning("Could not find any cuffcompare class codes as requested [ in $cuffcmp_dir/lncRNApipe_cuffcmp.tracking ] ...", 'INFO!');
+	    $lncRNApipe_succ = 1;
+	    
+	    undef $fetch_sc_opts;
+	    undef $start_cpc;
+	    undef $start_rnafold;
+	    undef $start_infernal;
+	    undef $skip_cpc;
+	}
 	
     } if (defined($categorize_sc_opts) && $categorize_sc_opts ne '');
 
@@ -438,22 +466,6 @@ sub run_lncRNApipe {
 	close lncRNApipe_categorize_mod;
 		
     } if (defined($get_uq_sc_opts) && $get_uq_sc_opts ne '');
-
-    # Find out if local FASTA mentioned with cuffcompare before running fetch_seq_from_ucsc.pl ########
-    my $local_ref_seq = '';
-    
-    # Use local reference FASTA instead of fetching, if provided with cuffcompare
-    # This needs to be outside do {}, to guarantee parsing, even if -fetch-seq does not have any options.
-    ($local_ref_seq) = ($cuffcmp_opts =~ m/-s\s+([^\s]*)/) if ($cuffcmp_opts);	
-    if ($local_ref_seq && -s $local_ref_seq && -e $local_ref_seq) {
-	$io->warning('Using local FASTA reference [ ' . $io->file_basename($local_ref_seq, 'suffix') . ' ] to fetch sequences to maintain consistency.' .
-			 "\n** Requires Bio::SeqIO module to be installed and available **", 'INFO!!');
-	$fetch_sc_opts = "-local $local_ref_seq";
-    }
-    elsif( ($local_ref_seq eq '' || !-s $local_ref_seq || !-e $local_ref_seq) &&
-	   (defined $fetch_sc_opts && $fetch_sc_opts eq '')) {
-	$io->error("We need to know where to fetch FASTA sequences from [ -local or -db or -ncbi ] ??\n\nSee $0 --h fetch for options.");
-    }
     
     # Run fetch_seq_from_ucsc.pl ######################################################################
     do {
@@ -3076,10 +3088,35 @@ If you are running the pipeline on your local workstation, do:
 
  perl lncRNApipe --conf lncRNApipe-test/params.test.yaml
 
-The pipeline should finish and you should see a file called C<< lncRNApipe.postAssembly.status.log >> and it should show something like:
+After the pipeline finishes, you should see C<< passed >> in all status code files.
 
- lncRNApipe: AutoGenJobTime=Wed_Jan_20_15:33:27_2016 Run=1ALBMnJAnNClR Post assembly pipeline run has passed.
+C<< lncRNApipe-test/run/trimmomatic/status.log >>
+ 
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:14_2016 Run=1uzk7yVoHMcph AutoGenSampleName=run_1uzk7yVoHMcph.6h_rep_1 Trimmomatic run has passed.
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:13_2016 Run=1uzk7yVoHMcph AutoGenSampleName=run_1uzk7yVoHMcph.2cells_rep_1 Trimmomatic run has passed.
 
+C<< lncRNApipe-test/run/tophat/status.log >>
+ 
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:14_2016 Run=1uzk7yVoHMcph AutoGenSampleName=run_1uzk7yVoHMcph.6h_rep_1 Tophat run has passed.
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:13_2016 Run=1uzk7yVoHMcph AutoGenSampleName=run_1uzk7yVoHMcph.2cells_rep_1 Tophat run has passed.
+
+C<< lncRNApipe-test/run/cufflinks/status.log >>
+
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:14_2016 Run=1uzk7yVoHMcph AutoGenSampleName=run_1uzk7yVoHMcph.6h Cufflinks run has passed.
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:13_2016 Run=1uzk7yVoHMcph AutoGenSampleName=run_1uzk7yVoHMcph.2cells Cufflinks run has passed.
+
+C<< lncRNApipe-test/run/cufflinks/lncRNApipe_afterCufflinks.status.log >>
+ 
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:14_2016 Run=1uzk7yVoHMcph Cufflinks assembly run has passed.
+
+C<< lncRNApipe-test/run/cuffdiff_on_transcripts/status.log >>
+
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:14_2016 Run=1uzk7yVoHMcph Cuffdiff run has passed.
+
+C<< lncRNApipe-test/run4/lncRNApipe.postAssembly.status.log >>
+
+ lncRNApipe: AutoGenJobTime=Tue_Jan_26_10:20:14_2016 Run=1uzk7yVoHMcph Post assembly pipeline run has passed.    
+ 
 =head1 DESCRIPTION
 
 lncRNApipe is a complete automated pipeline to:
@@ -3782,6 +3819,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Jan-25-2016
+Jan-26-2016
 
 =cut
