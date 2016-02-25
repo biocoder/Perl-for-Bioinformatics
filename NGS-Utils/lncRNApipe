@@ -1010,19 +1010,21 @@ sub setup_lncRNApipe {
 
     chomp(my $lncRNApipe_root = dirname(abs_path($0)));
 
-    #if (!-d "$lncRNApipe_root/.lncRNApipe.depbin") {
-    print "\n\nMoving required tools and scripts to current install path...\n";
-    system("mkdir $install_dir/.lncRNApipe.depbin");
-    system("mv $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/.lncRNApipe.depbin/* $install_dir/.lncRNApipe.depbin/.");
-    system("mv $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/* $install_dir/.");
-    #}
-
-    if (!-d "$lncRNApipe_root/lncRNApipe-test") {
-	print "\n\nMoving test data to current install path...\n";
-	system("mkdir $install_dir/lncRNApipe-test");
-	system("mv $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/lncRNApipe-test/* $install_dir/lncRNApipe-test/.");
+    if (!-d "$lncRNApipe_root/.lncRNApipe.depbin") {
+	system("mkdir $install_dir/.lncRNApipe.depbin");
     }
     
+    if (!-d "$lncRNApipe_root/lncRNApipe-test") {
+	system("mkdir $install_dir/lncRNApipe-test");
+    }
+
+    print "\n\nMoving required tools and scripts to current install path...\n";
+    system("mv -f $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/.lncRNApipe.depbin/* $install_dir/.lncRNApipe.depbin/.");
+    system("mv -f $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/* $install_dir/.");
+    
+    print "\n\nMoving test data to current install path...\n";
+    system("mv -f $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/lncRNApipe-test/* $install_dir/lncRNApipe-test/.");
+      
     print "\n\nCleaning up build directory...\n";
     system("rm -rf $install_dir/.build");
 
