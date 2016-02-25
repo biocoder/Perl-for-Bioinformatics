@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-02-25 08:27:27 -0500 (Thu, 25 Feb 2016)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.1.3 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-02-25 09:27:27 -0500 (Thu, 25 Feb 2016)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.1.4 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -1010,20 +1010,18 @@ sub setup_lncRNApipe {
 
     chomp(my $lncRNApipe_root = dirname(abs_path($0)));
 
-    if (!-d "$lncRNApipe_root/.lncRNApipe.depbin") {
-	print "\n\nMoving required tools and scripts to current install path...\n";
-	system("mkdir $install_dir/.lncRNApipe.depbin");
-	system("mv $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/.lncRNApipe.depbin/* $install_dir/.lncRNApipe.depbin/.");
-    }
+    #if (!-d "$lncRNApipe_root/.lncRNApipe.depbin") {
+    print "\n\nMoving required tools and scripts to current install path...\n";
+    system("mkdir $install_dir/.lncRNApipe.depbin");
+    system("mv $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/.lncRNApipe.depbin/* $install_dir/.lncRNApipe.depbin/.");
+    system("mv $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/* $install_dir/.");
+    #}
 
     if (!-d "$lncRNApipe_root/lncRNApipe-test") {
 	print "\n\nMoving test data to current install path...\n";
 	system("mkdir $install_dir/lncRNApipe-test");
 	system("mv $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/lncRNApipe-test/* $install_dir/lncRNApipe-test/.");
     }
-
-    print "\n\nMoving scripts to install path...\n";    
-    system("mv $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/* $install_dir/.");
     
     print "\n\nCleaning up build directory...\n";
     system("rm -rf $install_dir/.build");
