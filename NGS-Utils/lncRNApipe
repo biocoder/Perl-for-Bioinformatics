@@ -1019,13 +1019,13 @@ sub setup_lncRNApipe {
     }
 
     print "\n\nMoving required tools and scripts to current install path...\n";
-    system("mv -f $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/.lncRNApipe.depbin/* $install_dir/.lncRNApipe.depbin/.");
-    system("mv -f $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/* $install_dir/.");
+    system("cp -rf $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/.lncRNApipe.depbin/* $install_dir/.lncRNApipe.depbin/.");
+    system("cp -rf $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/* $install_dir/.");
     
-    print "\n\nMoving test data to current install path...\n";
-    system("mv -f $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/lncRNApipe-test/* $install_dir/lncRNApipe-test/.");
+    print "Moving test data to current install path...\n";
+    system("cp -rf $install_dir/.build/Perl-for-Bioinformatics-$setup/NGS-Utils/lncRNApipe-test/* $install_dir/lncRNApipe-test/.");
       
-    print "\n\nCleaning up build directory...\n";
+    print "Cleaning up build directory...\n";
     system("rm -rf $install_dir/.build");
 
     $io->execute_system_command(0, 'Detecting system architecture...');
