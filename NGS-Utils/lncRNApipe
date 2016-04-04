@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-02-25 09:27:27 -0500 (Thu, 25 Feb 2016)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.1.4 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-04-04 09:27:27 -0500 (Mon, 4 April 2016)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.1.5 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -2313,7 +2313,7 @@ perl $USER_HOME/lncRNApipe --run $cuffdiff_known --cpu $params->{'CPUs'} $cat_op
 
     $lncRNApipe_opts .= add_exit_check("$params->{'outputDir'}/lncRNApipe.postAssembly.run_$conf_run_id.log",
 				       "$params->{'outputDir'}/lncRNApipe.postAssembly.status.log",
-				       'aborted',
+				       'aborted|bailing',
 				       'islncRNApipePostAssemblyRunComplete',
 				       'Post assembly pipeline',
 				       '! -z');
@@ -3827,6 +3827,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Feb-25-2016
+Apr-04-2016
 
 =cut
