@@ -17,6 +17,7 @@ IO::Routine [![Build Status](https://api.travis-ci.org/biocoder/Perl-for-Bioinfo
 
 ☲☴ lncRNApipe [![Build Status](https://api.travis-ci.org/biocoder/Perl-for-Bioinformatics.png?branch=master)](https://travis-ci.org/biocoder/Perl-for-Bioinformatics)
 --------------------------
+
 * A pipeline to extract putative novel lncRNAs ab initio, given a list of transcripts in GTF format assembled from deep sequencing data (ex: RNA-Seq) and annotation data.
 
 * Head on to [NGS-Utils](https://github.com/biocoder/Perl-for-Bioinformatics/tree/master/NGS-Utils) directory for script list.
@@ -58,12 +59,9 @@ or to get help documentation for individual modules, do:
     * The pipeline script uses a lot of inherent Linux core utils and has been only tested in BASH shell.
     * Please use absolute full PATH names. Instead of using `lncRNApipe --run ./lncRNApipe_output ...`, use
           `lncRNApipe --run /data/lncRNApipe_output ...`
+          
 
- 
-           
-
-
+CITATION:
 =========
-Cheers,
+**Assessment of Histone Tail Modifications and Transcriptional Profiling During Colon Cancer Progression Reveals a Global Decrease in H3K4me3 Activity** Karen Triff; Mathew W McLean; Kranti Kranti; Jiahui Pang; Evelyn Callaway; Beiyan Zhou; Ivan Ivanov; Robert S. Chapkin *Molecular Basis of Disease 2017* **(Accepted for publication)**
 
-BioCoder
