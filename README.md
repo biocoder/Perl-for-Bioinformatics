@@ -61,7 +61,7 @@ or to get help documentation for individual modules, do:
           `lncRNApipe --run /data/lncRNApipe_output ...`
           
 
-CITATION:
-=========
+Cite lncRNApipe:
+-----------------------
 **Assessment of Histone Tail Modifications and Transcriptional Profiling During Colon Cancer Progression Reveals a Global Decrease in H3K4me3 Activity** Karen Triff; Mathew W McLean; Kranti Kranti; Jiahui Pang; Evelyn Callaway; Beiyan Zhou; Ivan Ivanov; Robert S. Chapkin *Molecular Basis of Disease 2017* **(Accepted for publication)**
 
