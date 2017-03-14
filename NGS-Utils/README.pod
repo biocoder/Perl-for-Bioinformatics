@@ -40,6 +40,11 @@ Run the B<I<identification stage>> of the pipeline through command-line options 
                  --rna \
                  --inf &> lncRNApipe.run.log
 
+=head1 CITATION
+
+B<Assessment of Histone Tail Modifications and Transcriptional Profiling During Colon Cancer Progression Reveals a Global Decrease in H3K4me3 Activity> Karen Triff; Mathew W McLean; Kranti Kranti; Jiahui Pang; Evelyn Callaway; Beiyan Zhou; Ivan Ivanov; Robert S. Chapkin B<I<Molecular Basis of Disease 2017> (Accepted for publication)>
+
+
 =head1 INSTALLATION
 
 lncRNApipe was developed in Linux environment and can be installed on UNIX based machines. If it is a 64-bit machine, all required prerequisites are sandboxed with the software and taken care of, which should run in most instances. lncRNApipe will attempt to find any available prerequisites on your machine and will default to them before using sandboxed binaries. All you need to do is run the following command to install the pipeline and all of its required dependencies:
