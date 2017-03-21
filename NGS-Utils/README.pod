@@ -42,7 +42,7 @@ Run the B<I<identification stage>> of the pipeline through command-line options 
 
 =head1 CITATION
 
-B<Assessment of Histone Tail Modifications and Transcriptional Profiling During Colon Cancer Progression Reveals a Global Decrease in H3K4me3 Activity> Karen Triff; Mathew W McLean; Kranti Kranti; Jiahui Pang; Evelyn Callaway; Beiyan Zhou; Ivan Ivanov; Robert S. Chapkin B<I<Molecular Basis of Disease 2017> (Accepted for publication)>
+B<Assessment of Histone Tail Modifications and Transcriptional Profiling During Colon Cancer Progression Reveals a Global Decrease in H3K4me3 Activity> Karen Triff; Mathew W McLean; Kranti Kranti; Jiahui Pang; Evelyn Callaway; Beiyan Zhou; Ivan Ivanov; Robert S. Chapkin B<I<Molecular Basis of Disease 2017>>
 
 
 =head1 INSTALLATION
