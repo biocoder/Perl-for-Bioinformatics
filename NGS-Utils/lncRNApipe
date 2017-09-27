@@ -771,7 +771,7 @@ sub run_lncRNApipe {
 								       " CM_TXT_OUT=$tbl CPC_TXT_OUT=$CPC_out_file COV=$inf_cov" .
                                                                        ' ' . $deps->{'ann-inf'});
 
-		    $io->execute_system_command($deps->{'gen-inf'} . ' -q ' . ' --tbl ' .
+		    $io->execute_system_command($deps->{'gen-inf'} . ' -q ' . '--tbl ' .
 						$tbl . ' --final ' . $lncRNApipe_final_trs . ' &> ' . $lncRNApipe_allInfernal_trs,
 						"Command call:\n" .
 						"-------------\n" . $deps->{'gen-inf'} . ' -q ' . ' --tbl ' . $tbl .
