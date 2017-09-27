@@ -13,7 +13,7 @@ my ($VERSION) = q$LastChangedRevision: 2708 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 # Declare initial global variables
-my ($quiet, $help, $coords, $coords2, $final_gtf, $infernal_tbl);
+my ($quiet, $help, $coords2, $final_gtf, $infernal_tbl);
 
 my $is_valid_option = GetOptions ('help|?'            => \$help,
                                   'quiet'             => \$quiet,
@@ -45,7 +45,6 @@ $io->verify_files([$infernal_tbl, $final_gtf],
 my $gtf_fh = $io->open_file('<', $final_gtf);
 my $inf_fh = $io->open_file('<', $infernal_tbl);
 
-$coords = {};
 $coords2 = {};
 
 while (my $line = <$gtf_fh>) {
@@ -53,11 +52,9 @@ while (my $line = <$gtf_fh>) {
     next if ($line =~ m/^#/ || $line =~ m/\ttranscript\t/);
     my @gtf_fields = split(/\t/, $line);
     (my $tr_id) = ($gtf_fields[8] =~ m/transcript_id\s+\"(.+?)\"/);
-    
-    push(@{$coords->{$tr_id}}, $gtf_fields[3], $gtf_fields[4]);
 
     if (!exists  $coords2->{$tr_id}->{$gtf_fields[3]}) {
-	$coords2->{$tr_id}->{$gtf_fields[3]} = $gtf_fields[4];
+	$coords2->{$tr_id}->{$gtf_fields[3]} = $gtf_fields[4] if ($line =~ m/\texon\t/);
     } else {
 	$io->error("Found a duplicate coordinate for transcript id: $tr_id");
     }
@@ -88,26 +85,49 @@ while (my $line = <$inf_fh>) {
 	$signi="yes";
     }
 
-    my $first_ex_start = (sort {$b <=> $a} values @{$coords->{$query}})[-1];
+    my $first_ex_start = (sort {$a <=> $b} keys %{$coords2->{$query}})[0];
     my $match_coords = {};
-    my $ex_len = 0;
+    my $match_coords2 = {};
 
     # For each transcript these are the coordinates. Store only once.
     if (!exists $match_coords->{$query}) {
+	
+	# Transcribed mRNA.
+	my $ex_len = 1;
+
 	foreach my $coord ( sort {$a <=> $b} keys %{$coords2->{$query}} ) {
-	    #print "$coord - $first_ex_start + 1\n";
+	    # Debug only  
+	    #print $coords2->{$query}->{$coord} . "-" . $first_ex_start . "+ 1 - " . $coord . "-" . $first_ex_start . "+ 1 + 1\n";
+	    
+	    # First base
+	    #if (($coord - $first_ex_start) == 0) {
+	    
+	    $match_coords->{$query}->{$ex_len} = $coord;
+	    $match_coords2->{$query}->{$ex_len} = $coords2->{$query}->{$coord};
+	    #}
+	    
+	    #if (($coord - $first_ex_start) != 0) {
+		#$match_coords->{$query}->{$ex_len} = $coord;
+		#$match_coords2->{$query}->{$ex_len} = $coords2->{$query}->{$coord};
+	    #}
 	    
 	    $ex_len += ($coords2->{$query}->{$coord} - $first_ex_start + 1) - ($coord - $first_ex_start + 1) + 1;
-	    $match_coords->{$query}->{$ex_len} = $coord;
-	}
-    }
+	 }
+     }
+
+    # Debug only  
+    #$Data::Dumper::Sortkeys=1;
     
     if (exists $match_coords->{$query}) {
 	
 	foreach my $ex_start ( sort {$b <=> $a} keys %{$match_coords->{$query}} ) {
+	    
 	    if ($ex_start <= $seq_from) {
 		my $chr_ex_start = $match_coords->{$query}->{$ex_start};
 		my $inf_hit_start = my $inf_hit_end = 0;
+		
+		# Debug only
+		#print "$ex_start, $seq_from, $chr_ex_start, $query.$inf_ann_id\n";
 		
 		if ($strand eq "+") {
 		    $inf_hit_start = $chr_ex_start + ($seq_from - $ex_start) + 1;
@@ -118,8 +138,14 @@ while (my $line = <$inf_fh>) {
 		    $inf_hit_end = $chr_ex_start + ($seq_from - $ex_start) + 1;
 		}
 		
-		print STDOUT "$contig_id\tlncRNApipe-Infernal\texon\t$inf_hit_start\t$inf_hit_end\t$score\t$strand\t.\tgene_id \"$query\"; transcript_id \"$query.$inf_ann_id\"; Rfam_match_gene_id \"$gene_id\"; Rfam_match_gene_name \"$gene_name\"; exon_number \"1\" e_value \"$e_value\"; significant_match \"$signi\"; description \"$descr\";\n" if ($inf_hit_start && $inf_hit_end);
-		last;
+		# Debug only. Need to handle hits spanning junctions.
+		#print "$inf_hit_end, $match_coords->{$query}->{$ex_start} - $match_coords2->{$query}->{$ex_start}\n";
+		
+		if ($inf_hit_end <= $match_coords2->{$query}->{$ex_start}) {	 
+		
+		    print STDOUT "$contig_id\tlncRNApipe-Infernal\texon\t$inf_hit_start\t$inf_hit_end\t$score\t$strand\t.\tgene_id \"$query\"; transcript_id \"$query.$inf_ann_id\"; Rfam_match_gene_id \"$gene_id\"; Rfam_match_gene_name \"$gene_name\"; exon_number \"1\" e_value \"$e_value\"; significant_match \"$signi\"; description \"$descr\";\n" if ($inf_hit_start && $inf_hit_end);
+		    last;
+		}
 	    }
 	}
     }
