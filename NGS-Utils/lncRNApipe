@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-04-04 09:27:27 -0500 (Mon, 4 April 2016)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.1.5 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2017-09-29 09:27:27 -0500 (Fri, 29 September 2017)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.2.0 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -67,6 +67,7 @@ my $CPC_SH_SC = 'CPC.sh';
 my $ANN_INF_SC = 'annotate_final_ncRNAs.sh';
 my $RELPLOT_MOD_SC = 'relplot_mod.pl';
 my $SEND_MAIL_SC = 'send_lncRNApipe_log.pl';
+my $GEN_INFERNAL_HITS_SC = "gen_infernalHits_gtf.pl";
 my $HGCONF = 'hg.conf.sh';
 my $USER_HOME = dirname(abs_path($0));
 $inf_cov = 10 if (!defined $inf_cov);
@@ -770,9 +771,17 @@ sub run_lncRNApipe {
 								       " CM_TXT_OUT=$tbl CPC_TXT_OUT=$CPC_out_file COV=$inf_cov" .
                                                                        ' ' . $deps->{'ann-inf'});
 
+		    $io->execute_system_command($deps->{'gen-inf'} . ' -q ' . ' --tbl ' .
+						$tbl . ' --final ' . $lncRNApipe_final_trs . ' &> ' . $lncRNApipe_allInfernal_trs,
+						"Command call:\n" .
+						"-------------\n" . $deps->{'gen-inf'} . ' -q ' . ' --tbl ' . $tbl .
+						' --final ' . $lncRNApipe_final_trs . ' &> ' . $lncRNApipe_allInfernal_trs);
+		    
+		    
 		    $lncRNApipe_succ = pipeline_status($io, 'ERROR!', 'Cannot get annotation from Infernal run') if (!$infernal_run ||
 														     $infernal_run =~ m/could not capture/i ||
-														     !-e $tbl || !-e $raw || !-s $tbl || !-s $raw);
+														     !-e $tbl || !-e $raw || !-s $tbl || !-s $raw ||
+														     !-s $lncRNApipe_allInfernal_trs);
 		    print $tmp_annot $infernal_run;
 		    close $tmp_annot;
 		    $io->c_time('Moving around files...');
@@ -1148,6 +1157,7 @@ sub setup_lncRNApipe {
     print $dep_fh "$install_dir/" . $CPC_SH_SC, "\n" if (check_native("$install_dir/" . $CPC_SH_SC));
     print $dep_fh "$install_dir/" . $ANN_INF_SC, "\n" if (check_native("$install_dir/" . $ANN_INF_SC));
     print $dep_fh "$install_dir/" . $SEND_MAIL_SC, "\n" if (check_native("$install_dir/" . $SEND_MAIL_SC));
+    print $dep_fh "$install_dir/" . $GEN_INFERNAL_HITS_SC, "\n" if (check_native("$install_dir/" . $GEN_INFERNAL_HITS_SC));
     print $dep_fh "$install_dir/" . $HGCONF, "\n" if (check_native("$install_dir/" . $HGCONF));
 
     if (-e "$install_dir/.lncRNApipe.depbin/Rfam.cm.1_1" &&
@@ -1537,6 +1547,7 @@ sub get_deps {
     ($deps->{'ann-inf'}) = ($dep_tools =~ m/(.+?$ANN_INF_SC)/i);
     ($deps->{'relplot'}) = ($dep_tools =~ m/(.+?$RELPLOT_MOD_SC)/i);
     ($deps->{'email'}) = ($dep_tools =~ m/(.+?$SEND_MAIL_SC)/i);
+    ($deps->{'gen-inf'}) = ($dep_tools =~ m/(.+?$GEN_INFERNAL_HITS_SC)/i);
     ($deps->{'cpc_home'}) = ($dep_tools =~ m/cpcHome\:(.+)/i) if (!exists $ENV{'CPC_HOME'});
     
     foreach my $dep (keys %$deps) {
@@ -3831,6 +3842,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Apr-04-2016
+Sept-29-2017
 
 =cut

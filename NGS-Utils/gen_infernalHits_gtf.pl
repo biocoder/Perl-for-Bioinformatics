@@ -66,6 +66,7 @@ while (my $line = <$gtf_fh>) {
 close $gtf_fh;
 
 my $inf_ann_id = 0;
+
 while (my $line = <$inf_fh>) {
     chomp $line; 
     next if ($line =~ m/^#/);
@@ -106,18 +107,23 @@ while (my $line = <$inf_fh>) {
 	foreach my $ex_start ( sort {$b <=> $a} keys %{$match_coords->{$query}} ) {
 	    if ($ex_start <= $seq_from) {
 		my $chr_ex_start = $match_coords->{$query}->{$ex_start};
-		my $inf_hit_start = $chr_ex_start + ($seq_from - $ex_start) + 1;
-		my $inf_hit_end = $chr_ex_start + ($seq_to - $ex_start) + 1;
+		my $inf_hit_start = my $inf_hit_end = 0;
 		
-		print STDOUT "$contig_id\tlncRNApipe-Infernal\texon\t$inf_hit_start\t$inf_hit_end\t$score\t$strand\t.\tgene_id \"$query\"; transcript_id \"$query.$inf_ann_id\"; Rfam_match_gene_id \"$gene_id\"; Rfam_match_gene_name \"$gene_name\"; exon_number \"1\" e_value \"$e_value\"; significant_match \"$signi\"; description \"$descr\";\n";
+		if ($strand eq "+") {
+		    $inf_hit_start = $chr_ex_start + ($seq_from - $ex_start) + 1;
+		    $inf_hit_end = $chr_ex_start + ($seq_to - $ex_start) + 1;
+		}
+		elsif ($strand eq "-") {
+		    $inf_hit_start = $chr_ex_start + ($seq_to - $ex_start) + 1;
+		    $inf_hit_end = $chr_ex_start + ($seq_from - $ex_start) + 1;
+		}
+		
+		print STDOUT "$contig_id\tlncRNApipe-Infernal\texon\t$inf_hit_start\t$inf_hit_end\t$score\t$strand\t.\tgene_id \"$query\"; transcript_id \"$query.$inf_ann_id\"; Rfam_match_gene_id \"$gene_id\"; Rfam_match_gene_name \"$gene_name\"; exon_number \"1\" e_value \"$e_value\"; significant_match \"$signi\"; description \"$descr\";\n" if ($inf_hit_start && $inf_hit_end);
 		last;
 	    }
 	}
     }
 }
-
-
-
 
 __END__
 
