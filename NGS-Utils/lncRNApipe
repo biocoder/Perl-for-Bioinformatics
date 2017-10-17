@@ -1636,7 +1636,7 @@ sub check_for_updates {
     my $io = run_lncRNApipe('version');
 
     $io->warning('Checking for updates on github.com/biocoder ...', 'INFO!!');
-    my $newest_release = $io->execute_get_sys_cmd_output("curl -Lks https://api.github.com/repos/biocoder/Perl-for-Bioinformatics/releases | grep 'tag_name'");
+    my $newest_release = $io->execute_get_sys_cmd_output("curl -Lks https://api.github.com/repos/biocoder/Perl-for-Bioinformatics/releases | grep 'tag_name' | head -n 1");
     my $newest_release_date = $io->execute_get_sys_cmd_output("curl -Lks https://api.github.com/repos/biocoder/Perl-for-Bioinformatics/releases | grep 'created_at' | head -n 1");
     
     if ($newest_release =~ m/^could not/i) {
