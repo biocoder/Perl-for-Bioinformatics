@@ -112,6 +112,8 @@ while (my $line = <$inf_fh>) {
 	    # First base
 	    my $exon_spliced_out_start = $ex_len;
 
+	    next if ($coord == $coords2->{$query}->{$coord});
+
 	    $match_coords->{$query}->{$ex_len} = $coord;
 	    $match_coords2->{$query}->{$ex_len} = $coords2->{$query}->{$coord};
 	    
@@ -120,6 +122,8 @@ while (my $line = <$inf_fh>) {
 	    my $exon_spliced_out_end = $ex_len - 1;
 	    my $idx_name = $query . '.ex' . $ex_num;
 
+	    # Debug only
+	    #print "($idx_name, $exon_spliced_out_start, $exon_spliced_out_end, $first_ex_start, $coord, $coords2->{$query}->{$coord})\n";
             $coord_store->insert($idx_name, $exon_spliced_out_start, $exon_spliced_out_end);
             $hit_store->{$idx_name} = $coord . ',' . $coords2->{$query}->{$coord};
 	    $ex_num++;
