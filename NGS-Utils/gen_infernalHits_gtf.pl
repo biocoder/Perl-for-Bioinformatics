@@ -9,8 +9,8 @@ use Set::IntervalTree;
 use Data::Dumper;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2017-09-29 17:45:27 -0500 (Fri, 29 September 2017)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 2708 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2017-11-15 09:52:27 -0500 (Wed, 15 November 2017)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 2709 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 # Declare initial global variables
@@ -163,7 +163,16 @@ while (my $line = <$inf_fh>) {
 		}
 		elsif ($inf_hit_end > $match_coords2->{$query}->{$ex_start}) {
 		    my @junc_spanned;
-		    my $span_coords = $coord_store->fetch($seq_from, $seq_to);
+		    
+		    # Debug only
+		    #print "$seq_from, $seq_to\n";
+		    my $span_coords;
+		    if ($seq_from < $seq_to) {
+			$span_coords = $coord_store->fetch($seq_from, $seq_to); 
+		    }
+		    else {
+			$span_coords = $coord_store->fetch($seq_to, $seq_from); 
+		    }
 		    		    
 		    foreach my $ex_id (@$span_coords) {
 			my ($st, $en) = split(/\,/, $hit_store->{$ex_id});
@@ -280,6 +289,6 @@ This program is distributed under the Artistic License.
 
 =head1 DATE
 
-Sept-29-2017
+Nov-15-2017
 
 =cut
