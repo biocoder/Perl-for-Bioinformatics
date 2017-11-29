@@ -23,13 +23,13 @@ IO::Routine - An attempt to provide a solution to avoid routine IO chores.
 
 =over 3
 
-Version 0.37
+Version 0.38
 
 =back
 
 =cut
 
-our $VERSION = '0.37';
+our $VERSION = '0.38';
 
 =head1 SYNOPSIS
 
@@ -470,8 +470,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # IO::Routine Constructor
 
-my ($thisHelp, $thisQuiet, $podFilename);
-$thisHelp = $thisQuiet = $podFilename = 0;
+my $thisHelp = my $thisQuiet = my $podFilename = 0;
 
 sub new {
     my $class = shift;
@@ -823,28 +822,43 @@ sub check_sys_level_cmds {
             $cmd_version_out =~ m/^.*?(\d+[\.\d]*)/) {
             my $curr_version = $curr_version_unf = $1;
 	    my $curr_version_parts = [split(/\./, $curr_version)];
-	    if ($#$curr_version_parts <= $#$req_version_parts) {
-		$loop_limiter = $#$curr_version_parts 
-	    }
-	    else {
-		$loop_limiter = $#$req_version_parts;
-	    }
-	    
-	    for (my $j=0; $j<=$loop_limiter; $j++) {
-		my $ver_diff = @$curr_version_parts[$j] - @$req_version_parts[$j];
-		if ($ver_diff < 0) {
-		    if (defined $warn) {
-			 warning($self,
-				 "New version [ @$versions[$i] ] of the software [ @$cmds[$i] ] is available.\n" .
-				 "Update your software as instructed by the developer.\n", 'INFO!!');
-			 return 1;
-		    }
-		    else {
-			confess error($self,
-				      "At least Version @$versions[$i] required for system level command: @$cmds[$i]\nCurrent Version: $curr_version_unf\n");
-		    }
+
+	    if ($#$curr_version_parts < $#$req_version_parts) {
+		for (my $i=0; $i < ($#$req_version_parts - $#$curr_version_parts); $i++) {
+		    $curr_version .= ".0";
+		    $curr_version_parts = [split(/\./, $curr_version)];
 		}
 	    }
+	    elsif ($#$req_version_parts < $#$curr_version_parts) {
+		for (my $i=0; $i < ($#$curr_version_parts - $#$req_version_parts); $i++) {
+		    $req_version .= ".0";
+		    $req_version_parts = [split(/\./, $req_version)];
+		}
+	    }
+
+	    #if ($#$curr_version_parts <= $#$req_version_parts) {
+		#$loop_limiter = $#$curr_version_parts 
+	    #}
+	    #else {
+		#$loop_limiter = $#$req_version_parts;
+	    #}
+
+	    #for (my $j=0; $j<$loop_limiter; $j++) {
+	    my $ver_diff = join("", @$curr_version_parts) - join("", @$req_version_parts);
+	    
+	    if ($ver_diff < 0) {
+		if (defined $warn) {
+		    warning($self,
+			    "New version [ @$versions[$i] ] of the software [ @$cmds[$i] ] is available.\n" .
+			    "Update your software as instructed by the developer.\n", 'INFO!!');
+		    return 1;
+		}
+		else {
+		    confess error($self,
+				  "At least Version @$versions[$i] required for system level command: @$cmds[$i]\nCurrent Version: $curr_version_unf\n");
+		}
+	    }
+	    #}
 	}
 	else {
 	    confess error($self,
