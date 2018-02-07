@@ -1,20 +1,170 @@
 Bowtie 2 NEWS
 =============
 
-Bowtie 2 is now available for download from the project website,
-http://bowtie-bio.sf.net/bowtie2.  2.0.0-beta1 is the first version released to
-the public and 2.2.5 is the latest version.  Bowtie 2 is licensed under
-the GPLv3 license.  See `LICENSE' file for details.
+Bowtie 2 is available for download from the project website,
+http://bowtie-bio.sf.net/bowtie2 and on Github,
+https://github.com/BenLangmead/bowtie2/releases.  2.0.0-beta1 is
+the first version released to the public and 2.3.3 is the latest
+version.  Bowtie 2 is licensed under the GPLv3 license.  See `LICENSE'
+file for details.
 
 Reporting Issues
 ================
 
-Please report any issues using the Sourceforge bug tracker:
+Please report any issues to the Bowtie 2 Github page or using the Sourceforge bug tracker:
 
-  https://sourceforge.net/tracker/?group_id=236897&atid=1101606
+  * https://github.com/BenLangmead/bowtie2/issues
+  * https://sourceforge.net/tracker/?group_id=236897&atid=1101606
 
 Version Release History
 =======================
+
+Version 2.3.4.1 - Feb 3, 2018
+
+    * Fixed an issue with `--reorder` that caused bowtie2 to crash
+    while reordering SAM output
+
+Version 2.3.4 - Dec 29, 2017
+
+    * Fixed major issue causing corrupt SAM output when using many
+      threads (-p/--threads) on certain systems.
+    * Fixed an issue whereby bowtie2 processes could overwrite each
+      others' named pipes on HPC systems.
+    * Fixed an issue causing bowtie2-build and bowtie2-inspect to
+      return prematurely on Windows.
+    * Fixed issues raised by compiler "sanitizers" that could
+      potentially have caused memory corruption or undefined behavior.
+    * Added the "continuous FASTA" input format (`-F`) for aligning
+      all the k-mers in the sequences of a FASTA file.  Useful for
+      determining mapability of regions of the genome, and similar
+      tasks.
+
+Version 2.3.3.1 - Oct 05, 2017
+
+    * Fixed an issue causing input files to be skipped when running
+    multi-threaded alignment
+    * Fixed an issue causing the first character of a read name to be
+    dropped while parsing reads split across multiple input files
+
+Version 2.3.3 - Sep 09, 2017
+From this release forward prepackaged bowtie2 binaries are now
+statically linked to the zlib compression library and, the recommended
+threading library, TBB. Users who rely on prepackaged builds are
+no longer required to have these packages pre-installed. As a result
+of the aforementioned changes legacy packages have been discontinued.
+
+    * bowtie2-build now supports gzip-compressed FASTA inputs
+    * New --xeq parameter for bowtie2 disambiguates the 'M' CIGAR
+      flag. When specified, matches are indicated with the '=' operation and
+      mismatches with 'X'
+    * Fixed a possible infinite loop during parallel index building due
+      to the compiler optimizing away a loop condition
+    * Added --soft-clipped-unmapped-tlen parameter for bowtie2 that
+      ignores soft-clipped bases when calculating template length (TLEN)
+    * Added support for multi-line sequences in FASTA read inputs
+    * Expanded explanation of MD:Z field in manual
+    * Fixed a crashing bug when output is redirected to a pipe
+    * Fixed ambiguity in the SEED alignment policy that sometimes caused -N parameter to be ignored
+
+Version 2.3.2 - May 05, 2017
+    * Added support for interleaved paired-end FASTQ inputs
+      (--interleaved)
+    * Now reports MREVERSE SAM flag for unaligned end when only one
+      end of a pair aligns
+    * Fixed issue where first character of some read names was
+      omitted from SAM output when using tabbed input formats
+    * Added --sam-no-qname-trunc option, which causes entire read
+      name, including spaces, to be written to SAM output.  This
+      violates SAM specification, but can be useful in applications
+      that immediately postprocess the SAM.
+    * Fixed compilation error caused by pointer comparison issue
+      in aligner_result.cpp
+    * Removed termcap and readline dependencies introduced in v2.3.1
+    * Fixed compilation issues caused by gzbuffer function when
+      compiling with zlib v1.2.3.5 and earlier. Users compiling against
+      these libraries will use the zlib default buffer size of 8Kb
+      when decompressing read files.
+    * Fixed issue that would cause Bowtie 2 hang when aligning FASTA
+      inputs with more than one thread
+
+Version 2.3.1 - Mar 04, 2017
+Please note that as of this release Bowtie 2 now has dependencies on zlib and readline libraries.
+Make sure that all dependencies are met before attempting to build from source.
+
+    * Added native support for gzipped read files.  The wrapper
+      script is no longer responsible for decompression.  This
+      simplifies the wrapper and improves speed and thread scalability
+      for gzipped inputs.
+    * Fixed a bug that caused `bowtie2-build` to crash when the
+      first FASTA sequence contains all Ns.
+    * Add support for interleaved FASTQ format (`-—interleaved`)
+    * Empty FASTQ inputs would yield an error in Bowtie 2 2.3.0,
+      whereas previous versions would simply align 0 reads and report
+      the SAM header as usual.  This version returns to the pre-2.3.0
+      behavior, resolving a compatibility issue between TopHat2 and
+      Bowtie 2 2.3.0.
+    * Fixed a bug whereby combining `-—un-conc*` with `-k` or `-a`
+      would cause `bowtie2` to print duplicate reads in one or both
+      of the `--un-conc*` output files, causing the ends to be
+      misaligned.
+    * The default `--score-min` for `--local` mode is now `G,20,8`.
+      That was the stated default in the documentation for a while,
+      but the actual default was `G,0,10` for many versions.  Now the
+      default matches the documentation and, we find, yields more
+      accurate alignments than `G,0,10`
+
+Version 2.3.0 - Dec 13, 2016
+   * Code related to read parsing was completely rewritten to improve
+     scalability to many threads.  In short, the critical section is
+     simpler and parses input reads in batches rather than one at a time.
+     The improvement applies to all read formats.
+   * TBB is now the default threading library.  We consistently found TBB to give
+     superior thread scaling.  It is widely available and widely installed.
+     That said, we are also preserving a "legacy" version of Bowtie that,
+     like previous releases, does not use TBB.  To compile Bowtie source
+     in legacy mode use `NO_TBB=1`.  To
+     use legacy binaries, download the appropriate binary archive with
+     "legacy" in the name.
+   * Bowtie now uses a queue-based lock rather
+     than a spin or heavyweight lock.  We find this gives superior thread
+     scaling; we saw an order-of-magnitude throughput improvements at
+     120 threads in one experiment, for example.
+   * Unnecessary thread synchronization removed
+   * Fixed issue with parsing FASTA records with greater-than symbol in the name
+   * Now detects and reports inconsistencies between `--score-min` and `--ma`
+   * Changed default for `--bmaxdivn` to yield better memory footprint and running time when building an index with many threads
+
+Version 2.2.9 - Apr 22, 2016
+   * Fixed the multiple threads issue for the bowtie2-build.
+   * Fixed a TBB related build issue impacting TBB v4.4.
+
+Version 2.2.8 - Mar 10, 2016
+   * Various website updates.
+   * Fixed the bowtie2-build issue that made TBB compilation fail.
+   * Fixed the static build for Win32 platform.
+   
+
+Version 2.2.7 - Feb 10, 2016
+   * Added a parallel index build option: bowtie2-build --threads <# threads>.
+   * Fixed an issue whereby IUPAC codes (other than A/C/G/T/N) in reads were
+     converted to As. Now all non-A/C/G/T characters in reads become Ns.
+   * Fixed some compilation issues, including for the Intel C++ Compiler.
+   * Removed debugging code that could impede performance for many alignment
+     threads.
+   * Fixed a few typos in documentation.
+
+Version 2.2.6 - Jul 22, 2015
+   * Switched to a stable sort to avoid some potential reproducibility confusions.
+   * Added 'install' target for *nix platforms.
+   * Added the Intel TBB option which provides in most situations a better performance
+     output. TBB is not present by default in the current build but can be added 
+     by compiling the source code with WITH_TBB=1 option.
+   * Fixed a bug that caused seed lenght to be dependent of the -L and -N parameters order.
+   * Fixed a bug that caused --local followed by -N to reset seed lenght to 22 which is
+     actually the default value for global.
+   * Enable compilation on FreeBSD and clang, although gmake port is still required.
+   * Fixed an issue that made bowtie2 compilation process to fail on Snow Leopard.
+
 
 Version 2.2.5 - Mar 9, 2015
    * Fixed some situations where incorrectly we could detect a Mavericks platform.

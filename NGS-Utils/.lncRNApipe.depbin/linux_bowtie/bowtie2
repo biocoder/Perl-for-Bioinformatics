@@ -33,8 +33,10 @@ use warnings;
 use Getopt::Long qw(GetOptions);
 use File::Spec;
 use POSIX;
+use Sys::Hostname;
 
 
+my $host = hostname();
 my ($vol,$script_path,$prog);
 $prog = File::Spec->rel2abs( __FILE__ );
 
@@ -61,7 +63,8 @@ my @signame     = ();
 sub quote_params {
     my %params_2_quote = ('--rg' => 1, '--rg-id' => 1,
                           '-S' => 1, '-U' => 1,
-                          '-1' => 1, '-2' => 1
+                          '-1' => 1, '-2' => 1,
+                          '-x' => 1
     );
     my $param_list = shift;
     my $quoting = 0;
@@ -134,6 +137,7 @@ if(!$saw_dd) {
 }
 
 my $debug = 0;
+my $sanitized = 0;
 my %read_fns = ();
 my %read_compress = ();
 my $cap_out = undef;       # Filename for passthrough
@@ -192,6 +196,10 @@ for(my $i = 0; $i < scalar(@bt2_args); $i++) {
 		$debug = 1;
 		$bt2_args[$i] = undef;
 	}
+	if(not $debug and $arg eq "--sanitized") {
+		$sanitized = 1;
+		$bt2_args[$i] = undef;
+	}
 	if($arg eq "--no-unal") {
 		$no_unal = 1;
 		$bt2_args[$i] = undef;
@@ -217,6 +225,10 @@ for(my $i = 0; $i < scalar(@bt2_args); $i++) {
 			last;
 		}
 	}
+    if ($arg =~ /(bz2|lz4)$/) {
+        push @bt2w_args, ("-U", $arg);
+        $bt2_args[$i] = undef;
+    }
 }
 # If the user asked us to redirect some reads to files, or to suppress
 # unaligned reads, then we need to capture the output from Bowtie 2 and pass it
@@ -312,7 +324,7 @@ sub cat_file($$) {
 sub wrapInput($$$) {
 	my ($unps, $mate1s, $mate2s) = @_;
 	for my $fn (@$unps, @$mate1s, @$mate2s) {
-		return 1 if $fn =~ /\.gz$/ || $fn =~ /\.bz2$/ || $fn =~ /\.lz4$/;
+		return 1 if $fn =~ /\.bz2$/ || $fn =~ /\.lz4$/;
 	}
 	return 0;
 }
@@ -338,7 +350,18 @@ sub Extract_IndexName_From {
     my $index_opt = $ref_str ? '--index' : '-x';
     for (my $i=0; $i<@_; $i++) {
         if ($_[$i] eq $index_opt){
-            return $_[$i+1];
+            my $idx_basename = $_[$i+1];
+            my @idx_filenames = glob($idx_basename . "*.bt2{,l}");
+            unless (@idx_filenames) {
+                if (exists $ENV{"BOWTIE2_INDEXES"}) {
+                    @idx_filenames = glob("$ENV{'BOWTIE2_INDEXES'}/$idx_basename" . "bt2{,l}");
+                }
+
+                if (!@idx_filenames) {
+                    Fail("\"" . $idx_basename . "\" does not exist or is not a Bowtie 2 index\n");
+                }
+            }
+            return $idx_basename;
         }
     }
     Info("Cannot find any index option (--reference-string, --ref-string or -x) in the given command line.\n");    
@@ -353,7 +376,7 @@ if(wrapInput(\@unps, \@mate1s, \@mate2s)) {
 		scalar(@mate2s) == scalar(@mate1s) ||
 			Fail("Different number of files specified with --reads/-1 as with -2\n");
 		# Make a named pipe for delivering mate #1s
-		my $m1fn = "$temp_dir/$$.inpipe1";
+		my $m1fn = "$temp_dir/${host}_$$.inpipe1";
 		push @to_delete, $m1fn;
 		push @bt2_args, "-1 $m1fn";
 		# Create named pipe 1 for writing
@@ -370,7 +393,7 @@ if(wrapInput(\@unps, \@mate1s, \@mate2s)) {
 			exit 0 unless $no_pipes;
 		}
 		# Make a named pipe for delivering mate #2s
-		my $m2fn = "$temp_dir/$$.inpipe2";
+		my $m2fn = "$temp_dir/${host}_$$.inpipe2";
 		push @to_delete, $m2fn;
 		push @bt2_args, "-2 $m2fn";
 		# Create named pipe 2 for writing
@@ -392,7 +415,7 @@ if(wrapInput(\@unps, \@mate1s, \@mate2s)) {
 		# Wrap unpaired inputs.
 		#
 		# Make a named pipe for delivering unpaired reads
-		my $ufn = "$temp_dir/$$.unp";
+		my $ufn = "$temp_dir/${host}_$$.unp";
 		push @to_delete, $ufn;
 		push @bt2_args, "-U $ufn";
 		# Create named pipe 2 for writing
@@ -421,7 +444,7 @@ if(wrapInput(\@unps, \@mate1s, \@mate2s)) {
 }
 
 if(defined($ref_str)) {
-	my $ofn = "$temp_dir/$$.ref_str.fa";
+	my $ofn = "$temp_dir/${host}_$$.ref_str.fa";
 	open(my $ofh, ">$ofn") ||
 		Fail("could not open temporary fasta file '$ofn' for writing.\n");
 	print {$ofh} ">1\n$ref_str\n";
@@ -462,11 +485,17 @@ else {
     }
 }
 
-my $debug_str = ($debug ? "-debug" : "");
+my $suffix = "";
+if ($debug) {
+    $suffix = "-debug";
+}
+elsif($sanitized) {
+    $suffix = "-sanitized";
+}
 
 # Construct command invoking bowtie2-align
 quote_params(\@bt2_args);
-my $cmd = "\"$align_prog$debug_str\" --wrapper basic-0 ".join(" ", @bt2_args);
+my $cmd = "\"$align_prog$suffix\" --wrapper basic-0 ".join(" ", @bt2_args);
 
 # Possibly add read input on an anonymous pipe
 $cmd = "$readpipe $cmd" if defined($readpipe);
@@ -547,7 +576,7 @@ if(defined($cap_out)) {
 			my $unal = ($fl & 4) != 0;
 			$filt = 1 if $no_unal && $unal;
 			if($passthru) {
-				if(scalar(keys %read_fhs) == 0) {
+				if(scalar(keys %read_fhs) == 0 || ($fl & 256) != 0) {
 					# Next line is read with some whitespace escaped
 					my $l = <BT>;
 				} else {
