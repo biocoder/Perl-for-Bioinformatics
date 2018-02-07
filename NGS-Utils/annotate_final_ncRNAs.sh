@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # (C) Kranti Konganti
-# This program is distributed as Artistic License 2.0
+# This program is distributed as Artistic License 2.0.
 # 11/15/2017
 # Coordinate with lncRNApipe output to parse out and add Infernal annotation to final ncRNA transcripts.
 

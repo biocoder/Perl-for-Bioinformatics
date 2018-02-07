@@ -649,7 +649,7 @@ Kranti Konganti, E<lt>konganti@tamu.eduE<gt>.
 
 =head1 COPYRIGHT
 
-This program is distributed under the Artistic License.
+This program is distributed under the Artistic License 2.0.
 
 =head1 DATE
 

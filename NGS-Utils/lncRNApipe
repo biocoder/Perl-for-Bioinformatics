@@ -12,7 +12,7 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2017-10-17 09:27:27 -0500 (Tue, 17 October 2017)  $ =~ m/.+?\:(.+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-02-07 09:27:27 -0500 (Wed, 07 February 2018)  $ =~ m/.+?\:(.+)/;
 my ($VERSION) = q$LastChangedRevision: 1.2.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
@@ -1048,7 +1048,7 @@ sub setup_lncRNApipe {
     $io->error('It is not a 64-bit machine!' . 
 	       "\nIt is your responsibility to make sure that you have the following tools" .
 	       " installed for your system architecture and also must be found in \$PATH:\n" .
-	       "\nblastall, gtfToGenePred, genePredToGtf, bowtie, tophat, trimmomatic-0.33.jar\ncufflinks, cuffcompare, cuffdiff, cmscan, sambamba, formatdb, and RNAfold\n\nBailing out!") 
+	       "\nblastall, gtfToGenePred, genePredToGtf, bowtie, tophat, trimmomatic-0.36.jar\ncufflinks, cuffcompare, cuffdiff, cmscan, sambamba, formatdb, and RNAfold\n\nBailing out!") 
 	if ($sys_arch_info !~ m/x86\_64/i);
 
 
@@ -3056,7 +3056,7 @@ Run the complete pipeline from the configuration file C<< params.yaml >>:
 
  perl lncRNApipe --conf params.yaml
 
-Run the complete pipeline on the grid from the configuration file C<< params.yaml >> and do not wait for user confirmation of Grid job IDs:
+Run the complete pipeline on your local cluster's head node using the configuration file C<< params.yaml >> and do not wait for user confirmation of job IDs:
 
  perl lncRNApipe --conf params.yaml --dont-wait
 
@@ -3092,6 +3092,8 @@ If the setup process fails due to compiler issues, or if any Perl module install
 Example (Using C<< g++ >> as the compiler):
 
  perl lncRNApipe --setup --setup-compiler CC=g++
+
+B<SEE CAVEATS SECTION BELOW BEFORE YOU PROCEED TO TEST THE SOFTWARE INSTALLATION.>
 
 =head1 TEST SOFTWARE INSTALLATION
 
@@ -3598,6 +3600,24 @@ Use:
 
   lncRNApipe --run /data/lncRNApipe_output ...
 
+=item * If pipeline setup fails due to C<< XML::Parser >> module, you need to install XML parser C libraries. 
+
+On Ubuntu / Debian based Linux distributions, as C<< root >> user, do:
+
+    apt-get install libexpat1 libexpat1-dev
+                    
+On RedHat / Fedora / CentOS based Linux distributions, as C<< root >> user do:
+
+    yum install expat expat-devel
+
+=item * Please make sure your C<< $SHELL >> is C<< /bin/bash >>. Do:
+
+    echo $SHELL
+
+If it is not C<< /bin/bash >>, use the command C<< chsh -s /bin/bash >> to change your login shell. You need to log out and log back in for default login shell to take effect.
+
+=item * On newer Ubuntu distributions of Linux, even though C<< $SHELL >> shows C<< /bin/bash >>, the shell in fact points to C<< /bin/dash >>. To change that, follow these L<instructions|https://justinconover.wordpress.com/2012/05/14/ubuntu-changing-dash-to-bash>.
+
 =back
 
 =head1 OUTPUT
@@ -3838,10 +3858,10 @@ Kranti Konganti, E<lt>konganti@tamu.eduE<gt>.
 
 =head1 COPYRIGHT
 
-This program is distributed under the Artistic License.
+This program is distributed under the Artistic License 2.0.
 
 =head1 DATE
 
-Oct-17-2017
+Feb-07-2018
 
 =cut
