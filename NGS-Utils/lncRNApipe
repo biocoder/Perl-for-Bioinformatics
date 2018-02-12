@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-02-07 09:27:27 -0500 (Wed, 07 February 2018)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.2.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-02-12 09:27:27 -0500 (Mon, 12 February 2018)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.2.2 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -822,6 +822,11 @@ sub run_lncRNApipe {
 
     # \x{2633}
     if ($lncRNApipe_succ) {
+	$io->warning('INFERNAL authors state the following:' . 
+		     "\n\n" . 'We recommend that you use Rfam/Infernal for vertebrate genome annotation with extreme caution! ' .
+		     "\n" . 'Nevertheless, Rfam/Infernal does tell us about important sequence similarities that are effectively undetectable by other means. ' .
+		     "\n" . 'However, in complex eukaryotic genomes, it is important to treat hits as sequence similarity ' .
+		     "\n" . 'information (much as you might treat BLAST hits), rather than as evidence of bona fide ncRNA genes.', 'INFO!!');
 	$io->c_time("\x{2632}\x{2634} lncRNApipe Pipeline finished!");
     }
     else {
@@ -3862,6 +3867,6 @@ This program is distributed under the Artistic License 2.0.
 
 =head1 DATE
 
-Feb-07-2018
+Feb-12-2018
 
 =cut

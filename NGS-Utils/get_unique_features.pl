@@ -10,8 +10,8 @@ use IO::Routine;
 use Set::IntervalTree;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-11 12:48:27 -0500 (Mon, 1 Jan 2016)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 0605 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-02-12 10:48:27 -0500 (Mon, 12 Feb 2018)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 0606 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my $io = IO::Routine->new();
@@ -199,6 +199,8 @@ sub compare_feat {
     while (my $line = <$s_fh>) {
 	
 	chomp $line;
+	next if ($line =~ m/^\W/);
+	
 	my ($left_coords, $right_coords) = [];
 	
 	$line = $io->strip_leading_and_trailing_spaces($line);
@@ -261,6 +263,8 @@ sub compare_feat {
     my $insert_line = 0;
     while (my $line = <$c_fh>) {
 	chomp $line;
+	next if ($line =~ m/^\W/);
+
 	$line = $io->strip_leading_and_trailing_spaces($line);
 	
 	my @cols = split/\t/, $line;
@@ -653,6 +657,6 @@ This program is distributed under the Artistic License 2.0.
 
 =head1 DATE
 
-Jan-11-2016
+Feb-12-2018
 
 =cut

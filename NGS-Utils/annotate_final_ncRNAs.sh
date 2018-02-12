@@ -2,12 +2,12 @@
 
 # (C) Kranti Konganti
 # This program is distributed as Artistic License 2.0.
-# 11/15/2017
+# 02/12/2018
 # Coordinate with lncRNApipe output to parse out and add Infernal annotation to final ncRNA transcripts.
 
 # $LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-# $LastChangedDate: 2017-11-15 14:45:27 -0500 (Wed, 15 November 2017)  $ =~ m/.+?\:(.+)/;
-# $LastChangedRevision: 2707 $ =~ m/.+?\:\s*(.*)\s*.*/;
+# $LastChangedDate: 2018-02-12 09:45:27 -0500 (Mon, 12 February 2018)  $ =~ m/.+?\:(.+)/;
+# $LastChangedRevision: 2708 $ =~ m/.+?\:\s*(.*)\s*.*/;
 # $AUTHORFULLNAME = 'Kranti Konganti';
 
 if [  -z "$FINAL_GTF" ]  ||
@@ -26,7 +26,8 @@ grep noncoding $CPC_TXT_OUT | cut -f 1 | sort -n | uniq | while read unetrid; do
     contig_en=`grep -P "\ttranscript\t.+?\"$trid\".+" $FINAL_GTF | awk '{print $5}'`;
     trlen=`grep -P "\"$trid\"" $FINAL_GTF | grep -oP 'transcript_length \"\d+\"' | head -n 1 | perl -e '\$line = <>; if (\$line =~ m/.+?(\d+)/) {print \$1;}'`;
     hitlen=`grep -P "\s+$trid\s+" $CM_TXT_OUT | grep -P "\\s+\!\\s+" | sort -k15,15nr | uniq | head -n 1 | awk '{if(\$10=="+") print \$9-\$8; else print \$8-\$9;}'`;
-    annot=`grep -P "\s+$trid\s+" $CM_TXT_OUT | grep -P "\\s+\!\\s+" | sort -k15,15nr | uniq | awk '{$1=""; sc=$15; for(i=3;i<=17;i++) $i=""; if (length($0) != 0) print $0, " | BitScore: ",sc}' | cut -d " " -f 2- | sed -e 's/\s\+/ /g' | head -n 1`;
+    annot=`grep -P "\s+$trid\s+" $CM_TXT_OUT | grep -P "\\s+\!\\s+" | sort -k15,15nr | uniq | awk '{sc=$15; for(i=1;i<=17;i++); if (length($0) != 0) print "Match: ", $1, " | BitScore: ", sc}' | sed -e 's/\s\+/ /g' | head -n 1`;
+    #annot=`grep -P "\s+$trid\s+" $CM_TXT_OUT | grep -P "\\s+\!\\s+" | sort -k15,15nr | uniq | awk '{$1=""; sc=$15; for(i=3;i<=17;i++) $i=""; if (length($0) != 0) print $0, " | BitScore: ",sc}' | cut -d " " -f 2- | sed -e 's/\s\+/ /g' | head -n 1`;
 
     if [ -z "$trlen" ] || [ -z "$hitlen" ]; then
 	calc_cov=0.0;
