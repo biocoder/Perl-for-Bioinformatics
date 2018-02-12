@@ -20,13 +20,9 @@
 ##############################
 *.depconf
 *.PERLLIBS
-/NGS-Utils/.lncRNApipe.depbin/Rfam*
-/NGS-Utils/.lncRNApipe.depbin/Rfam*
-/NGS-Utils/.lncRNApipe.depbin/blastall
 /NGS-Utils/PERLLIBS
 
 # Ignore test run folder #
 ##############################
-/NGS-Utils/test_data/run
-/NGS-Utils/test_data/test_run
-/NGS-Utils/test_data/lncRNApipe-test
+/NGS-Utils/lncRNApipe-test/run/*
+/NGS-Utils/lncRNApipe-test/run/.lncRNApipe.runID
