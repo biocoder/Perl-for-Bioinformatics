@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-02-12 09:27:27 -0500 (Mon, 12 February 2018)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.2.2 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-02-14 11:27:27 -0500 (Mon, 14 Feb 2018)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.2.3 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -25,7 +25,7 @@ my ($help, $quiet, $setup, $get_uq_sc_opts,
     $lncRNApipe_ver_info, $no_update_check, 
     $skip_get_uq, $lncRNApipe_succ, $num_cpu_by_2,
     $skip_cpc, $debug, $sp_list, $pipe_config,
-    $conf_run_id, $setup_compiler,
+    $conf_run_id, $setup_compiler, $blast_strand,
     $cpanm_args, $donot_wait4jobIDs);
 
 my $kill_jobs_thru_conf = my $show_lncrna_counts = [];
@@ -38,11 +38,12 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'fetch-seq:s'                      => \$fetch_sc_opts,
 				 'get-uq-feat=s'                    => \$get_uq_sc_opts,
 				 'cpc'                              => \$start_cpc,
+				 'blast-strand:i'                   => \$blast_strand,
 				 'rnafold:s'                        => \$start_rnafold,
 				 'rm-int-plots'                     => \$rm_int_plots,
 				 'infernal:s'                       => \$start_infernal,
 				 'cpu=i'                            => \$num_cpu,
-				 'skip-blastall-core'               => \$skip_cpc_core,
+				 'skip-cpc-core'                    => \$skip_cpc_core,
 				 'skip-rnafold-core'                => \$skip_rnafold_core,
 				 'skip-cmscan-core'                 => \$skip_cmscan_core,
 				 'coverage-infernal|cov-inf=f'      => \$inf_cov,
@@ -208,6 +209,20 @@ sub run_lncRNApipe {
 
     my $dep_tools_fh = $io->open_file('<', $USER_HOME . '/.lncRNApipe.depconf');
     get_deps($dep_tools_fh);
+
+    # Check blast strand options for CPC.
+    if (defined $blast_strand && $blast_strand !~ m/^[123]$/) {
+	$io->error("The binary blastall takes only 1, 2, or 3 for -S argument, wherein\n" .
+		   "1 means search the plus strand of the query sequence\n" .
+		   "2 means search the minus strand of the query sequence\n" .
+		   "3 means earch both strands of the query sequence\n\n" .
+		   "You entered: $blast_strand !");
+    }
+    elsif (!defined $blast_strand) {
+	#$io->warning("Will run CPC using blastall [ with default option: -S 1 ]." .
+	#	     "\nUse --blast-strand option with lncRNApipe to change this.", 'INFO!!');
+	$blast_strand = 1;
+    }
     
     # User has requested to run the pipeline from assembly stage. Handle it here.
     run_lncRNApipe_from_conf($io, $shall_I_run, $s_time) if (ref($shall_I_run) eq 'HASH');
@@ -317,7 +332,7 @@ sub run_lncRNApipe {
 		$gtfToGenePred_failed =~ s/[\s\r\n]+//g;
 		
 		if ($gtfToGenePred_failed =~ m/exonFramesfieldisbeingadded/i) {
-		    $io->warning('Trying without -genePredExt ...', 'INFO!');
+		    $io->warning('Trying without -genePredExt ...', 'INFO!!');
 		    $gtfToGenePred_failed = $is_failed = $io->execute_get_sys_cmd_output($deps->{'bin-gtfToGenePred'} . ' -geneNameAsName2 ' .
 											 $annot . ' ' . $cat_dir . '/' . $io->file_basename($annot) . '.txt',
 											 "Command call:\n" .
@@ -367,7 +382,7 @@ sub run_lncRNApipe {
 
 	# Rare case exit code. When categorize_ncRNAs.pl could not find cuffcompare class codes requested by user or pipeline.
 	if (-e $cat_class_zero) {
-	    $io->warning("Could not find any cuffcompare class codes as requested [ in $cuffcmp_dir/lncRNApipe_cuffcmp.tracking ] ...", 'INFO!');
+	    $io->warning("We could not find any cuffcompare class codes as requested [ in $cuffcmp_dir/lncRNApipe_cuffcmp.tracking ] ...", 'INFO!!');
 	    $lncRNApipe_succ = 1;
 	    
 	    undef $fetch_sc_opts;
@@ -598,13 +613,13 @@ sub run_lncRNApipe {
 		$cpc_cpu = $num_cpu_by_2 if (defined $num_cpu);
 		
 		if (!defined $skip_cpc_core) {
-		    $io->execute_system_command('NUM_CPU=' . $cpc_cpu . ' ' . $deps->{'cpc'} . 
-						' "' . $lncRNApipe_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . ' ' . $cpc_work_dir . '" ' .
-						$blastall_path->($deps->{'blastall'}),
+		    $io->execute_system_command('BLAST_STRAND=' . $blast_strand . ' NUM_CPU=' . $cpc_cpu . ' ' . $deps->{'cpc'} . 
+						' "' . $lncRNApipe_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . ' ' .
+						$cpc_work_dir . '" ' . $blastall_path->($deps->{'blastall'}),
 						"Command call:\n" .
-						"-------------\n" . 'NUM_CPU=' . $cpc_cpu . ' ' . $deps->{'cpc'} .
-						' "' . $lncRNApipe_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . ' ' . $cpc_work_dir . '" ' .
-						$blastall_path->($deps->{'blastall'}));
+						"-------------\n" . 'BLAST_STRAND=' . $blast_strand . ' NUM_CPU=' . $cpc_cpu . ' ' . $deps->{'cpc'} .
+						' "' . $lncRNApipe_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . ' ' .
+						$cpc_work_dir . '" ' . $blastall_path->($deps->{'blastall'}));
 		}
 	    } if (defined $start_cpc);
 	    
@@ -798,7 +813,7 @@ sub run_lncRNApipe {
 					     "Truncated output from  $cat_dir/*.CPC.predict.txt"); 
 					    
 		$io->error("Could not get final putative lncRNA count.\n" .
-			   "Try re-running the final module. Take a look at --skip-blastall-core, --skip-rnafold-core and --skip-cmscan-core options." .
+			   "Try re-running the final module. Take a look at --skip-cpc-core, --skip-rnafold-core and --skip-cmscan-core options." .
 			   "\nThis may also mean that the putative lncRNAs that were used with CPC may have all been flagged as \"coding\".");
 	    }
 	    else {
@@ -2708,7 +2723,7 @@ sub get_job_dependency_chain {
 		"sleep 10; else break; fi; done;";
 	}
 	elsif ($file =~ m/job_IDs_cufflinks/i) {
-	    $job_deps_str = "while [ true ]; do if [ -e \"$check_file_presence\" ] && [ -s \"$check_file_presence\" ]; then " .
+	    $job_deps_str = "while [ true ]; do if [ -e \"$check_file_presence\" ] && [ -s \"$check_file_presence\" ] && [ ! -z \"\$(ps aux | grep -P 'cufflinks.+?($job_deps_str)' | grep -v grep)\" ]; then " .
 		"break; else sleep 10; fi; done;";
 	}
     }
@@ -3773,12 +3788,18 @@ features from C<< --cat-ncRNAs >> module.
 
 Run the C<< CPC >> module. No options are required.
 
+=item --blast-strand (Optional)
+
+Mention the query strand to search against the database. 1 = plus strand, 2 = minus strand, 3 = both.
+
+Default: 1
+
 =item --skip-cpc
 
 Skip runnning C<< CPC >> altogether. Use this option, if you think CPC is flagging a lot of
 your transcripts as B<I<coding>> and instead rely only on Infernal search results.
 
-=item --skip-blastall-core
+=item --skip-cpc-core
 
 Skip runnning core C<< CPC >> process once you know you have output from C<< CPC >>.
 This option can be used when lncRNApipe fails for some reason after C<< blastall >>
@@ -3867,6 +3888,6 @@ This program is distributed under the Artistic License 2.0.
 
 =head1 DATE
 
-Feb-12-2018
+Feb-14-2018
 
 =cut

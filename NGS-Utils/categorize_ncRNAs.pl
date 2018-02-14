@@ -9,7 +9,7 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2016-01-26 12:11:27 -0500 (Tue, 26 Jan 2016)  $ =~ m/.+?\:(.+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-02-14 08:47:27 -0500 (Wed, 14 Feb 2018)  $ =~ m/.+?\:(.+)/;
 my ($VERSION) = q$LastChangedRevision: 1043 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
@@ -987,8 +987,8 @@ sub check_gtf_attributes {
 		   qq/chr3\tCufflinks\ttranscript\t30549662\t30551349\t1000\t-\t.\tgene_id "CUFF.22498"; transcript_id "CUFF.22498.1"; FPKM "2.5052666329"; frac "1.000000"; conf_lo "1.676755"; conf_hi "3.353509"; cov "4.749121";\n/ .
 		   qq/chr3\tCufflinks\texon\t30549662\t30550273\t1000\t-\t.\tgene_id "CUFF.22498"; transcript_id "CUFF.22498.1"; exon_number "1"; FPKM "2.5052666329"; frac "1.000000"; conf_lo "1.676755"; conf_hi "3.353509"; cov "4.749121";\n/ .
 		   qq/chr3\tCufflinks\texon\t30551033\t30551349\t1000\t-\t.\tgene_id "CUFF.22498"; transcript_id "CUFF.22498.1"; exon_number "2"; FPKM "2.5052666329"; frac "1.000000"; conf_lo "1.676755"; conf_hi "3.353509"; cov "4.749121";\n/ .
-		     qq/\nYour File:\n----------\n/ . $io->execute_get_sys_cmd_output("head -n 3 $file"), 'INFO!');
-	$io->warning('Sit back and relax. We got it covered ... Formatting the GTF file to process with lncRNApipe.', 'INFO!');
+		     qq/\nYour File:\n----------\n/ . $io->execute_get_sys_cmd_output("head -n 3 $file"), 'INFO!!');
+	$io->warning('Sit back and relax. We got it covered ... Formatting the GTF file to process with lncRNApipe.', 'INFO!!');
 	$file = format_gtf($file, $label);
     }
     return $file;
@@ -1039,7 +1039,7 @@ sub format_gtf {
 sub check_for_zero_class {
     for (0 .. $#ARGV) {
 	if (-e $get_putative_ncRNAs_chkpt && !-e $p_file_names_gtf->[$_]) {
-	    $io->warning("We could not find any requested class codes [ in $cuffcmp ] ...\nBailing out!");
+	    #$io->warning("We could not find any requested class codes [ in $cuffcmp ] ...\nBailing out!");
 	    $io->execute_system_command("touch $cat_class_zero");
 	    exit 0;
 	}
@@ -1293,6 +1293,6 @@ This program is distributed under the Artistic License 2.0.
 
 =head1 DATE
 
-Jan-26-2016
+Feb-14-2018
 
 =cut

@@ -737,12 +737,18 @@ features from C<< --cat-ncRNAs >> module.
 
 Run the C<< CPC >> module. No options are required.
 
+=item --blast-strand (Optional)
+
+Mention the query strand to search against the database. 1 = plus strand, 2 = minus strand, 3 = both.
+
+Default: 1
+
 =item --skip-cpc
 
 Skip runnning C<< CPC >> altogether. Use this option, if you think CPC is flagging a lot of
 your transcripts as B<I<coding>> and instead rely only on Infernal search results.
 
-=item --skip-blastall-core
+=item --skip-cpc-core
 
 Skip runnning core C<< CPC >> process once you know you have output from C<< CPC >>.
 This option can be used when lncRNApipe fails for some reason after C<< blastall >>
@@ -831,6 +837,6 @@ This program is distributed under the Artistic License 2.0.
 
 =head1 DATE
 
-Feb-12-2018
+Feb-14-2018
 
 =cut
