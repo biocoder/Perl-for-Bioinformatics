@@ -9,8 +9,8 @@ use Parallel::ForkManager;
 use Fcntl qw / :flock SEEK_END /;
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-02-14 08:47:27 -0500 (Wed, 14 Feb 2018)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1043 $ =~ m/.+?(\d+)/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-02-20 11:47:27 -0500 (Tue, 20 Feb 2018)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1044 $ =~ m/.+?(\d+)/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $cuffcmp, $genePred, $out, $sample_names,
@@ -75,7 +75,7 @@ $fpkm_cutoff = 0.0 if (!defined $fpkm_cutoff || $fpkm_cutoff eq '');
 $cov_cutoff = 0.0 if (!defined $cov_cutoff || $cov_cutoff eq '');
 $length = 200 if (!defined $length || $length eq '');
 $overlap = 0 if (!defined $overlap || $overlap eq '');
-$min_exons = 2 if (!defined $min_exons || $min_exons eq '');
+$min_exons = 1 if (!defined $min_exons || $min_exons eq '');
 $full_read_supp_def = 'yes' if (defined $full_read_supp);
 
 $io->c_time('Validating output path...');
@@ -1293,6 +1293,6 @@ This program is distributed under the Artistic License 2.0.
 
 =head1 DATE
 
-Feb-14-2018
+Feb-20-2018
 
 =cut

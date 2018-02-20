@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-02-14 11:27:27 -0500 (Mon, 14 Feb 2018)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.2.3 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-02-20 11:50:27 -0500 (Tue, 20 Feb 2018)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.2.4 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -761,10 +761,10 @@ sub run_lncRNApipe {
 
 		if (!defined $skip_cmscan_core) {
 		    
-		    $io->execute_system_command($deps->{'cmscan'} . ' ' . $start_infernal . ' --tblout ' .
+		    $io->execute_system_command($deps->{'cmscan'} . ' ' . ' --tblout ' .
 						$tbl . ' ' . $deps->{'rfam_cm'} . ' ' . $lncRNApipe_unique_seq_file . ' &> ' . $raw,
 						"Command call:\n" .
-						"-------------\n" . $deps->{'cmscan'} . ' ' . $start_infernal . ' --tblout ' .
+						"-------------\n" . $deps->{'cmscan'} . ' ' . ' --tblout ' .
 						$tbl . ' ' . $deps->{'rfam_cm'} . ' ' . $lncRNApipe_unique_seq_file . ' &> ' . $raw);
 		}
 
@@ -3888,6 +3888,6 @@ This program is distributed under the Artistic License 2.0.
 
 =head1 DATE
 
-Feb-14-2018
+Feb-20-2018
 
 =cut
