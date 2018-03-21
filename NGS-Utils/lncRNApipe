@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-02-20 11:50:27 -0500 (Tue, 20 Feb 2018)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.2.4 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-03-22 15:50:27 -0500 (Wed, 22 Mar 2018)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.3.0 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -598,7 +598,8 @@ sub run_lncRNApipe {
 		unlink $lncRNApipe_final_trs if (-e $lncRNApipe_final_trs);
 		
 		$ENV{'CPC_HOME'} = $deps->{'cpc_home'} if (!exists $ENV{'CPC_HOME'});
-
+		$ENV{'PATH'} = $deps->{'cpc_home'} . '/bin:' . $ENV{'PATH'} if (dirname((split /\:/, $ENV{'PATH'})[0]) ne $deps->{'cpc_home'});
+		
 		if (!-d $ENV{'CPC_HOME'} || $ENV{'CPC_HOME'} eq '') {
 		    $io->error("Environment variable CPC_HOME must be set pointing to CPC directory before running CPC.\n" .
 			       'See CPC installation instructions (http://cpc.cbi.pku.edu.cn/docs/install_guide.jsp)');
@@ -608,17 +609,19 @@ sub run_lncRNApipe {
 					    'Making output directory for ' . $io->file_basename($deps->{'cpc'}, 'suffix') . ' [ ' . $cat_dir . ' ]')
 		    if (!-d $cat_dir);
 				
-		$io->execute_system_command("mkdir -p $cpc_work_dir") if (!-d $cpc_work_dir);
+		#$io->execute_system_command("mkdir -p $cpc_work_dir") if (!-d $cpc_work_dir);
 
 		my $cpc_cpu = 1;
 		$cpc_cpu = $num_cpu_by_2 if (defined $num_cpu);
 		
 		if (!defined $skip_cpc_core) {
-		    $io->execute_system_command("source $deps->{'cpc_home'}/bin/activate cpc2");
+		    $io->execute_system_command("activate $deps->{cpc_home}/envs/cpc2");
 
-		    $io->execute_system_command("python $deps->{'cpc_home'}/CPC2.py -i " . $lncRNApipe_unique_seq_file .
+		    $io->execute_system_command("$deps->{cpc_home}/envs/cpc2/bin/python $deps->{'cpc_home'}/cpc2/bin/CPC2.py -i " . $lncRNApipe_unique_seq_file .
 						' ' . $blast_strand . " -o $CPC_out_file");
-		    
+
+		    $io->execute_system_command("deactivate");
+
 		#    $io->execute_system_command('BLAST_STRAND=' . $blast_strand . ' NUM_CPU=' . $cpc_cpu . ' ' . $deps->{'cpc'} . 
 		#				' "' . $lncRNApipe_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . ' ' .
 		#				$cpc_work_dir . '" ' . $blastall_path->($deps->{'blastall'}),
@@ -626,6 +629,7 @@ sub run_lncRNApipe {
 		#				"-------------\n" . 'BLAST_STRAND=' . $blast_strand . ' NUM_CPU=' . $cpc_cpu . ' ' . $deps->{'cpc'} .
 		#				' "' . $lncRNApipe_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . ' ' .
 		#				$cpc_work_dir . '" ' . $blastall_path->($deps->{'blastall'}));
+
 		}
 	    } if (defined $start_cpc);
 	    
@@ -637,7 +641,7 @@ sub run_lncRNApipe {
 				$io->file_basename($unique_gtf, 'suffix') .
 				" ] ...");
 		    
-		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -f 1 | " .
+		    $io->execute_system_command("grep -v '#' $CPC_out_file | grep noncoding | cut -f 1 | " .
 						'while read trid; do grep -P "${trid//\./\\\.}\W" ' .
 						"$unique_gtf; done &> $lncRNApipe_final_trs");
 		    
@@ -645,7 +649,7 @@ sub run_lncRNApipe {
 				$io->file_basename($unique_gtf, 'suffix') .
 				" ] ...");
 		    
-		    $io->execute_system_command("grep noncoding $CPC_out_file | cut -f 1 | ".
+		    $io->execute_system_command("grep -v '#' $CPC_out_file | grep noncoding | cut -f 1 | ".
 						'while read trid; do grep -A 1 -P "${trid//\./\\\.}\W" ' .
 						"$lncRNApipe_unique_seq_file; done &> $lncRNApipe_unique_seq_noncoding_file");
 		    $lncRNApipe_unique_seq_file = $lncRNApipe_unique_seq_noncoding_file;
@@ -1238,10 +1242,10 @@ sub setup_cpc {
     
     get_deps($depconf_fh);
 
-    my $miniconda_inst = 'https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh';
+    my $miniconda_inst = 'https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh';
 
     if ($sys_arch =~ m/darwin/i && $sys_arch =~ m/x86_64/i) {
-        $miniconda_inst = 'https://repo.continuum.io/miniconda/Miniconda2-latest-MacOSX-x86_64.sh';
+        $miniconda_inst = 'https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh';
     }
 
     my $miniconda_inst_name = basename($miniconda_inst);
@@ -1264,7 +1268,9 @@ sub setup_cpc {
     system("rm $cpc_saved");
     system("mkdir -p $curr_dir/cpc2");
     system("mv $curr_dir/CPC2-master/* $curr_dir/cpc2/.");
-    system("ln -s $curr_dir/cpc2/bin/CPC2.py $curr_dir/.");
+    system("chmod 755 $curr_dir/bin/activate");
+    system("chmod 755 $curr_dir/bin/deactivate");
+    #system("ln -s $curr_dir/cpc2/bin/CPC2.py $curr_dir/.");
 
     chdir "$curr_dir/cpc2/libs/libsvm/libsvm-3.18";
     system("make clean && make > /dev/null 2>&1");
@@ -3916,6 +3922,6 @@ This program is distributed under the Artistic License 2.0.
 
 =head1 DATE
 
-Feb-20-2018
+Mar-22-2018
 
 =cut

@@ -737,11 +737,11 @@ features from C<< --cat-ncRNAs >> module.
 
 Run the C<< CPC >> module. No options are required.
 
-=item --blast-strand (Optional)
+=item --cpc-strand-reverse (Optional)
 
-Mention the query strand to search against the database. 1 = plus strand, 2 = minus strand, 3 = both.
+This option will direct CPC 2.0 to search the query strand in both forward and reverse directions.
 
-Default: 1
+Default: Only forward strand is searched.
 
 =item --skip-cpc
 
@@ -751,8 +751,8 @@ your transcripts as B<I<coding>> and instead rely only on Infernal search result
 =item --skip-cpc-core
 
 Skip runnning core C<< CPC >> process once you know you have output from C<< CPC >>.
-This option can be used when lncRNApipe fails for some reason after C<< blastall >>
-within C<< CPC >> has finished running but unable to continue forward.
+This option can be used when lncRNApipe fails for some reason after
+C<< CPC >> has finished running but unable to continue forward.
 
 =item --rna or --rnafold
 
@@ -837,6 +837,6 @@ This program is distributed under the Artistic License 2.0.
 
 =head1 DATE
 
-Feb-20-2018
+Mar-22-2018
 
 =cut
