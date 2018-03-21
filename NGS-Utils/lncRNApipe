@@ -38,7 +38,7 @@ my $is_valid_option = GetOptions('help:s'                           => \$help,
 				 'fetch-seq:s'                      => \$fetch_sc_opts,
 				 'get-uq-feat=s'                    => \$get_uq_sc_opts,
 				 'cpc'                              => \$start_cpc,
-				 'blast-strand:i'                   => \$blast_strand,
+				 'cpc-strand-reverse'               => \$blast_strand,
 				 'rnafold:s'                        => \$start_rnafold,
 				 'rm-int-plots'                     => \$rm_int_plots,
 				 'infernal:s'                       => \$start_infernal,
@@ -211,17 +211,18 @@ sub run_lncRNApipe {
     get_deps($dep_tools_fh);
 
     # Check blast strand options for CPC.
-    if (defined $blast_strand && $blast_strand !~ m/^[123]$/) {
-	$io->error("The binary blastall takes only 1, 2, or 3 for -S argument, wherein\n" .
-		   "1 means search the plus strand of the query sequence\n" .
-		   "2 means search the minus strand of the query sequence\n" .
-		   "3 means earch both strands of the query sequence\n\n" .
-		   "You entered: $blast_strand !");
+    if (defined $blast_strand) {
+	#$io->error("The binary blastall takes only 1, 2, or 3 for -S argument, wherein\n" .
+	#	   "1 means search the plus strand of the query sequence\n" .
+	#	   "2 means search the minus strand of the query sequence\n" .
+	#	   "3 means earch both strands of the query sequence\n\n" .
+	#	   "You entered: $blast_strand !");
+	$blast_strand = '-r';
     }
     elsif (!defined $blast_strand) {
 	#$io->warning("Will run CPC using blastall [ with default option: -S 1 ]." .
 	#	     "\nUse --blast-strand option with lncRNApipe to change this.", 'INFO!!');
-	$blast_strand = 1;
+	$blast_strand = '';
     }
     
     # User has requested to run the pipeline from assembly stage. Handle it here.
@@ -550,11 +551,11 @@ sub run_lncRNApipe {
 		       'fetch_seq_from_ucsc to read unique ncRNA features.');
 
 	push my @lncRNApipe_unique_seq_files, grep {/putative\.class\.lncRNAs.*?\.fa$/} readdir lncRNApipe_fetch_seq_mod;
-	my $blastall_path = sub {
-	    my @file_parts = $io->file_basename(shift, 'all');
-	    chop $file_parts[1] if ($file_parts[1] =~ m/\/$/);
-	    return $file_parts[1]
-	};
+	#my $blastall_path = sub {
+	#    my @file_parts = $io->file_basename(shift, 'all');
+	#    chop $file_parts[1] if ($file_parts[1] =~ m/\/$/);
+	#    return $file_parts[1]
+	#};
 	
 	$io->exist_sys_cmd(['cut']);
 	
@@ -592,7 +593,7 @@ sub run_lncRNApipe {
     	    # Run CPC ####################################################################################
 
 	    do {
-		module_header($io, 'Module 5: Running CPC.sh' . ' [ on ' .  $io->file_basename($lncRNApipe_unique_seq_file, 'suffix') . ' ] ...');
+		module_header($io, 'Module 5: Running CPC' . ' [ on ' .  $io->file_basename($lncRNApipe_unique_seq_file, 'suffix') . ' ] ...');
 	
 		unlink $lncRNApipe_final_trs if (-e $lncRNApipe_final_trs);
 		
@@ -613,13 +614,18 @@ sub run_lncRNApipe {
 		$cpc_cpu = $num_cpu_by_2 if (defined $num_cpu);
 		
 		if (!defined $skip_cpc_core) {
-		    $io->execute_system_command('BLAST_STRAND=' . $blast_strand . ' NUM_CPU=' . $cpc_cpu . ' ' . $deps->{'cpc'} . 
-						' "' . $lncRNApipe_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . ' ' .
-						$cpc_work_dir . '" ' . $blastall_path->($deps->{'blastall'}),
-						"Command call:\n" .
-						"-------------\n" . 'BLAST_STRAND=' . $blast_strand . ' NUM_CPU=' . $cpc_cpu . ' ' . $deps->{'cpc'} .
-						' "' . $lncRNApipe_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . ' ' .
-						$cpc_work_dir . '" ' . $blastall_path->($deps->{'blastall'}));
+		    $io->execute_system_command("source $deps->{'cpc_home'}/bin/activate cpc2");
+
+		    $io->execute_system_command("python $deps->{'cpc_home'}/CPC2.py -i " . $lncRNApipe_unique_seq_file .
+						' ' . $blast_strand . " -o $CPC_out_file");
+		    
+		#    $io->execute_system_command('BLAST_STRAND=' . $blast_strand . ' NUM_CPU=' . $cpc_cpu . ' ' . $deps->{'cpc'} . 
+		#				' "' . $lncRNApipe_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . ' ' .
+		#				$cpc_work_dir . '" ' . $blastall_path->($deps->{'blastall'}),
+		#				"Command call:\n" .
+		#				"-------------\n" . 'BLAST_STRAND=' . $blast_strand . ' NUM_CPU=' . $cpc_cpu . ' ' . $deps->{'cpc'} .
+		#				' "' . $lncRNApipe_unique_seq_file . ' ' . $CPC_out_file . ' ' . $cpc_work_dir . ' ' .
+		#				$cpc_work_dir . '" ' . $blastall_path->($deps->{'blastall'}));
 		}
 	    } if (defined $start_cpc);
 	    
@@ -1068,7 +1074,7 @@ sub setup_lncRNApipe {
     $io->error('It is not a 64-bit machine!' . 
 	       "\nIt is your responsibility to make sure that you have the following tools" .
 	       " installed for your system architecture and also must be found in \$PATH:\n" .
-	       "\nblastall, gtfToGenePred, genePredToGtf, bowtie, tophat, trimmomatic-0.36.jar\ncufflinks, cuffcompare, cuffdiff, cmscan, sambamba, formatdb, and RNAfold\n\nBailing out!") 
+	       "\ngtfToGenePred, genePredToGtf, bowtie, tophat, trimmomatic-0.36.jar\ncufflinks, cuffcompare, cuffdiff, cmscan, sambamba, formatdb, CPC2, and RNAfold\n\nBailing out!") 
 	if ($sys_arch_info !~ m/x86\_64/i);
 
 
@@ -1159,7 +1165,7 @@ sub setup_lncRNApipe {
     }
 
     print $dep_fh check_bio_util('cuffcompare', $install_dir, $sys_arch), "\n";
-    print $dep_fh check_bio_util('blastall', $install_dir, $sys_arch), "\n";
+    #print $dep_fh check_bio_util('blastall', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('RNAfold', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('gtfToGenePred', $install_dir, $sys_arch), "\n";
     print $dep_fh check_bio_util('genePredToGtf', $install_dir, $sys_arch), "\n";
@@ -1191,7 +1197,7 @@ sub setup_lncRNApipe {
 
     if (!exists $ENV{'CPC_HOME'}) {
 	if (ask_user("\n\nDo you want me to attempt to install CPC?", 120)) {
-	    	setup_cpc($dl_util_slave, $dep_fh);
+	    	setup_cpc($dl_util, $dep_fh, $sys_arch_info);
 		succ_or_fail(1, 'CPC');
 	}
 	else {
@@ -1218,6 +1224,7 @@ sub setup_lncRNApipe {
 sub setup_cpc {
     my $dl_util = shift;
     my $fh = shift;
+    my $sys_arch = shift;
 
     return if (exists $ENV{'CPC_HOME'});
 
@@ -1231,67 +1238,88 @@ sub setup_cpc {
     
     get_deps($depconf_fh);
 
+    my $miniconda_inst = 'https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh';
+
+    if ($sys_arch =~ m/darwin/i && $sys_arch =~ m/x86_64/i) {
+        $miniconda_inst = 'https://repo.continuum.io/miniconda/Miniconda2-latest-MacOSX-x86_64.sh';
+    }
+
+    my $miniconda_inst_name = basename($miniconda_inst);
     my $cpc_saved = 'master.zip';
     $cpc_saved = $setup . '.zip' if (defined $setup && $setup ne '');
 
-    print "\n\nAttempting to setup CPC [ github.com/biocoder/cpc ]. \nThis may take a while. Stay put...\n\n";
-    system("$dl_util https://github.com/biocoder/cpc/archive/master.zip > /dev/null 2>&1");
+    print "\n\nAttempting to setup CPC 2.0.\nThis may take a while as we will isolate the Python environment. Stay put...\n\n";
+
+    # Install isolated python, biopython and numpy
+    system("$dl_util $miniconda_inst > /dev/null 2>&1");
+    system("chmod 755 $miniconda_inst_name");
+    system("./$miniconda_inst_name -b -u -p $curr_dir > /dev/null 2>&1");
+    system("$curr_dir/bin/conda update -y -n base conda > /dev/null 2>&1");
+    system("$curr_dir/bin/conda config --set changeps1 False > /dev/null 2>&1");
+    system("$curr_dir/bin/conda create -y -n cpc2 python=2.7 biopython numpy -c bioconda");
+
+    # Install CPC2
+    system("$dl_util https://github.com/biocoder/CPC2/archive/master.zip > /dev/null 2>&1");
     system("unzip -d $curr_dir $cpc_saved > /dev/null 2>&1");
     system("rm $cpc_saved");
-    system("mv $curr_dir/cpc-master/* $curr_dir/.");
-    rmdir "$curr_dir/cpc-master";
+    system("mkdir -p $curr_dir/cpc2");
+    system("mv $curr_dir/CPC2-master/* $curr_dir/cpc2/.");
+    system("ln -s $curr_dir/cpc2/bin/CPC2.py $curr_dir/.");
 
-    chdir "$curr_dir/cpc-master/libs/libsvm/libsvm-2.81";
+    chdir "$curr_dir/cpc2/libs/libsvm/libsvm-3.18";
     system("make clean && make > /dev/null 2>&1");
+    system("rmdir $curr_dir/CPC2-master");
+    chdir "$curr_dir/../";
+    system("rm $miniconda_inst_name");
 
-    chdir "$curr_dir/cpc-master/libs/estate";
-    system("make clean && make > /dev/null 2>&1");
+    # chdir "$curr_dir/cpc-master/libs/estate";
+    # system("make clean && make > /dev/null 2>&1");
 
-    chdir "$curr_dir/data";
-    my $format_db = 'uniref90.fasta';
+    # chdir "$curr_dir/data";
+    # my $format_db = 'uniref90.fasta';
     
-    if (!ask_user("\nIf you already have uniref90.fasta file somewhere, then there is no point in wasting time to download it again.\n" .
-		  "Do you already have uniref90.fasta somewhere on this system?", 300)) {
+    # if (!ask_user("\nIf you already have uniref90.fasta file somewhere, then there is no point in wasting time to download it again.\n" .
+	# 	  "Do you already have uniref90.fasta somewhere on this system?", 300)) {
 	
-	print "\nAttempting protein database download...\n\n";
-	$dl_util =~ s/$cpc_saved/uniref90\.fasta\.gz/;
+	# print "\nAttempting protein database download...\n\n";
+	# $dl_util =~ s/$cpc_saved/uniref90\.fasta\.gz/;
 	
-	if (!-e "$curr_dir/data/uniref90.fa") {
-	    system("$dl_util ftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz");
-	    $format_db = "uniref90.fasta.gz";
-	}
-	else {
-	    print "\nFASTA file [ uniref90.fasta ] already exists in $curr_dir/data. Maybe download was incomplete ?";
-	    print "\nBailing out to make sure we are not formatting incomplete FASTA !" .
-		"\n\nMake sure you have properly downloaded uniref90.fasta file from:" .
-		"\n\tftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz" .
-		"\nand run the following command:\n" .
-		"\n\t$deps->{'formatdb'} -i $curr_dir/data/$format_db -p T -n prot_db\n\n";
-	    exit 0;
-	}
-    }
-    else {
-	my $uniref90_fasta_err = '';
-	until (-r $format_db && -e $format_db && -s $format_db) {
-	    $format_db = ask_user("$uniref90_fasta_err\nEnter full path to uniref90.fasta:", 300, 'fasta|fa');
-	    $uniref90_fasta_err = "\nCannot find $format_db or the file is empty or not readable...\n\nCPC [ ERROR: $! ] !!\n";
-	}
-    }
+	# if (!-e "$curr_dir/data/uniref90.fa") {
+	#     system("$dl_util ftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz");
+	#     $format_db = "uniref90.fasta.gz";
+	# }
+	# else {
+	#     print "\nFASTA file [ uniref90.fasta ] already exists in $curr_dir/data. Maybe download was incomplete ?";
+	#     print "\nBailing out to make sure we are not formatting incomplete FASTA !" .
+	# 	"\n\nMake sure you have properly downloaded uniref90.fasta file from:" .
+	# 	"\n\tftp://ftp.ebi.ac.uk/pub/databases/uniprot/uniref/uniref90/uniref90.fasta.gz" .
+	# 	"\nand run the following command:\n" .
+	# 	"\n\t$deps->{'formatdb'} -i $curr_dir/data/$format_db -p T -n prot_db\n\n";
+	#     exit 0;
+	# }
+    # }
+    # else {
+	# my $uniref90_fasta_err = '';
+	# until (-r $format_db && -e $format_db && -s $format_db) {
+	#     $format_db = ask_user("$uniref90_fasta_err\nEnter full path to uniref90.fasta:", 300, 'fasta|fa');
+	#     $uniref90_fasta_err = "\nCannot find $format_db or the file is empty or not readable...\n\nCPC [ ERROR: $! ] !!\n";
+	# }
+    # }
     
-    if ($format_db =~ m/\.gz$/) {
-	print "\nDecompressing uniref90.fasta.gz...\n";
-	system("gunzip uniref90.fasta.gz");
-	$format_db =~ s/\.gz$//;
-    }
+    # if ($format_db =~ m/\.gz$/) {
+	# print "\nDecompressing uniref90.fasta.gz...\n";
+	# system("gunzip uniref90.fasta.gz");
+	# $format_db =~ s/\.gz$//;
+    # }
     	
-    if (!-e "$curr_dir/data/formatdb.log" ||
-	!-s "$curr_dir/data/formatdb.log" ||
-	!-e "$curr_dir/data/prot_db.pal" ||
-	!-s "$curr_dir/data/prot_db.pal") {
+    # if (!-e "$curr_dir/data/formatdb.log" ||
+	# !-s "$curr_dir/data/formatdb.log" ||
+	# !-e "$curr_dir/data/prot_db.pal" ||
+	# !-s "$curr_dir/data/prot_db.pal") {
 	
-	print "\nFormatting database...\n";
-	system($deps->{'formatdb'} . " -i $format_db -p T -n prot_db");
-    }
+	# print "\nFormatting database...\n";
+	# system($deps->{'formatdb'} . " -i $format_db -p T -n prot_db");
+    # }
     
     return;
 }
@@ -1547,7 +1575,7 @@ sub get_deps {
     my $dep_tools_fh = shift;
     my $dep_tools = do {local $/; <$dep_tools_fh>};
     ($deps->{'cuffcompare'}) = ($dep_tools =~ m/(.+?cuffcompare)/i);
-    ($deps->{'blastall'}) = ($dep_tools =~ m/(.+?blastall)/i);
+    #($deps->{'blastall'}) = ($dep_tools =~ m/(.+?blastall)/i);
     ($deps->{'RNAfold'}) = ($dep_tools =~ m/(.+?rnafold)/i);
     ($deps->{'bin-gtfToGenePred'}) = ($dep_tools =~ m/(.+?gtfToGenePred)/i);
     ($deps->{'bin-genePredToGtf'}) = ($dep_tools =~ m/(.+?genePredToGtf)/i);
@@ -3788,11 +3816,11 @@ features from C<< --cat-ncRNAs >> module.
 
 Run the C<< CPC >> module. No options are required.
 
-=item --blast-strand (Optional)
+=item --cpc-strand-reverse (Optional)
 
-Mention the query strand to search against the database. 1 = plus strand, 2 = minus strand, 3 = both.
+This option will direct CPC 2.0 to search the query strand in both forward and reverse directions.
 
-Default: 1
+Default: Only forward strand is searched.
 
 =item --skip-cpc
 
@@ -3802,8 +3830,8 @@ your transcripts as B<I<coding>> and instead rely only on Infernal search result
 =item --skip-cpc-core
 
 Skip runnning core C<< CPC >> process once you know you have output from C<< CPC >>.
-This option can be used when lncRNApipe fails for some reason after C<< blastall >>
-within C<< CPC >> has finished running but unable to continue forward.
+This option can be used when lncRNApipe fails for some reason after
+C<< CPC >> has finished running but unable to continue forward.
 
 =item --rna or --rnafold
 
