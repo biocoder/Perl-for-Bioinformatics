@@ -974,6 +974,14 @@ sub setup_lncRNApipe {
 	system("rm -rf .build");
     }
 
+    if (-d "$install_dir/.lncRNApipe.depbin") {
+	system("rm -rf $install_dir/.lncRNApipe.depbin");
+    }
+
+    if (-d "$install_dir/.lncRNApipe.depconf") {
+	system("rm -rf $install_dir/.lncRNApipe.depconf");
+    }
+
     system("mkdir $install_dir/.build");
     succ_or_fail(0, '.build dir') if (!-d "$install_dir/.build");
 
