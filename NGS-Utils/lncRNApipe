@@ -1238,7 +1238,7 @@ sub setup_cpc {
     my $fh = shift;
     my $sys_arch = shift;
 
-    return if (exists $ENV{'CPC_HOME'});
+    #return if (exists $ENV{'CPC_HOME'});
 
     my $depconf_fh = read_conf('/.lncRNApipe.depconf');
  
