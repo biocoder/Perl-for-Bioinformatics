@@ -20,6 +20,7 @@
 ##############################
 *.depconf
 *.PERLLIBS
+.cpc
 /NGS-Utils/PERLLIBS
 
 # Ignore test run folder #
