@@ -3147,7 +3147,7 @@ lncRNApipe was developed in Linux environment and can be installed on UNIX based
 
 If you are on a 32-bit machine, run the same command as shown above, and lncRNApipe will let you know, which tools must to be installed and be available in your C<< $PATH >>.
 
-In any case, the setup process will prompt you to specify whether or not you want to install B<I<BioPerl>> and whether or not B<I<uniref90.fasta>> file should be downloaded and formatted to be used with C<< blastall >> command.
+In any case, the setup process will prompt you to specify whether or not you want to install B<I<BioPerl>>.
 
 If the setup process fails due to compiler issues, or if any Perl module installation fails, try setting different compiler specific to your machine state with the following command:
 
