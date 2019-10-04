@@ -52,7 +52,7 @@ CPUs: 16
 
 #
 # Specify scheduler type.
-# Valid options are PBS, SGE, LSF or NONE to disable grid computing.
+# Valid options are PBS, SGE, LSF, SLURM or NONE to disable grid computing.
 #
 scheduler: SGE
 

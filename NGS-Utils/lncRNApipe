@@ -12,8 +12,8 @@ use Data::Dumper;
 Getopt::Long::Configure('prefix=--');
 
 my ($LASTCHANGEDBY) = q$LastChangedBy: konganti $ =~ m/.+?\:(.+)/;
-my ($LASTCHANGEDDATE) = q$LastChangedDate: 2018-03-22 15:50:27 -0500 (Wed, 22 Mar 2018)  $ =~ m/.+?\:(.+)/;
-my ($VERSION) = q$LastChangedRevision: 1.3.0 $ =~ m/.+?\:\s*(.*)\s*.*/;
+my ($LASTCHANGEDDATE) = q$LastChangedDate: 2019-10-04 14:52:27 -0500 (Fri, 04 October 2019)  $ =~ m/.+?\:(.+)/;
+my ($VERSION) = q$LastChangedRevision: 1.3.1 $ =~ m/.+?\:\s*(.*)\s*.*/;
 my $AUTHORFULLNAME = 'Kranti Konganti';
 
 my ($help, $quiet, $setup, $get_uq_sc_opts,
@@ -3135,7 +3135,7 @@ Run the B<I<identification stage>> of the pipeline through command-line options 
 
 =head1 CITATION
 
-B<Assessment of Histone Tail Modifications and Transcriptional Profiling During Colon Cancer Progression Reveals a Global Decrease in H3K4me3 Activity> Karen Triff; Mathew W McLean; Kranti Kranti; Jiahui Pang; Evelyn Callaway; Beiyan Zhou; Ivan Ivanov; Robert S. Chapkin B<I<Molecular Basis of Disease 2017>>
+B<Assessment of Histone Tail Modifications and Transcriptional Profiling During Colon Cancer Progression Reveals a Global Decrease in H3K4me3 Activity> Karen Triff; Mathew W McLean; Kranti Konganti; Jiahui Pang; Evelyn Callaway; Beiyan Zhou; Ivan Ivanov; Robert S. Chapkin B<I<Molecular Basis of Disease 2017>>
 
 =head1 INSTALLATION
 
@@ -3930,6 +3930,6 @@ This program is distributed under the Artistic License 2.0.
 
 =head1 DATE
 
-Mar-22-2018
+Oct-04-2019
 
 =cut
