@@ -147,7 +147,7 @@ while (my $line = <$inf_fh>) {
 		$ex_num++;
 
 		# Debug only
-		print "($idx_name, $exon_spliced_out_start, $exon_spliced_out_end, $first_ex_start, $match_coords->{$query}->{$ex_len}, $match_coords2->{$query}->{$ex_len})\n";
+		#print "($idx_name, $exon_spliced_out_start, $exon_spliced_out_end, $first_ex_start, $match_coords->{$query}->{$ex_len}, $match_coords2->{$query}->{$ex_len})\n";
 	    }
 	}
 	elsif ($tr_strand eq "-") {
