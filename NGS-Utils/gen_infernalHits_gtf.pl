@@ -261,7 +261,7 @@ while (my $line = <$inf_fh>) {
     }    
 }
 
-=begin Unnecessary complicated code. Keeping for legacy reasons.
+=begin Unnecessary_complicated_code_._Keeping_for_legacy_reasons_.
     
     if (exists $match_coords->{$query}) {
 	
@@ -451,7 +451,7 @@ while (my $line = <$inf_fh>) {
     }
 }
 
-=end Unnecessary complicated code. Keeping for legacy reasons.
+=end Unnecessary_complicated_code_._Keeping_for_legacy_reasons_.
 
 =cut
 
