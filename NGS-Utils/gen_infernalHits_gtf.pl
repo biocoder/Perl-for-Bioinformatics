@@ -229,31 +229,36 @@ while (my $line = <$inf_fh>) {
 	foreach my $ex_start (sort {$a <=> $b} keys %$exons) {
 	    # Debug only
 	    #print "\n\nEx start: $ex_start, $exons->{$ex_start}\n";
-	    my $chr_ex_start = $match_coords->{$query}->{$ex_start};
-	    my $chr_ex_end = $match_coords2->{$query}->{$ex_start};
-	    # Debug only
-	    #print "\nchr ex start: $chr_ex_start, $chr_ex_end\n";
 
-	    if ($tr_strand eq "+") {
-		if ($strand eq "+") {
-		    $inf_hit_start = $chr_ex_start + ($seq_from - $ex_start);
-		    $inf_hit_end = $chr_ex_start + ($seq_to - $ex_start);
+	    if ( exists $match_coords->{$query}->{$ex_start} &&
+		 $match_coords2->{$query}->{$ex_start} ) {
+		
+		my $chr_ex_start = $match_coords->{$query}->{$ex_start};
+		my $chr_ex_end = $match_coords2->{$query}->{$ex_start};
+		# Debug only
+		#print "\nchr ex start: $chr_ex_start, $chr_ex_end\n";
+		
+		if ($tr_strand eq "+") {
+		    if ($strand eq "+") {
+			$inf_hit_start = $chr_ex_start + ($seq_from - $ex_start);
+			$inf_hit_end = $chr_ex_start + ($seq_to - $ex_start);
+		    }
+		    elsif ($strand eq "-") {
+			$inf_hit_start = $chr_ex_start + ($seq_to - $ex_start);
+			$inf_hit_end = $chr_ex_start + ($seq_from - $ex_start);
+		    }
 		}
-		elsif ($strand eq "-") {
-		    $inf_hit_start = $chr_ex_start + ($seq_to - $ex_start);
-		    $inf_hit_end = $chr_ex_start + ($seq_from - $ex_start);
-		}
-	    }
-	    elsif ($tr_strand eq "-") {
-		if ($strand eq "+") {
-		    # Debug only.
-		    #print "$chr_ex_start - ($seq_to - $exons->{$ex_start}) -  1\n";
-		    $inf_hit_start = $chr_ex_start - ($seq_to - $exons->{$ex_start});
-		    $inf_hit_end = $chr_ex_start - ($seq_from - $exons->{$ex_start});
-		}
-		elsif ($strand eq "-") {
-		    $inf_hit_start = $chr_ex_start - ($seq_from - $exons->{$ex_start});
-                    $inf_hit_end = $chr_ex_start - ($seq_to - $exons->{$ex_start});
+		elsif ($tr_strand eq "-") {
+		    if ($strand eq "+") {
+			# Debug only.
+			#print "$chr_ex_start - ($seq_to - $exons->{$ex_start}) -  1\n";
+			$inf_hit_start = $chr_ex_start - ($seq_to - $exons->{$ex_start});
+			$inf_hit_end = $chr_ex_start - ($seq_from - $exons->{$ex_start});
+		    }
+		    elsif ($strand eq "-") {
+			$inf_hit_start = $chr_ex_start - ($seq_from - $exons->{$ex_start});
+			$inf_hit_end = $chr_ex_start - ($seq_to - $exons->{$ex_start});
+		    }
 		}
 	    }
 	    print STDOUT "$contig_id\tlncRNApipe-Infernal\texon\t$inf_hit_start\t$inf_hit_end\t$score\t$strand\t.\tgene_id \"$query\"; transcript_id \"$query.$inf_ann_id\"; Rfam_match_gene_id \"$gene_id\"; Rfam_match_gene_name \"$gene_name\"; exon_number \"1\" e_value \"$e_value\"; significant_match \"$signi\"; description \"$descr\";\n" if ($inf_hit_start && $inf_hit_end);
